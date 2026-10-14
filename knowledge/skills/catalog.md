@@ -17,11 +17,17 @@ it, record what goes wrong, write the skill, re-run. Mechanical rules go in tool
 
 # Shipped
 
-| Skill | Use when |
+None yet.
+
+# Tried and not needed
+
+| Skill | Why not |
 |---|---|
-| [capturing-knowledge](../../.claude/skills/capturing-knowledge/SKILL.md) | adding or changing anything in `knowledge/`: a research finding, decision, hardware note, test result |
+| capturing-knowledge | Baseline test 2026-10-14: three agents given realistic tasks (a bench test full of personal data, a reversed decision, vendor and forum claims) with only AGENTS.md, [conventions](/conventions.md) and okflint all kept personal data out, attributed and sourced claims, superseded instead of editing the old decision, and updated index and log. Nothing for a skill to fix. Re-test if knowledge quality slips. |
 
 # Planned
+
+These do **not exist yet**. Do not cite them as if they apply; once written, each moves to Shipped.
 
 | Skill | Use when | Milestone |
 |---|---|---|

@@ -16,15 +16,16 @@ phase**: no product code yet; specs go in `docs/specs/`.
 |---|---|
 | `knowledge/` | The knowledge bundle (OKF v0.2): vision, decisions, research, hardware, security, skills. Read its `index.md` first. |
 | `docs/specs/` | Design specs, one per milestone, written after the design is agreed |
-| `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue: `knowledge/skills/catalog.md` |
+| `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |
 
 ## Rules
 
-1. **Knowledge goes in `knowledge/`, in OKF form.** Use the `capturing-knowledge`
-   skill for any research finding, decision, hardware note or test result.
-   Don't leave findings only in chat or commit messages.
+1. **Knowledge goes in `knowledge/`, in OKF form**, following
+   [`knowledge/conventions.md`](knowledge/conventions.md): any research finding,
+   decision, hardware note or test result. Don't leave findings only in chat or
+   commit messages. Run okflint before committing (the hook does too).
 2. **Nothing secret or personal is committed.** This repo is public. See
    `knowledge/security/secret-hygiene.md`. Never commit keys, PSKs, passwords,
    real names, precise locations, node IDs, MACs or private hostnames — use

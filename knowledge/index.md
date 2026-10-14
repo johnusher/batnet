@@ -20,5 +20,6 @@ Rules for adding to it: [knowledge conventions](conventions.md).
 * [Decisions](decisions/) - architecture decision records, one per choice, with status
 * [Research](research/) - what is out there and what the numbers say, with sources
 * [Hardware](hardware/) - boards, radios and add-ons, and what each can do
+* [Tests](tests/) - bench and field test write-ups; places, people and device IDs stay out
 * [Security](security/) - keeping secrets and personal data out of a public repo
 * [Skills](skills/) - the agent skills this repo ships, and the ones planned

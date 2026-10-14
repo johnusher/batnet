@@ -30,6 +30,7 @@ checks all of this and runs in the pre-commit hook.
 | `Decision` | `decisions/` | one architecture decision record, numbered `NNNN-slug.md` |
 | `Research Note` | `research/` | what we found about one question, with sources |
 | `Hardware` | `hardware/` | one class of board or radio and what it can do |
+| `Test Report` | `tests/` | one bench or field test: setup, results, what it settles, what was not recorded |
 | `Policy` | `security/` | a rule that protects people or secrets |
 | `Skill Catalog` | `skills/` | the agent skills, shipped and planned |
 
@@ -52,8 +53,9 @@ A new type is fine when none fits; add it to this table.
 * An agent writes a concept: no `verified` → **unverified**.
 * A person agrees with it (a decision they chose, a note they checked):
   add `verified: { by: human:<handle>, at: … }` → **human-reviewed**.
-* A bench or field test confirms a number: add a `verified` entry
-  `process:<test-name>` and link the test write-up.
+* A bench or field test confirms a number: write it up in `tests/`
+  (`YYYY-MM-DD-slug.md`), then add `verified: { by: process:<test-file-slug>, at: … }`
+  to the concepts it confirms and link the write-up.
 * Vendor claims stay attributed to the vendor in the body ("RAK says…").
 
 # What never goes in
