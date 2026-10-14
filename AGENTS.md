@@ -15,6 +15,7 @@ phase**: no product code yet; specs go in `docs/specs/`.
 | Path | What |
 |---|---|
 | `knowledge/` | The knowledge bundle (OKF v0.2): vision, decisions, research, hardware, security, skills. Read its `index.md` first. |
+| `prototypes/` | Throwaway design prototypes. `village-sim/`: the in-browser village model + web app mockup (`sim.js` runs in node too) |
 | `docs/specs/` | Design specs, one per milestone, written after the design is agreed |
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |

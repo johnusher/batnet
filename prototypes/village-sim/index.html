@@ -1,0 +1,942 @@
+<title>batnet Village Simulator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a survey-map workbench. Left: the village map with its instruments; right: the phone as one villager sees the app. */
+:root {
+  --paper: #eceee6;        /* map paper */
+  --panel: #f9faf6;
+  --ink: #1c2a36;
+  --muted: #56646e;
+  --rule: #d2d8cd;
+  --grid: #dfe3d8;
+  --wifi: #009688;         /* WiFi mesh links (validated pair with --lora) */
+  --lora: #c2620f;         /* LoRa */
+  --mesh: #5b5fc7;         /* Meshtastic users outside batnet */
+  --critical: #b3261e;
+  --warn: #8a5a00;
+  --warn-bg: #fbefd5;
+  --bezel: #20262b;
+  --app-bg: #ffffff;
+  --app-fg: #15202b;
+  --app-sub: #5f6b75;
+  --app-line: #e3e7ea;
+  --app-accent: #1f5f8b;
+  --app-me: #dcebf5;
+  --app-them: #f1f3f4;
+  --app-chip: #eef2f4;
+  --f-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --f-app: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #12171b; --panel: #192026; --ink: #e2e7ea; --muted: #97a3ab; --rule: #2b343b; --grid: #1d252b;
+    --wifi: #18a090; --lora: #d0702a; --mesh: #7a7fe6; --critical: #ef6b5f; --warn: #f0c060; --warn-bg: #3a2e14;
+    --bezel: #050708; --app-bg: #0f1418; --app-fg: #e6ebee; --app-sub: #94a0a8; --app-line: #232c33; --app-accent: #6fb0e0;
+    --app-me: #1d3a50; --app-them: #1c2328; --app-chip: #1c2429; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #12171b; --panel: #192026; --ink: #e2e7ea; --muted: #97a3ab; --rule: #2b343b; --grid: #1d252b;
+  --wifi: #18a090; --lora: #d0702a; --mesh: #7a7fe6; --critical: #ef6b5f; --warn: #f0c060; --warn-bg: #3a2e14;
+  --bezel: #050708; --app-bg: #0f1418; --app-fg: #e6ebee; --app-sub: #94a0a8; --app-line: #232c33; --app-accent: #6fb0e0;
+  --app-me: #1d3a50; --app-them: #1c2328; --app-chip: #1c2429; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--paper); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; padding-inline: 16px; padding-block: 0 32px; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+.num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* header */
+.top { max-width: 1480px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 12px 24px; padding-block: 18px 14px; border-bottom: 1px solid var(--rule); }
+.brand h1 { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: 30px; letter-spacing: .02em; text-transform: uppercase; line-height: 1; text-wrap: balance; }
+.brand h1 span { color: var(--muted); font-weight: 500; }
+.brand p { margin: 6px 0 0; color: var(--muted); font-size: 14px; max-width: 62ch; }
+.transport { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--panel); }
+.seg button { border: 0; background: none; padding: 6px 10px; font-family: var(--f-mono); font-size: 13px; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.btn { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 6px 12px; font-weight: 600; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.clock { display: flex; flex-direction: column; align-items: end; line-height: 1.05; }
+.clock b { font-family: var(--f-mono); font-size: 24px; font-weight: 600; }
+.clock small { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; }
+select.field, input.field { border: 1px solid var(--rule); background: var(--panel); border-radius: 8px; padding: 6px 8px; max-width: 100%; }
+
+/* workbench */
+.layout { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 392px; gap: 24px; padding-block: 18px 0; align-items: start; }
+@media (max-width: 1040px) { .layout { grid-template-columns: minmax(0, 1fr); } .phonecol { order: -1; } }
+.village { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+.eyebrow { font-family: var(--f-display); text-transform: uppercase; letter-spacing: .08em; font-weight: 600; font-size: 14px; color: var(--muted); margin: 0 0 8px; }
+
+.mapwrap { position: relative; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+.mapwrap canvas { display: block; width: 100%; aspect-ratio: 16 / 10; max-width: 100%; cursor: crosshair; }
+.maplegend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 12px; border-top: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
+.maplegend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
+.lg-wifi { width: 18px; height: 0; border-top: 2px solid var(--wifi); }
+.lg-p2p { width: 18px; height: 0; border-top: 2px dashed var(--wifi); }
+.lg-lora { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--lora); }
+.lg-house { width: 11px; height: 11px; border: 2px solid var(--ink); border-radius: 2px; }
+.lg-relay { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid var(--muted); }
+.lg-mesh { width: 9px; height: 9px; background: var(--mesh); transform: rotate(45deg); }
+
+/* summary tiles */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.tile .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.tile .v { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 22px; font-weight: 600; margin-top: 2px; }
+.tile .s { font-size: 12.5px; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; }
+.chip.warn { color: var(--warn); background: var(--warn-bg); }
+.chip.bad { color: var(--critical); }
+
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+figure.chart { margin: 0; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 10px 12px 6px; position: relative; min-width: 0; }
+figure.chart figcaption { font-weight: 600; font-size: 14px; }
+figure.chart figcaption small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+figure.chart svg { display: block; width: 100%; height: 150px; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: var(--paper); font-size: 12px; padding: 4px 7px; border-radius: 6px; white-space: nowrap; font-family: var(--f-mono); }
+
+.row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.card { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 14px; min-width: 0; }
+.controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; }
+.controls label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; color: var(--muted); }
+.controls label output { color: var(--ink); font-family: var(--f-mono); font-size: 13px; }
+.controls input[type=range] { width: 100%; accent-color: var(--ink); }
+.controls .full { grid-column: 1 / -1; }
+.controls .actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.inspector h3 { margin: 0; font-family: var(--f-display); font-size: 22px; font-weight: 700; letter-spacing: .01em; }
+.inspector .meta { color: var(--muted); font-size: 13px; margin: 2px 0 10px; }
+.inspector .grid { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; align-items: center; font-size: 14px; }
+.inspector .grid > span { color: var(--muted); font-size: 13px; }
+.caps { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.note { font-size: 13px; color: var(--muted); }
+.warnline { font-size: 13px; color: var(--warn); background: var(--warn-bg); border-radius: 6px; padding: 6px 8px; margin-top: 8px; }
+
+.bars { display: flex; flex-direction: column; gap: 6px; }
+.bar { display: grid; grid-template-columns: 130px minmax(0, 1fr) 92px; gap: 10px; align-items: center; font-size: 13px; }
+.bar .track { height: 10px; background: var(--grid); border-radius: 5px; position: relative; overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; background: var(--lora); border-radius: 0 4px 4px 0; }
+.bar .fill.mesh { background: var(--mesh); }
+.bar .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar .val { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+.tablewrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+td.n { font-family: var(--f-mono); font-variant-numeric: tabular-nums; text-align: right; }
+tr.sel td { background: var(--grid); }
+tbody tr { cursor: pointer; }
+details.assume summary { cursor: pointer; font-weight: 600; }
+details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-width: 90ch; }
+
+/* phone */
+.phonecol { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: flex; flex-direction: column; gap: 10px; align-items: center; }
+@media (max-width: 1040px) { .phonecol { position: static; } }
+.viewas { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 360px; font-size: 13px; color: var(--muted); }
+.phone { width: 100%; max-width: 360px; height: 720px; border-radius: 42px; border: 11px solid var(--bezel); background: var(--app-bg); color: var(--app-fg); font-family: var(--f-app); font-size: 15px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 18px 40px -24px rgba(0,0,0,.45); }
+.statusbar { display: flex; justify-content: space-between; padding: 8px 20px 4px; font-size: 12px; font-weight: 600; color: var(--app-fg); }
+.statusbar .nointernet { color: var(--app-sub); font-weight: 500; }
+.screen { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.phonenote { max-width: 360px; font-size: 13px; color: var(--muted); margin: 0; }
+
+.ap-head { padding: 8px 16px 10px; border-bottom: 1px solid var(--app-line); display: flex; align-items: center; gap: 10px; }
+.ap-head h2 { margin: 0; font-size: 18px; font-weight: 700; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ap-head .sub { display: block; font-size: 12px; color: var(--app-sub); font-weight: 400; }
+.ap-back { border: 0; background: none; font-size: 22px; line-height: 1; padding: 2px 6px 2px 0; color: var(--app-accent); }
+.ap-body { flex: 1; overflow-y: auto; min-height: 0; }
+.ap-pad { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+.ap-tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--app-line); }
+.ap-tabs button { border: 0; background: none; padding: 9px 2px 11px; font-size: 12px; color: var(--app-sub); display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ap-tabs button[aria-current="page"] { color: var(--app-accent); font-weight: 700; }
+.ap-tabs svg { width: 20px; height: 20px; }
+.ap-btn { border: 0; border-radius: 12px; padding: 12px 14px; font-weight: 700; font-size: 16px; background: var(--app-accent); color: var(--app-bg); }
+.ap-btn.ghost { background: var(--app-chip); color: var(--app-fg); }
+.ap-input { width: 100%; border: 1px solid var(--app-line); border-radius: 10px; padding: 11px 12px; background: var(--app-bg); color: var(--app-fg); font-size: 16px; }
+.ap-h1 { font-size: 24px; font-weight: 800; margin: 4px 0 0; line-height: 1.15; text-wrap: balance; }
+.ap-p { margin: 0; color: var(--app-sub); font-size: 15px; }
+.ap-url { font-family: var(--f-mono); font-size: 18px; background: var(--app-chip); border-radius: 10px; padding: 10px 12px; text-align: center; user-select: all; }
+.ap-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+.ap-warning { border: 1px solid var(--app-line); border-radius: 12px; padding: 12px; background: var(--app-chip); font-size: 14px; }
+.ap-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--app-line); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; }
+.ap-row .av { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--app-chip); flex: none; font-size: 15px; }
+.ap-row .main { flex: 1; min-width: 0; }
+.ap-row .title { font-weight: 650; display: flex; justify-content: space-between; gap: 8px; }
+.ap-row .title time { font-weight: 400; font-size: 12px; color: var(--app-sub); flex: none; }
+.ap-row .last { color: var(--app-sub); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--app-accent); color: var(--app-bg); font-size: 12px; font-weight: 700; display: grid; place-items: center; padding: 0 6px; flex: none; }
+.ap-section { padding: 14px 16px 6px; font-size: 12px; font-weight: 700; color: var(--app-sub); text-transform: uppercase; letter-spacing: .06em; display: flex; justify-content: space-between; gap: 8px; }
+.reach { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+.reach.call { color: var(--wifi); background: color-mix(in srgb, var(--wifi) 12%, transparent); }
+.reach.lora { color: var(--lora); background: color-mix(in srgb, var(--lora) 12%, transparent); }
+.reach.none { color: var(--app-sub); background: var(--app-chip); }
+.msgs { padding: 12px 12px 4px; display: flex; flex-direction: column; gap: 6px; }
+.bubble { max-width: 82%; padding: 7px 10px 5px; border-radius: 14px; background: var(--app-them); align-self: flex-start; font-size: 15px; overflow-wrap: anywhere; }
+.bubble.me { background: var(--app-me); align-self: flex-end; }
+.bubble .who { font-size: 12px; font-weight: 700; color: var(--app-accent); }
+.bubble .meta { font-size: 11.5px; color: var(--app-sub); text-align: right; margin-top: 2px; display: flex; gap: 6px; justify-content: flex-end; flex-wrap: wrap; }
+.bubble .meta .lora { color: var(--lora); font-weight: 600; }
+.bubble .meta .wait { color: var(--warn); font-weight: 600; }
+.daysep { align-self: center; font-size: 12px; color: var(--app-sub); background: var(--app-chip); padding: 2px 10px; border-radius: 999px; margin: 4px 0; }
+.compose { display: flex; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--app-line); align-items: center; }
+.compose input { flex: 1; min-width: 0; border-radius: 20px; }
+.iconbtn { border: 0; background: var(--app-chip); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--app-fg); flex: none; }
+.iconbtn.go { background: var(--app-accent); color: var(--app-bg); }
+.iconbtn[disabled] { opacity: .45; cursor: not-allowed; }
+.iconbtn svg { width: 20px; height: 20px; }
+.banner { margin: 8px 12px 0; padding: 8px 10px; border-radius: 10px; font-size: 13px; background: var(--app-chip); color: var(--app-sub); }
+.banner.lora { color: var(--lora); background: color-mix(in srgb, var(--lora) 10%, transparent); }
+.callscreen { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; padding: 24px; text-align: center; background: color-mix(in srgb, var(--wifi) 10%, var(--app-bg)); }
+.callscreen .big { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font-size: 36px; font-weight: 800; background: var(--app-chip); }
+.hang { background: var(--critical); color: #fff; border: 0; border-radius: 999px; padding: 12px 26px; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<header class="top">
+  <div class="brand">
+    <h1>batnet <span>village simulator</span></h1>
+    <p>A pretend village running entirely in this page, with no network. Houses link over WiFi mesh where they are close and over Meshtastic LoRa where they are not. Change the village, cut the power, and watch what each person's phone shows.</p>
+  </div>
+  <div class="transport">
+    <select id="scenario" class="field" aria-label="Scenario"></select>
+    <button id="play" class="btn primary" type="button">Pause</button>
+    <div class="seg" role="group" aria-label="Simulation speed" id="speeds"></div>
+    <div class="clock"><b id="clock">08:00</b><small id="day">Day 1 · simulated</small></div>
+  </div>
+</header>
+
+<main class="layout">
+  <section class="village" aria-label="Village">
+    <div>
+      <p class="eyebrow">Map</p>
+      <div class="mapwrap">
+        <canvas id="map" aria-label="Village map: houses, relays, WiFi links and LoRa transmissions"></canvas>
+        <div class="maplegend">
+          <span><i class="lg-house"></i>House (size = people)</span>
+          <span><i class="lg-relay"></i>Relay</span>
+          <span><i class="lg-mesh"></i>Meshtastic user</span>
+          <span><i class="lg-wifi"></i>WiFi mesh link</span>
+          <span><i class="lg-p2p"></i>Point-to-point link</span>
+          <span><i class="lg-lora"></i>LoRa radio · rings = transmitting</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="eyebrow">Last simulated hour</p>
+      <div class="tiles" id="tiles"></div>
+    </div>
+
+    <div class="charts">
+      <figure class="chart" id="chartUtil"><figcaption>LoRa channel busy<small>Share of the last 10 minutes the channel was transmitting. Above 25% it is congested.</small></figcaption><svg></svg></figure>
+      <figure class="chart" id="chartQueue"><figcaption>Messages waiting for LoRa<small>Queued at gateways, held back by the 10% airtime rule or a busy channel.</small></figcaption><svg></svg></figure>
+    </div>
+
+    <div class="row2">
+      <section class="card">
+        <p class="eyebrow">Village</p>
+        <form class="controls" id="controls">
+          <label>Houses <output id="o-houses"></output><input type="range" id="c-houses" min="2" max="60" step="1"></label>
+          <label>Messages per person per hour <output id="o-chat"></output><input type="range" id="c-chat" min="0" max="20" step="0.5"></label>
+          <label>Houses with a LoRa radio <output id="o-lora"></output><input type="range" id="c-lora" min="0" max="1" step="0.05"></label>
+          <label>Houses with a USB WiFi dongle <output id="o-dongle"></output><input type="range" id="c-dongle" min="0" max="1" step="0.05"></label>
+          <label>Relay Pis on poles <output id="o-relays"></output><input type="range" id="c-relays" min="0" max="10" step="1"></label>
+          <label>Meshtastic users nearby <output id="o-mesh"></output><input type="range" id="c-mesh" min="0" max="15" step="1"></label>
+          <label>People per house, at most <output id="o-size"></output><input type="range" id="c-size" min="1" max="12" step="1"></label>
+          <label>Village size <output id="o-area"></output><input type="range" id="c-area" min="300" max="4000" step="100"></label>
+          <label class="full">LoRa preset
+            <select id="c-preset" class="field"></select>
+          </label>
+          <label class="full" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="c-outages"> Random power cuts (5-40 min, about one every 12 min somewhere)</label>
+          <div class="actions">
+            <button class="btn primary" type="submit">Build this village</button>
+            <label style="flex-direction:row;align-items:center;gap:6px">Seed <input class="field num" id="c-seed" type="number" min="1" max="99999" style="width:84px"></label>
+          </div>
+        </form>
+      </section>
+      <section class="card inspector" id="inspector" aria-live="polite"></section>
+    </div>
+
+    <section class="card">
+      <p class="eyebrow">LoRa airtime used in the last hour, per radio</p>
+      <p class="note" style="margin:-4px 0 10px">Each radio may transmit for 360 s an hour (10%). A radio at its limit holds its queue until old transmissions age out.</p>
+      <div class="bars" id="airtime"></div>
+    </section>
+
+    <div>
+      <p class="eyebrow">Houses</p>
+      <div class="tablewrap"><table id="houseTable"></table></div>
+    </div>
+
+    <details class="assume card">
+      <summary>What the model assumes</summary>
+      <ul id="assumptions"></ul>
+      <p class="note">Ranges, loss and timings are estimates from the project's research notes, not measurements. Replace them with bench and field results as they come in.</p>
+    </details>
+  </section>
+
+  <aside class="phonecol" aria-label="Phone">
+    <label class="viewas">Phone view
+      <select id="persona" class="field"></select>
+    </label>
+    <div class="phone" id="phone">
+      <div class="statusbar"><span id="sb-time">08:00</span><span class="nointernet" id="sb-net">batnet · no internet</span></div>
+      <div class="screen" id="screen"></div>
+    </div>
+    <p class="phonenote" id="phonenote">The app is served by the house Pi and uses the phone's own fonts and voices, so it works with no internet at all.</p>
+  </aside>
+</main>
+
+<script src="sim.js"></script>
+<script>
+(() => {
+'use strict';
+const { createSim, PRESETS, PI, SCENARIOS, ASSUMPTIONS, HOUR, MIN } = window.SimCore;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const hhmm = (t) => { const m = Math.floor(t / MIN); return String(Math.floor(m / 60) % 24).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+const dur = (ms) => { if (ms == null) return '–'; if (ms < 1000) return Math.round(ms) + ' ms'; if (ms < 60000) return (ms / 1000).toFixed(1) + ' s'; if (ms < HOUR) return Math.round(ms / 60000) + ' min'; return (ms / HOUR).toFixed(1) + ' h'; };
+const store = { get(k, d) { try { const v = localStorage.getItem('bvs:' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('bvs:' + k, JSON.stringify(v)); } catch (e) {} } };
+const ICON = {
+  chats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4z"/></svg>',
+  people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.6 3-5.5 6-5.5s5.4 1.9 6 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.6c2.6.2 4.4 1.9 5 5.4"/></svg>',
+  radio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
+  help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.7 2.3c-.8.4-1.2 1-1.2 1.9V14M12 17.2v.3"/></svg>',
+  admin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
+  send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5l18-8.5L3 3.5l2.5 8.5zM5.5 12H13"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>',
+  call: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>',
+};
+
+// ---------- state ----------
+let sim, S;
+let running = store.get('running', true);
+let speed = store.get('speed', 60);
+let selectedId = null;
+const pulses = [];
+let lastFrame = performance.now();
+const app = { persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
+
+function cfgFromForm() {
+  return {
+    houses: +$('#c-houses').value, chat: +$('#c-chat').value, loraShare: +$('#c-lora').value, dongleShare: +$('#c-dongle').value,
+    relays: +$('#c-relays').value, meshUsers: +$('#c-mesh').value, sizeMax: +$('#c-size').value, sizeMin: 1,
+    width: +$('#c-area').value, height: Math.round(+$('#c-area').value * 0.64), preset: $('#c-preset').value,
+    outages: $('#c-outages').checked, seed: +$('#c-seed').value || 7,
+  };
+}
+function fillForm(c) {
+  $('#c-houses').value = c.houses; $('#c-chat').value = c.chat; $('#c-lora').value = c.loraShare; $('#c-dongle').value = c.dongleShare;
+  $('#c-relays').value = c.relays; $('#c-mesh').value = c.meshUsers; $('#c-size').value = c.sizeMax; $('#c-area').value = c.width;
+  $('#c-preset').value = c.preset; $('#c-outages').checked = !!c.outages; $('#c-seed').value = c.seed || 7;
+  updateOutputs();
+}
+function updateOutputs() {
+  $('#o-houses').textContent = $('#c-houses').value;
+  $('#o-chat').textContent = $('#c-chat').value;
+  $('#o-lora').textContent = Math.round($('#c-lora').value * 100) + '%';
+  $('#o-dongle').textContent = Math.round($('#c-dongle').value * 100) + '%';
+  $('#o-relays').textContent = $('#c-relays').value;
+  $('#o-mesh').textContent = $('#c-mesh').value;
+  $('#o-size').textContent = $('#c-size').value;
+  const w = +$('#c-area').value; $('#o-area').textContent = (w / 1000).toFixed(1) + ' × ' + (w * 0.64 / 1000).toFixed(1) + ' km';
+}
+
+function build(cfg) {
+  sim = createSim(cfg);
+  S = sim.S;
+  pulses.length = 0;
+  frame.lastEv = 0;
+  view.w = 0;
+  selectedId = S.houses[0] ? S.houses[0].id : null;
+  app.persona = { visitor: true, houseId: S.houses[0].id };
+  app.screen = 'portal'; app.tab = 'chats'; app.conv = null; app.lastRead = new Map(); app.calling = null;
+  sim.step(S.now + 2 * MIN);
+  fillPersonas();
+  renderAll(true);
+}
+
+// ---------- map ----------
+const canvas = $('#map');
+const ctx = canvas.getContext('2d');
+let view = { s: 1, ox: 0, oy: 0, w: 0, h: 0 };
+function layoutMap() {
+  const r = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(r.width * dpr); canvas.height = Math.round(r.height * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const pad = 28;
+  const s = Math.min((r.width - 2 * pad) / S.cfg.width, (r.height - 2 * pad) / S.cfg.height);
+  view = { s, ox: (r.width - S.cfg.width * s) / 2, oy: (r.height - S.cfg.height * s) / 2, w: r.width, h: r.height };
+}
+const px = (n) => [view.ox + n.x * view.s, view.oy + n.y * view.s];
+function niceStep(metres) { const steps = [50, 100, 200, 250, 500, 1000, 2000]; for (const s of steps) if (s * view.s >= 60) return s; return 5000; }
+function drawMap() {
+  if (!view.w) layoutMap();
+  const W = view.w, H = view.h;
+  ctx.clearRect(0, 0, W, H);
+  const grid = css('--grid'), ink = css('--ink'), muted = css('--muted'), wifi = css('--wifi'), lora = css('--lora'), mesh = css('--mesh'), panel = css('--panel'), crit = css('--critical');
+  // survey grid every 100 m
+  ctx.strokeStyle = grid; ctx.lineWidth = 1;
+  const g = S.cfg.width > 2000 ? 500 : 100;
+  for (let x = 0; x <= S.cfg.width; x += g) { const X = view.ox + x * view.s; ctx.beginPath(); ctx.moveTo(X, view.oy); ctx.lineTo(X, view.oy + S.cfg.height * view.s); ctx.stroke(); }
+  for (let y = 0; y <= S.cfg.height; y += g) { const Y = view.oy + y * view.s; ctx.beginPath(); ctx.moveTo(view.ox, Y); ctx.lineTo(view.ox + S.cfg.width * view.s, Y); ctx.stroke(); }
+  // selected node's WiFi reach
+  const sel = S.nodeById.get(selectedId);
+  if (sel && sel.kind !== 'mesh') {
+    const r = sel.wifi === 'builtin' ? PI[sel.pi].builtinRange : ({ dongle: 350, pole: 450, none: 0 })[sel.wifi];
+    if (r) { const [x, y] = px(sel); ctx.beginPath(); ctx.arc(x, y, r * view.s, 0, Math.PI * 2); ctx.fillStyle = wifi + '14'; ctx.fill(); ctx.setLineDash([3, 4]); ctx.strokeStyle = wifi; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); }
+  }
+  // links
+  for (const l of S.links) {
+    const [x1, y1] = px(l.a), [x2, y2] = px(l.b);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    ctx.strokeStyle = l.up ? wifi : muted; ctx.globalAlpha = l.up ? 0.35 + 0.65 * l.q : 0.25; ctx.lineWidth = 2;
+    if (l.type === 'p2p') ctx.setLineDash([6, 4]);
+    ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = 1;
+  }
+  // LoRa pulses
+  const nowR = performance.now();
+  for (let i = pulses.length - 1; i >= 0; i--) {
+    const p = pulses[i], age = (nowR - p.t0) / 1400;
+    if (age > 1) { pulses.splice(i, 1); continue; }
+    const [x, y] = px(p.node);
+    ctx.beginPath(); ctx.arc(x, y, 8 + age * 70, 0, Math.PI * 2);
+    ctx.strokeStyle = p.node.kind === 'mesh' ? mesh : lora; ctx.globalAlpha = (1 - age) * (p.kind === 'msg' ? 0.9 : 0.4); ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // nodes
+  ctx.font = '600 11px ' + css('--f-mono');
+  ctx.textBaseline = 'middle';
+  for (const n of S.nodes) {
+    const [x, y] = px(n);
+    if (n.kind === 'mesh') {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillStyle = mesh; ctx.fillRect(-5, -5, 10, 10); ctx.restore();
+      continue;
+    }
+    if (n.kind === 'relay') {
+      ctx.beginPath(); ctx.moveTo(x, y - 8); ctx.lineTo(x + 7, y + 5); ctx.lineTo(x - 7, y + 5); ctx.closePath();
+      ctx.fillStyle = n.online ? muted : panel; ctx.fill(); ctx.strokeStyle = muted; ctx.lineWidth = 1.5; ctx.stroke();
+    } else {
+      const s = 7 + Math.min(n.people.length, 10) * 1.1;
+      ctx.fillStyle = panel; ctx.strokeStyle = n.online ? ink : muted; ctx.lineWidth = n.id === selectedId ? 3 : 2;
+      if (!n.online) ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.roundRect(x - s, y - s, 2 * s, 2 * s, 3); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      if (!n.online) { ctx.strokeStyle = crit; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); }
+      if (n.id === selectedId) { ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x - s - 5, y - s - 5, 2 * s + 10, 2 * s + 10, 5); ctx.stroke(); }
+      ctx.fillStyle = n.online ? ink : muted;
+      ctx.fillText(n.name, x + s + 6, y);
+    }
+    if (n.lora) { ctx.beginPath(); ctx.arc(x + (n.kind === 'house' ? 9 : 6), y - (n.kind === 'house' ? 9 : 9), 4, 0, Math.PI * 2); ctx.fillStyle = n.online ? lora : muted; ctx.fill(); ctx.strokeStyle = panel; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+  // scale bar
+  const step = niceStep();
+  const bx = 14, by = H - 16, bw = step * view.s;
+  ctx.strokeStyle = ink; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(bx, by - 4); ctx.lineTo(bx, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by - 4); ctx.stroke();
+  ctx.fillStyle = ink; ctx.font = '600 11px ' + css('--f-mono'); ctx.fillText(step >= 1000 ? step / 1000 + ' km' : step + ' m', bx + bw + 6, by - 2);
+}
+canvas.addEventListener('click', (e) => {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bd = 18;
+  for (const n of S.nodes) { const [x, y] = px(n); const d = Math.hypot(x - mx, y - my); if (d < bd) { bd = d; best = n; } }
+  if (best) { selectedId = best.id; renderInspector(); renderTable(); }
+});
+
+// ---------- charts ----------
+function lineChart(fig, series, opts) {
+  const svg = $('svg', fig);
+  const W = svg.clientWidth || 300, H = 150, L = 34, R = 10, T = 8, B = 20;
+  if (series.length < 2) { svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="var(--muted)" font-size="12">Collecting data…</text>`; return; }
+  const t0 = series[0].t, t1 = series[series.length - 1].t;
+  const maxV = Math.max(opts.min || 0, ...series.map((p) => p.v)) * 1.1 || 1;
+  const X = (t) => L + ((t - t0) / Math.max(t1 - t0, 1)) * (W - L - R);
+  const Y = (v) => T + (1 - v / maxV) * (H - T - B);
+  const ticks = [0, maxV / 2, maxV].map((v) => `<g><line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)"/><text x="${L - 6}" y="${Y(v) + 4}" text-anchor="end" font-size="10.5" fill="var(--muted)" font-family="var(--f-mono)">${opts.fmt(v)}</text></g>`).join('');
+  const xt = [t0, (t0 + t1) / 2, t1].map((t, i) => `<text x="${X(t)}" y="${H - 5}" text-anchor="${['start', 'middle', 'end'][i]}" font-size="10.5" fill="var(--muted)" font-family="var(--f-mono)">${hhmm(t)}</text>`).join('');
+  const pts = series.map((p) => `${X(p.t).toFixed(1)},${Y(p.v).toFixed(1)}`).join(' ');
+  const area = `${X(t0)},${Y(0)} ${pts} ${X(t1)},${Y(0)}`;
+  const ref = opts.ref != null && opts.ref <= maxV ? `<line x1="${L}" x2="${W - R}" y1="${Y(opts.ref)}" y2="${Y(opts.ref)}" stroke="var(--warn)" stroke-dasharray="4 3"/><text x="${W - R}" y="${Y(opts.ref) - 4}" text-anchor="end" font-size="10.5" fill="var(--warn)">${opts.refLabel}</text>` : '';
+  const last = series[series.length - 1];
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = `${ticks}${ref}<polygon points="${area}" fill="${opts.color}" fill-opacity=".14"/><polyline points="${pts}" fill="none" stroke="${opts.color}" stroke-width="2" stroke-linejoin="round"/><circle cx="${X(last.t)}" cy="${Y(last.v)}" r="4" fill="${opts.color}" stroke="var(--panel)" stroke-width="2"/>${xt}<line class="cross" y1="${T}" y2="${H - B}" stroke="var(--muted)" visibility="hidden"/><rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent"/>`;
+  fig._chart = { series, X, Y, L, R, W, fmt: opts.fmt };
+}
+function wireHover(fig) {
+  const svg = $('svg', fig);
+  let tip = $('.tip', fig);
+  if (!tip) { tip = document.createElement('div'); tip.className = 'tip'; tip.hidden = true; fig.appendChild(tip); }
+  svg.addEventListener('mousemove', (e) => {
+    const c = fig._chart; if (!c) return;
+    const r = svg.getBoundingClientRect();
+    const mx = (e.clientX - r.left) * (c.W / r.width);
+    let best = c.series[0];
+    for (const p of c.series) if (Math.abs(c.X(p.t) - mx) < Math.abs(c.X(best.t) - mx)) best = p;
+    const cross = $('.cross', svg); cross.setAttribute('x1', c.X(best.t)); cross.setAttribute('x2', c.X(best.t)); cross.setAttribute('visibility', 'visible');
+    tip.hidden = false; tip.textContent = hhmm(best.t) + '  ' + c.fmt(best.v);
+    const fr = fig.getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX - fr.left + 10, fr.width - 110) + 'px'; tip.style.top = '40px';
+  });
+  svg.addEventListener('mouseleave', () => { tip.hidden = true; const cross = $('.cross', svg); if (cross) cross.setAttribute('visibility', 'hidden'); });
+}
+
+// ---------- panels ----------
+function clusterOf(n) { return n && n.cluster >= 0 ? S.clusters[n.cluster] : null; }
+function reachBetween(hA, hB) {
+  if (!hA || !hB) return 'none';
+  if (!hA.online || !hB.online) return 'none';
+  if (hA.cluster === hB.cluster) return 'call';
+  const ca = clusterOf(hA), cb = clusterOf(hB);
+  if (ca && cb && ca.gateway && cb.gateway && sim.loraReach(ca.gateway, cb.gateway)) return 'lora';
+  return 'none';
+}
+function renderTiles() {
+  const st = sim.stats();
+  const congested = st.util > 0.25;
+  const tiles = [
+    ['Messages sent', st.sentHour, 'in the last hour'],
+    ['Arrived within 10 min', st.within10 == null ? '–' : Math.round(st.within10 * 100) + '%', 'of house deliveries'],
+    ['WiFi delivery', dur(st.wifiP50), 'median · slowest 5% ' + dur(st.wifiP95)],
+    ['LoRa delivery', dur(st.loraP50), 'median · slowest 5% ' + dur(st.loraP95)],
+    ['Still on the way', st.pending, 'house deliveries not yet arrived'],
+    ['LoRa channel busy', Math.round(st.util * 100) + '%', congested ? '<span class="chip warn">Congested</span>' : 'last 10 minutes'],
+  ];
+  $('#tiles').innerHTML = tiles.map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
+  lineChart($('#chartUtil'), S.series.util, { color: css('--lora'), fmt: (v) => Math.round(v * 100) + '%', min: 0.3, ref: 0.25, refLabel: 'congested' });
+  lineChart($('#chartQueue'), S.series.queue, { color: css('--lora'), fmt: (v) => String(Math.round(v)), min: 4 });
+}
+function renderAirtime() {
+  const radios = S.nodes.filter((n) => n.lora);
+  const cut = S.now - HOUR;
+  const rows = radios.map((n) => ({ n, used: n.air.filter((e) => e.t > cut).reduce((a, e) => a + e.dur, 0) })).sort((a, b) => b.used - a.used).slice(0, 14);
+  $('#airtime').innerHTML = rows.length ? rows.map(({ n, used }) => {
+    const share = Math.min(used / 360000, 1);
+    const queued = S.queue.filter((q) => q.gw === n && q.kind === 'msg').length;
+    return `<div class="bar" title="${esc(n.name)}: ${(used / 1000).toFixed(0)} s of 360 s${queued ? ', ' + queued + ' waiting' : ''}"><span class="lbl">${esc(n.name)}${queued ? ' · ' + queued + ' waiting' : ''}</span><span class="track"><span class="fill ${n.kind === 'mesh' ? 'mesh' : ''}" style="width:${(share * 100).toFixed(1)}%"></span></span><span class="val">${(used / 1000).toFixed(0)} / 360 s</span></div>`;
+  }).join('') : '<p class="note">No LoRa radios in this village.</p>';
+}
+function renderTable() {
+  const persona = currentPerson();
+  const home = persona ? S.nodeById.get(persona.houseId) : S.nodeById.get(app.persona && app.persona.houseId);
+  const rows = S.houses.map((h) => {
+    const cl = clusterOf(h);
+    const pend = S.msgs.reduce((a, m) => a + (m.targets.has(h.id) && !m.deliv.has(h.id) ? 1 : 0), 0);
+    const reach = home ? (home === h ? 'this house' : { call: 'Call + text', lora: 'Text via LoRa', none: 'Unreachable' }[reachBetween(home, h)]) : '';
+    return `<tr data-id="${h.id}" class="${h.id === selectedId ? 'sel' : ''}"><td>${esc(h.name)}</td><td>${h.pi}</td><td>${h.wifi === 'dongle' ? 'WiFi dongle' : h.wifi === 'builtin' ? 'WiFi built-in' : 'no WiFi'}${h.lora ? ' · LoRa' : ''}${h.p2p ? ' · p2p' : ''}</td><td class="n">${h.people.length}</td><td>${h.online ? (cl ? 'Mesh ' + cl.letter + (cl.gateway ? '' : ' · no LoRa') : '') : '<span class="chip bad">power cut</span>'}</td><td>${reach}</td><td class="n">${pend}</td></tr>`;
+  }).join('');
+  $('#houseTable').innerHTML = `<thead><tr><th>House</th><th>Pi</th><th>Radios</th><th>People</th><th>WiFi group</th><th>From ${home ? esc(home.name) : '–'}</th><th>Waiting</th></tr></thead><tbody>${rows}</tbody>`;
+}
+$('#houseTable').addEventListener('click', (e) => { const tr = e.target.closest('tr[data-id]'); if (tr) { selectedId = tr.dataset.id; renderInspector(); renderTable(); } });
+
+function renderInspector() {
+  const n = S.nodeById.get(selectedId);
+  const el = $('#inspector');
+  if (!n) { el.innerHTML = '<p class="eyebrow">Selected</p><p class="note">Click a house on the map.</p>'; return; }
+  if (n.kind === 'mesh') {
+    el.innerHTML = `<p class="eyebrow">Selected</p><h3>${esc(n.name)}</h3><p class="meta">A neighbour's own Meshtastic radio, not part of batnet. It shows up in "Radios nearby" and posts on the public channel now and then.</p>`;
+    return;
+  }
+  const cl = clusterOf(n);
+  const prof = PI[n.pi];
+  const warns = [];
+  if (n.kind === 'house') {
+    if (n.pi === 'Zero W') warns.push('A Zero W is too slow to serve a house. Use it as a relay or LoRa gateway.');
+    if (n.people.length > prof.phones) warns.push(`${n.people.length} people, but a ${n.pi} handles about ${prof.phones} phones at once.`);
+    if (n.wifi === 'builtin') warns.push('With one WiFi radio the Pi cannot run the mesh and the hotspot together. Add a USB dongle.');
+    if (cl && !cl.gateway && S.clusters.length > 1) warns.push(`No LoRa radio in WiFi group ${cl.letter}: houses outside it cannot be reached from here.`);
+  }
+  const houses = S.houses.filter((h) => h !== n);
+  el.innerHTML = `<p class="eyebrow">Selected ${n.kind}</p>
+    <h3>${esc(n.name)}</h3>
+    <p class="meta">${n.online ? (cl ? 'WiFi group ' + cl.letter + ' · ' + cl.members.length + ' nodes' + (cl.gateway ? ' · LoRa via ' + esc(cl.gateway.name) : ' · no LoRa') : '') : 'Power cut since ' + hhmm(n.offlineSince)}</p>
+    <div class="grid">
+      <span>Board</span><select class="field" id="i-pi">${Object.keys(PI).map((k) => `<option ${k === n.pi ? 'selected' : ''}>${k}</option>`).join('')}</select>
+      <span>WiFi</span><select class="field" id="i-wifi">${[['builtin', 'Built-in radio'], ['dongle', 'USB dongle'], ['pole', 'Dongle on a pole'], ['none', 'None']].map(([v, l]) => `<option value="${v}" ${v === n.wifi ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span>LoRa</span><label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="i-lora" ${n.lora ? 'checked' : ''}> SX1262 HAT</label>
+      ${n.kind === 'house' ? `<span>People</span><input class="field num" id="i-size" type="number" min="1" max="30" value="${n.people.length}" style="width:80px">
+      <span>Point-to-point</span><select class="field" id="i-p2p"><option value="">None</option>${houses.map((h) => `<option value="${h.id}" ${n.p2p === h.id ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select>` : ''}
+    </div>
+    <div class="caps"><span class="chip">${prof.phones} phones</span><span class="chip">speech-to-text: ${prof.stt}</span></div>
+    <p class="note">${prof.note}</p>
+    ${warns.map((w) => `<div class="warnline">${esc(w)}</div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+      <button class="btn ${n.online ? '' : 'primary'}" id="i-power" type="button">${n.online ? 'Cut the power' : 'Restore power'}</button>
+      ${n.kind === 'house' && n.people.length ? `<button class="btn" id="i-view" type="button">Use a phone here</button>` : ''}
+    </div>`;
+  $('#i-pi').onchange = (e) => { sim.edit(n.id, { pi: e.target.value }); renderAll(); };
+  $('#i-wifi').onchange = (e) => { sim.edit(n.id, { wifi: e.target.value }); renderAll(); };
+  $('#i-lora').onchange = (e) => { sim.edit(n.id, { lora: e.target.checked }); renderAll(); };
+  if ($('#i-p2p')) $('#i-p2p').onchange = (e) => { sim.edit(n.id, { p2p: e.target.value || null }); renderAll(); };
+  if ($('#i-size')) $('#i-size').onchange = (e) => { resizeHouse(n, +e.target.value); renderAll(); };
+  $('#i-power').onclick = () => { sim.setOnline(n.id, !n.online); renderAll(); };
+  if ($('#i-view')) $('#i-view').onclick = () => { setPersona(n.people[0]); };
+}
+function resizeHouse(h, size) {
+  size = Math.max(1, Math.min(30, size || 1));
+  while (h.people.length < size) { const s = { id: 'sx' + S.signups.length, houseId: h.id, name: '', t: S.now, state: 'waiting' }; S.signups.push(s); sim.approve(s.id, true); }
+  while (h.people.length > size && h.people.length > 1) {
+    const pid = h.people.pop();
+    S.people = S.people.filter((p) => p.id !== pid);
+    for (const g of S.groups) g.members.delete(pid);
+    if (app.persona.personId === pid) { app.persona = { visitor: true, houseId: h.id }; app.screen = 'portal'; }
+  }
+  fillPersonas();
+}
+
+// ---------- the phone app ----------
+function currentPerson() { return app.persona && app.persona.personId ? S.personById.get(app.persona.personId) : null; }
+function fillPersonas() {
+  const sel = $('#persona');
+  const opts = [];
+  for (const h of S.houses) {
+    opts.push(`<optgroup label="${esc(h.name)} House">`);
+    opts.push(`<option value="v:${h.id}">New visitor at ${esc(h.name)} House</option>`);
+    for (const pid of h.people) { const p = S.personById.get(pid); opts.push(`<option value="p:${pid}">${esc(p.name)}${h.admin === pid ? ' (admin)' : ''}</option>`); }
+    opts.push('</optgroup>');
+  }
+  sel.innerHTML = opts.join('');
+  sel.value = app.persona.personId ? 'p:' + app.persona.personId : 'v:' + app.persona.houseId;
+}
+$('#persona').addEventListener('change', (e) => {
+  const [k, id] = e.target.value.split(':');
+  if (k === 'v') { app.persona = { visitor: true, houseId: id }; app.screen = 'portal'; renderPhone(true); renderTable(); }
+  else setPersona(id);
+});
+function setPersona(pid) {
+  const p = S.personById.get(pid);
+  app.persona = { personId: pid, houseId: p.houseId };
+  app.screen = 'app'; app.tab = 'chats'; app.conv = null; app.calling = null;
+  $('#persona').value = 'p:' + pid;
+  renderPhone(true); renderTable();
+}
+function homeHouse() { return S.nodeById.get(app.persona.houseId); }
+function convKey(m, me) {
+  if (m.kind === 'everyone') return 'everyone';
+  if (m.kind === 'public') return 'public';
+  if (m.kind === 'group') return m.to;
+  if (m.kind === 'dm') return 'dm:' + (m.from === me.id ? m.to : m.from);
+  return null;
+}
+function visibleTo(m, me) {
+  const d = m.deliv.get(me.houseId);
+  if (!d || d.t > S.now) return false;
+  if (m.kind === 'group') return me.groups.has(m.to);
+  if (m.kind === 'dm') return m.from === me.id || m.to === me.id;
+  return true;
+}
+function convName(key) {
+  if (key === 'everyone') return 'Everyone';
+  if (key === 'public') return 'Neighbourhood (public)';
+  if (key.startsWith('g:')) return S.groups.find((g) => g.id === key).name;
+  const p = S.personById.get(key.slice(3)); return p ? p.name : 'Someone';
+}
+function convSub(key, me) {
+  if (key === 'everyone') return 'All houses';
+  if (key === 'public') return 'Meshtastic LongFast · anyone can read';
+  if (key.startsWith('g:')) return S.groups.find((g) => g.id === key).members.size + ' members';
+  const p = S.personById.get(key.slice(3)); const h = S.nodeById.get(p.houseId);
+  return h.name + ' House';
+}
+function initials(name) { return name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase(); }
+function deliveryLine(m, me) {
+  if (m.from !== me.id) {
+    const d = m.deliv.get(me.houseId);
+    return d && d.path === 'lora' ? '<span class="lora">via LoRa</span>' : d && d.path === 'sync' ? '<span>caught up</span>' : '';
+  }
+  const others = [...m.targets].filter((h) => h !== me.houseId);
+  if (!others.length) return '✓';
+  const arrived = others.filter((h) => { const d = m.deliv.get(h); return d && d.t <= S.now; });
+  const viaLora = arrived.some((h) => m.deliv.get(h).path === 'lora');
+  const parts = [];
+  if (m.truncated) parts.push('<span class="wait">shortened for LoRa</span>');
+  if (m.inQueue.size) {
+    let pos = 0; for (const q of S.queue) { if (q.m === m) break; if (q.kind === 'msg') pos++; }
+    parts.push(`<span class="wait">waiting for LoRa · ${pos + 1} in queue</span>`);
+  }
+  if (arrived.length === others.length) parts.push(viaLora ? '<span class="lora">✓✓ via LoRa</span>' : '✓✓');
+  else parts.push(`✓ ${arrived.length}/${others.length} houses`);
+  return parts.join(' ');
+}
+function conversations(me) {
+  const map = new Map();
+  const add = (k) => { if (!map.has(k)) map.set(k, { key: k, last: null, unread: 0 }); return map.get(k); };
+  add('everyone'); add('public');
+  for (const g of me.groups) add(g);
+  for (const m of S.msgs) {
+    if (!visibleTo(m, me)) continue;
+    const k = convKey(m, me); if (!k) continue;
+    const c = add(k);
+    if (!c.last || m.t >= c.last.t) c.last = m;
+    if (m.from !== me.id && m.t > (app.lastRead.get(me.id + k) || S.start)) c.unread++;
+  }
+  return [...map.values()].sort((a, b) => (b.last ? b.last.t : 0) - (a.last ? a.last.t : 0));
+}
+function senderName(m) { if (!m.from) return m.fromName || 'Meshtastic user'; const p = S.personById.get(m.from); const h = S.nodeById.get(p.houseId); return p.name + ' · ' + h.name; }
+
+function screenPortal(h) {
+  return `<div class="ap-head"><h2>batnet · ${esc(h.name)} House<span class="sub">Sign in to WiFi network</span></h2></div>
+  <div class="ap-body"><div class="ap-pad">
+    <p class="ap-h1">Welcome to batnet</p>
+    <p class="ap-p">This WiFi has no internet. It connects you to the people in ${esc(h.name)} House and the houses around it.</p>
+    <p class="ap-p">This small window can't record voice or make calls. Open your normal browser and go to:</p>
+    <div class="ap-url">https://batnet</div>
+    <button class="ap-btn" data-act="copyurl">Copy address</button>
+    <button class="ap-btn ghost" data-act="toWarning">I've opened the browser</button>
+  </div></div>`;
+}
+function screenWarning() {
+  return `<div class="ap-head"><button class="ap-back" data-act="toPortal" aria-label="Back">‹</button><h2>One warning to tap through<span class="sub">Help · step 2 of 3</span></h2></div>
+  <div class="ap-body"><div class="ap-pad">
+    <p class="ap-p">Your browser will say the connection is <b>not private</b>. That is expected: there is no internet to vouch for this house's Pi.</p>
+    <div class="ap-warning"><b>On iPhone:</b> tap <b>Show Details</b>, then <b>visit this website</b>.<br><b>On Android:</b> tap <b>Advanced</b>, then <b>Proceed to batnet</b>.</div>
+    <p class="ap-p">You only do this once per house. After that, voice messages and calls work.</p>
+    <button class="ap-btn" data-act="toLanding">Done, show me batnet</button>
+  </div></div>`;
+}
+function screenLanding(h) {
+  return `<div class="ap-head"><h2>batnet<span class="sub">${esc(h.name)} House · ${h.people.length} people</span></h2></div>
+  <div class="ap-body"><div class="ap-pad">
+    <p class="ap-h1">Talk to your neighbours, no internet needed</p>
+    <p class="ap-p">Text, voice messages and calls between the houses in this area, over home-made radio links.</p>
+    <button class="ap-btn" data-act="toSignup">Create an account</button>
+    <button class="ap-btn ghost" data-act="toLogin">I already have one</button>
+    <button class="ap-btn ghost" data-act="toHelp">How this works</button>
+  </div></div>`;
+}
+function screenSignup(h) {
+  return `<div class="ap-head"><button class="ap-back" data-act="toLanding" aria-label="Back">‹</button><h2>Create an account<span class="sub">${esc(h.name)} House</span></h2></div>
+  <div class="ap-body"><form class="ap-pad" data-form="signup">
+    <label class="ap-p" for="su-name">Your name, as neighbours know you</label>
+    <input class="ap-input" id="su-name" required maxlength="24" placeholder="e.g. Anna" value="${esc(app.signupName)}">
+    <label class="ap-p" for="su-pin">Pick a 4-digit PIN</label>
+    <input class="ap-input" id="su-pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" placeholder="••••" required>
+    <p class="ap-p">${esc(S.personById.get(h.admin).name)} looks after this house's batnet and will let you in.</p>
+    <button class="ap-btn" type="submit">Ask to join</button>
+  </form></div>`;
+}
+function screenPending(h) {
+  const s = S.signups.find((x) => x.id === app.persona.signupId);
+  const admin = S.personById.get(h.admin);
+  if (s && s.state === 'approved') return `<div class="ap-body"><div class="ap-pad"><p class="ap-h1">You're in</p><p class="ap-p">${esc(admin.name)} approved your account.</p><button class="ap-btn" data-act="enterApproved">Open batnet</button></div></div>`;
+  if (s && s.state === 'declined') return `<div class="ap-body"><div class="ap-pad"><p class="ap-h1">Not approved</p><p class="ap-p">Ask ${esc(admin.name)} in person, then try again.</p><button class="ap-btn ghost" data-act="toLanding">Back</button></div></div>`;
+  return `<div class="ap-head"><h2>Waiting for approval<span class="sub">${esc(h.name)} House</span></h2></div>
+  <div class="ap-body"><div class="ap-pad">
+    <p class="ap-h1">Hi ${esc(s ? s.name : '')}, nearly there</p>
+    <p class="ap-p">${esc(admin.name)} needs to approve you. Find them, or switch the phone view to ${esc(admin.name)} (admin) and approve the request there.</p>
+    <button class="ap-btn ghost" data-act="toAdminView">Switch to ${esc(admin.name)}</button>
+  </div></div>`;
+}
+function screenHelp() {
+  return `<div class="ap-head"><button class="ap-back" data-act="${currentPerson() ? 'toApp' : 'toLanding'}" aria-label="Back">‹</button><h2>How this works</h2></div>
+  <div class="ap-body"><div class="ap-pad">
+    <ol class="ap-steps">
+      <li>Each house has a small computer that makes this WiFi.</li>
+      <li>Houses close together link over WiFi: you can call them and send voice.</li>
+      <li>Houses further away link over long-range radio (LoRa): texts only, and slower. Voice messages arrive as text.</li>
+      <li>If a house loses power, its messages wait and arrive when it comes back.</li>
+      <li>"Neighbourhood (public)" is open to anyone with a Meshtastic radio. Don't post private things there.</li>
+    </ol>
+  </div></div>`;
+}
+function tabBar(me) {
+  const h = homeHouse();
+  const isAdmin = h.admin === me.id;
+  const waiting = S.signups.filter((s) => s.houseId === h.id && s.state === 'waiting').length;
+  const tabs = [['chats', 'Chats', ICON.chats], ['people', 'People', ICON.people], ['radios', 'Radios', ICON.radio], isAdmin ? ['admin', 'Admin' + (waiting ? ' · ' + waiting : ''), ICON.admin] : ['help', 'Help', ICON.help]];
+  return `<nav class="ap-tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" ${app.tab === k ? 'aria-current="page"' : ''}>${i}<span>${l}</span></button>`).join('')}</nav>`;
+}
+function netSummary(me) {
+  const h = homeHouse(); const cl = clusterOf(h);
+  if (!h.online) return 'This house has no power';
+  const wifiH = S.houses.filter((x) => x !== h && x.online && x.cluster === h.cluster).length;
+  const loraH = S.houses.filter((x) => x !== h && reachBetween(h, x) === 'lora').length;
+  return `${wifiH} houses by WiFi · ${loraH} by LoRa`;
+}
+function screenChats(me) {
+  const convs = conversations(me);
+  return `<div class="ap-head"><h2>Chats<span class="sub">${esc(netSummary(me))}</span></h2></div>
+  <div class="ap-body">${convs.map((c) => {
+    const nm = convName(c.key);
+    const last = c.last ? (c.last.from === me.id ? 'You: ' : c.last.kind === 'dm' ? '' : senderName(c.last).split(' · ')[0] + ': ') + c.last.text : (c.key === 'public' ? 'Nothing heard on the public channel yet' : 'No messages yet');
+    return `<button class="ap-row" data-conv="${esc(c.key)}"><span class="av">${c.key === 'everyone' ? 'All' : c.key === 'public' ? ICON.radio : initials(nm)}</span><span class="main"><span class="title"><span>${esc(nm)}</span><time>${c.last ? hhmm(c.last.t) : ''}</time></span><span class="last">${esc(last)}</span></span>${c.unread ? `<span class="badge">${c.unread > 99 ? '99+' : c.unread}</span>` : ''}</button>`;
+  }).join('')}</div>${tabBar(me)}`;
+}
+function screenConv(me) {
+  const key = app.conv;
+  app.lastRead.set(me.id + key, S.now);
+  const list = S.msgs.filter((m) => visibleTo(m, me) && convKey(m, me) === key).slice(-60);
+  let banner = '';
+  let canCall = false, callReason = '';
+  if (key.startsWith('dm:')) {
+    const other = S.personById.get(key.slice(3));
+    const r = reachBetween(homeHouse(), S.nodeById.get(other.houseId));
+    canCall = r === 'call';
+    callReason = r === 'lora' ? `${S.nodeById.get(other.houseId).name} House is linked by LoRa: text only.` : r === 'none' ? `${S.nodeById.get(other.houseId).name} House can't be reached right now. Messages will wait.` : '';
+    if (callReason) banner = `<div class="banner ${r === 'lora' ? 'lora' : ''}">${esc(callReason)}</div>`;
+  }
+  if (key === 'public') banner = '<div class="banner lora">Public Meshtastic channel. Anyone with a Meshtastic radio can read this.</div>';
+  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''}">${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${esc(m.text)}<div class="meta"><span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
+  return `<div class="ap-head"><button class="ap-back" data-act="toApp" aria-label="Back">‹</button><h2>${esc(convName(key))}<span class="sub">${esc(convSub(key, me))}</span></h2>${key.startsWith('dm:') ? `<button class="iconbtn" data-act="call" ${canCall ? '' : 'disabled'} title="${canCall ? 'Call over the WiFi mesh' : esc(callReason)}" aria-label="Call">${ICON.call}</button>` : ''}</div>
+  ${banner}
+  <div class="ap-body" id="msglist"><div class="msgs">${items || '<p class="ap-p" style="text-align:center;padding:24px 0">No messages yet. Say hello.</p>'}</div></div>
+  <form class="compose" data-form="send"><button type="button" class="iconbtn" disabled title="Voice messages arrive in milestone 2" aria-label="Voice message (coming in milestone 2)">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
+}
+function screenPeople(me) {
+  const home = homeHouse();
+  const order = [...S.houses].sort((a, b) => (a === home ? -1 : b === home ? 1 : ({ call: 0, lora: 1, none: 2 }[reachBetween(home, a)] - { call: 0, lora: 1, none: 2 }[reachBetween(home, b)])));
+  const body = order.map((h) => {
+    const r = h === home ? 'call' : reachBetween(home, h);
+    const chip = h === home ? '<span class="reach call">This house</span>' : r === 'call' ? '<span class="reach call">Call + text</span>' : r === 'lora' ? '<span class="reach lora">Text via LoRa</span>' : `<span class="reach none">${h.online ? 'Out of reach' : 'No power since ' + hhmm(h.offlineSince)}</span>`;
+    const ppl = h.people.filter((pid) => pid !== me.id).map((pid) => { const p = S.personById.get(pid); return `<button class="ap-row" data-dm="${pid}"><span class="av">${initials(p.name)}</span><span class="main"><span class="title"><span>${esc(p.name)}${h.admin === pid ? ' · admin' : ''}</span></span></span></button>`; }).join('');
+    return `<div class="ap-section"><span>${esc(h.name)} House · ${h.people.length}</span>${chip}</div>${ppl}`;
+  }).join('');
+  const groups = S.groups.map((g) => `<button class="ap-row" data-conv="${g.id}"><span class="av">${initials(g.name)}</span><span class="main"><span class="title"><span>${esc(g.name)}</span></span><span class="last">${g.members.size} members${me.groups.has(g.id) ? ' · you are in it' : ''}</span></span></button>`).join('');
+  return `<div class="ap-head"><h2>People<span class="sub">${S.people.length} people in ${S.houses.length} houses</span></h2></div>
+  <div class="ap-body"><div class="ap-section"><span>Groups</span></div>${groups}${body}</div>${tabBar(me)}`;
+}
+function screenRadios(me) {
+  const home = homeHouse();
+  const gw = clusterOf(home) && clusterOf(home).gateway;
+  const heard = gw ? S.nodes.filter((n) => n !== gw && n.lora && sim.loraReach(gw, n)) : [];
+  const meshRows = heard.map((n) => { const d = Math.hypot(n.x - gw.x, n.y - gw.y); const snr = (10 - d / 250).toFixed(1); return `<div class="ap-row"><span class="av" style="color:${n.kind === 'mesh' ? 'var(--mesh)' : 'var(--lora)'}">${ICON.radio}</span><span class="main"><span class="title"><span>${esc(n.kind === 'mesh' ? n.name : n.name + ' House (batnet)')}</span></span><span class="last">${(d / 1000).toFixed(1)} km · SNR ${snr} dB${sim.loraReach(gw, n).hops === 2 ? ' · via 1 hop' : ''}</span></span></div>`; }).join('');
+  const wifiRows = S.nodes.filter((n) => n !== home && n.kind !== 'mesh' && n.online && Math.hypot(n.x - home.x, n.y - home.y) < 600).map((n) => { const linked = n.cluster === home.cluster; return `<div class="ap-row"><span class="av" style="color:var(--wifi)">${ICON.radio}</span><span class="main"><span class="title"><span>${esc(n.kind === 'house' ? n.name + ' House' : n.name)}</span></span><span class="last">${Math.round(Math.hypot(n.x - home.x, n.y - home.y))} m · ${linked ? 'on our mesh' : 'heard, not linked'}</span></span></div>`; }).join('');
+  return `<div class="ap-head"><h2>Radios nearby<span class="sub">What this house can hear</span></h2></div>
+  <div class="ap-body">
+    <div class="ap-section"><span>LoRa · Meshtastic</span><span>${gw ? 'via ' + esc(gw.name) : 'no LoRa radio'}</span></div>${meshRows || '<p class="ap-p" style="padding:4px 16px">Nothing heard. This WiFi group has no LoRa radio.</p>'}
+    <div class="ap-section"><span>WiFi</span></div>${wifiRows || '<p class="ap-p" style="padding:4px 16px">No other batnet WiFi in range.</p>'}
+    <div class="ap-section"><span>Walkie-talkie and ham bands</span></div><p class="ap-p" style="padding:4px 16px 16px">Needs a scanner radio at a house. Coming in milestone 4: shows activity only, never what people say.</p>
+  </div>${tabBar(me)}`;
+}
+function screenAdmin(me) {
+  const h = homeHouse();
+  const reqs = S.signups.filter((s) => s.houseId === h.id && s.name);
+  const rows = reqs.slice(-12).reverse().map((s) => `<div class="ap-row"><span class="av">${initials(s.name)}</span><span class="main"><span class="title"><span>${esc(s.name)}</span><time>${hhmm(s.t)}</time></span><span class="last">${s.state === 'waiting' ? 'Asked to join' : s.state === 'approved' ? 'Approved' : 'Declined'}</span></span>${s.state === 'waiting' ? `<span style="display:flex;gap:6px"><button class="iconbtn" data-deny="${s.id}" aria-label="Decline">✕</button><button class="iconbtn go" data-approve="${s.id}" aria-label="Approve">✓</button></span>` : ''}</div>`).join('');
+  return `<div class="ap-head"><h2>Admin<span class="sub">${esc(h.name)} House · ${h.people.length} accounts</span></h2></div>
+  <div class="ap-body"><div class="ap-section"><span>Join requests</span></div>${rows || '<p class="ap-p" style="padding:4px 16px">No requests yet.</p>'}
+  <div class="ap-section"><span>This house</span></div><p class="ap-p" style="padding:4px 16px 16px">${h.pi} · ${h.wifi === 'builtin' ? 'one WiFi radio' : 'two WiFi radios'}${h.lora ? ' · LoRa radio' : ''}. Village key shared by QR code with other houses' admins.</p></div>${tabBar(me)}`;
+}
+function screenCall(me) {
+  const other = S.personById.get(app.calling);
+  const h = S.nodeById.get(other.houseId);
+  const hops = (() => { const home = homeHouse(); if (home.cluster !== h.cluster) return null; const q = [home], seen = new Map([[home.id, 0]]); while (q.length) { const x = q.shift(); for (const y of S.adj.get(x.id) || []) if (!seen.has(y.id)) { seen.set(y.id, seen.get(x.id) + 1); q.push(y); } } return seen.get(h.id); })();
+  return `<div class="callscreen"><div class="big">${initials(other.name)}</div><div><div class="ap-h1">${esc(other.name)}</div><p class="ap-p">${esc(h.name)} House · ${hops == null ? 'connection lost' : 'over the WiFi mesh, ' + hops + ' hop' + (hops === 1 ? '' : 's')}</p></div><p class="ap-p">Live calls arrive in milestone 3. This screen shows the plan.</p><button class="hang" data-act="hangup">End call</button></div>`;
+}
+
+function renderPhone(force) {
+  const scr = $('#screen');
+  const me = currentPerson();
+  const h = homeHouse();
+  $('#sb-time').textContent = hhmm(S.now);
+  $('#sb-net').textContent = (h.online ? 'batnet · ' + h.name : 'No WiFi') + ' · no internet';
+  const active = document.activeElement;
+  const typing = active && scr.contains(active) && active.tagName === 'INPUT';
+  if (typing && !force) return; // don't redraw under someone's fingers
+  const list = $('#msglist');
+  const atBottom = !list || list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
+  let html;
+  if (!h.online && !(app.screen === 'portal' || !me)) html = `<div class="ap-body"><div class="ap-pad"><p class="ap-h1">The house WiFi is off</p><p class="ap-p">${esc(h.name)} House has no power since ${hhmm(h.offlineSince)}. Messages to you will wait and arrive when it is back.</p></div></div>`;
+  else if (!me) html = ({ portal: screenPortal, warning: screenWarning, landing: screenLanding, signup: screenSignup, pending: screenPending, help: screenHelp, login: screenLanding })[app.screen](h);
+  else if (app.calling) html = screenCall(me);
+  else if (app.conv) html = screenConv(me);
+  else if (app.tab === 'people') html = screenPeople(me);
+  else if (app.tab === 'radios') html = screenRadios(me);
+  else if (app.tab === 'admin') html = screenAdmin(me);
+  else if (app.tab === 'help') html = screenHelp(me) + tabBar(me);
+  else html = screenChats(me);
+  scr.innerHTML = html;
+  const nl = $('#msglist');
+  if (nl && (atBottom || force)) nl.scrollTop = nl.scrollHeight;
+}
+$('#screen').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-act],[data-tab],[data-conv],[data-dm],[data-approve],[data-deny]');
+  if (!t) return;
+  const me = currentPerson();
+  if (t.dataset.tab) { app.tab = t.dataset.tab; app.conv = null; }
+  else if (t.dataset.conv) { app.conv = t.dataset.conv; app.draft = ''; }
+  else if (t.dataset.dm) { app.conv = 'dm:' + t.dataset.dm; app.draft = ''; }
+  else if (t.dataset.approve || t.dataset.deny) { const p = sim.approve(t.dataset.approve || t.dataset.deny, !!t.dataset.approve); if (p) fillPersonas(); }
+  else {
+    const a = t.dataset.act;
+    if (a === 'copyurl') { try { navigator.clipboard.writeText('https://batnet').catch(() => {}); } catch (err) {} t.textContent = 'Copied'; return; }
+    if (a === 'toWarning') app.screen = 'warning';
+    if (a === 'toPortal') app.screen = 'portal';
+    if (a === 'toLanding') app.screen = 'landing';
+    if (a === 'toSignup') app.screen = 'signup';
+    if (a === 'toLogin') { const h = homeHouse(); setPersona(h.people[0]); return; }
+    if (a === 'toHelp') app.screen = 'help';
+    if (a === 'toApp') { app.conv = null; app.tab = app.tab === 'help' ? 'chats' : app.tab; app.screen = 'app'; }
+    if (a === 'toAdminView') { setPersona(homeHouse().admin); app.tab = 'admin'; renderPhone(true); return; }
+    if (a === 'enterApproved') { const s = S.signups.find((x) => x.id === app.persona.signupId); const pid = homeHouse().people.find((id) => S.personById.get(id).name === s.name.split(' ')[0]); if (pid) { fillPersonas(); setPersona(pid); } return; }
+    if (a === 'call' && me) { app.calling = app.conv.slice(3); }
+    if (a === 'hangup') app.calling = null;
+  }
+  renderPhone(true);
+});
+$('#screen').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const f = e.target.dataset.form;
+  if (f === 'signup') {
+    const name = $('#su-name').value.trim(); if (!name) return;
+    const h = homeHouse();
+    const s = { id: 's' + S.signups.length, houseId: h.id, name, t: S.now, state: 'waiting' };
+    S.signups.push(s);
+    app.persona = { visitor: true, houseId: h.id, signupId: s.id }; app.screen = 'pending';
+  }
+  if (f === 'send') {
+    const me = currentPerson(); const text = $('#draft').value.trim(); if (!text || !me) return;
+    const k = app.conv;
+    if (k === 'everyone') sim.send(me.id, 'everyone', null, text);
+    else if (k === 'public') sim.send(me.id, 'public', null, text);
+    else if (k.startsWith('g:')) sim.send(me.id, 'group', k, text);
+    else sim.send(me.id, 'dm', k.slice(3), text);
+    app.draft = '';
+  }
+  renderPhone(true);
+});
+$('#screen').addEventListener('input', (e) => { if (e.target.id === 'draft') app.draft = e.target.value; if (e.target.id === 'su-name') app.signupName = e.target.value; });
+
+// ---------- loop ----------
+function renderAll(force) { renderTiles(); renderAirtime(); renderTable(); renderInspector(); renderPhone(force); drawMap(); }
+let lastPanels = 0, lastPhone = 0, seenEvents = 0;
+function frame(now) {
+  const dt = Math.min(now - lastFrame, 120); lastFrame = now;
+  if (running) {
+    sim.step(S.now + dt * speed, 40000);
+    for (const ev of S.uiEvents) if (ev.t > (frame.lastEv || 0)) { pulses.push({ node: ev.node, kind: ev.kind, t0: now }); frame.lastEv = ev.t; }
+    if (pulses.length > 60) pulses.splice(0, pulses.length - 60);
+  }
+  $('#clock').textContent = hhmm(S.now);
+  $('#day').textContent = 'Day ' + (Math.floor(S.now / (24 * HOUR)) + 1) + ' · simulated';
+  drawMap();
+  if (now - lastPanels > 700) { lastPanels = now; renderTiles(); renderAirtime(); if (now - lastPhone > 1400) { lastPhone = now; renderTable(); renderPhone(false); } }
+  requestAnimationFrame(frame);
+}
+
+// ---------- boot ----------
+$('#scenario').innerHTML = Object.entries(SCENARIOS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
+$('#c-preset').innerHTML = Object.entries(PRESETS).map(([k, v]) => `<option value="${k}">${v.label} · reach ~${(v.range / 1000).toFixed(1)} km</option>`).join('');
+$('#speeds').innerHTML = [1, 10, 60, 300].map((s) => `<button type="button" data-speed="${s}" aria-pressed="${s === speed}">${s}×</button>`).join('');
+$('#speeds').addEventListener('click', (e) => { const b = e.target.closest('[data-speed]'); if (!b) return; speed = +b.dataset.speed; store.set('speed', speed); for (const x of $('#speeds').children) x.setAttribute('aria-pressed', x === b); });
+$('#play').textContent = running ? 'Pause' : 'Run';
+$('#play').addEventListener('click', () => { running = !running; store.set('running', running); $('#play').textContent = running ? 'Pause' : 'Run'; });
+$('#assumptions').innerHTML = ASSUMPTIONS.map((a) => `<li>${esc(a)}</li>`).join('');
+$('#controls').addEventListener('input', updateOutputs);
+$('#controls').addEventListener('submit', (e) => { e.preventDefault(); const c = cfgFromForm(); store.set('cfg', c); build(c); });
+$('#c-preset').addEventListener('change', (e) => { if (sim) { sim.setPreset(e.target.value); renderAll(); } });
+$('#scenario').addEventListener('change', (e) => { const c = Object.assign({ seed: 7 }, SCENARIOS[e.target.value]); store.set('scenario', e.target.value); store.set('cfg', null); fillForm(c); build(c); });
+wireHover($('#chartUtil')); wireHover($('#chartQueue'));
+new ResizeObserver(() => { if (S) { layoutMap(); drawMap(); renderTiles(); } }).observe(canvas);
+const scen = store.get('scenario', 'village');
+$('#scenario').value = SCENARIOS[scen] ? scen : 'village';
+const startCfg = store.get('cfg', null) || Object.assign({ seed: 7 }, SCENARIOS[$('#scenario').value]);
+fillForm(startCfg);
+build(startCfg);
+requestAnimationFrame((t) => { lastFrame = t; requestAnimationFrame(frame); });
+})();
+</script>
