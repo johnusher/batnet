@@ -1,0 +1,41 @@
+# gitleaks config for batnet: default rules + batnet-specific ones.
+# Runs in .githooks/pre-commit and in CI. See knowledge/security/secret-hygiene.md.
+title = "batnet"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "meshtastic-psk"
+description = "Meshtastic channel PSK (base64 of 16 or 32 bytes) next to a psk/key field"
+regex = '''(?i)(psk|channel[_-]?key|village[_-]?key)\s*[:=]\s*["']?([A-Za-z0-9+/]{22}==|[A-Za-z0-9+/]{43}=)'''
+secretGroup = 2
+keywords = ["psk", "key"]
+
+[[rules]]
+id = "meshtastic-node-id"
+description = "Real Meshtastic node ID (!xxxxxxxx) — trackable to a device and its owner"
+regex = '''![0-9a-f]{8}\b'''
+keywords = ["!"]
+
+[[rules]]
+id = "precise-coordinates"
+description = "GPS coordinates with 4+ decimals (~10 m) — round to 2 decimals (~1 km) or use placeholders"
+regex = '''-?\d{1,3}\.\d{4,}\s*,\s*-?\d{1,3}\.\d{4,}'''
+
+[[rules]]
+id = "mac-address"
+description = "Hardware MAC address"
+regex = '''\b(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}\b'''
+
+[[rules]]
+id = "email-address"
+description = "Email address — use placeholders such as anna@example.org"
+regex = '''[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'''
+[rules.allowlist]
+regexes = ['''@example\.(org|com|net)''', '''noreply@''', '''@lists\.''']
+
+[allowlist]
+description = "Placeholders and documentation examples"
+regexes = ['''!deadbeef''', '''!00000000''', '''!a1b2c3d4''', '''00:11:22:33:44:55''', '''aa:bb:cc:dd:ee:ff''']
+paths = ['''\.gitleaks\.toml$''']

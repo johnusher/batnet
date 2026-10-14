@@ -1,0 +1,37 @@
+# --- secrets: generated on each node or kept by the operator, never committed ---
+secrets/
+private/
+*.key
+*.pem
+*.crt
+*.p12
+*.age
+.env
+.env.*
+*.local.*
+*.local
+batnet.yaml
+!batnet.example.yaml
+village-key*
+psk*.txt
+
+# --- field data with real places, names, node IDs: lives in private/ or a private repo ---
+field/raw/
+*.gpx
+*.kml
+captures/
+*.iq
+*.cu8
+*.wav
+
+# --- build ---
+/bin/
+/dist/
+*.test
+*.out
+
+# --- OS / editor ---
+.DS_Store
+.idea/
+.vscode/
+*.swp

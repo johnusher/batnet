@@ -1,0 +1,18 @@
+#!/bin/sh
+# batnet pre-commit: block secrets and personal data, keep the knowledge bundle valid.
+set -e
+root=$(git rev-parse --show-toplevel)
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks git --pre-commit --staged --config "$root/.gitleaks.toml" --redact --no-banner || {
+    echo "pre-commit: gitleaks found something. Remove it, or move it to private/ (gitignored)." >&2
+    exit 1
+  }
+else
+  echo "pre-commit: gitleaks not installed — install it (brew install gitleaks) before committing." >&2
+  exit 1
+fi
+
+if git diff --cached --name-only | grep -q '^knowledge/'; then
+  (cd "$root/tools/okflint" && go run . "$root/knowledge")
+fi
