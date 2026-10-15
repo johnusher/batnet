@@ -30,3 +30,7 @@ sources:
 # USB boards (alternative)
 
 ESP32 + SX1262 boards (Heltec V3, LilyGo T-Beam) flashed with Meshtastic, on USB serial.
+
+# Bench kit
+
+2026-10-15: two Elecrow Meshsticks (USB, EU868) bought for the first bench test: two Pis with meshtasticd, one stick each. Results go in [tests](/tests/).
