@@ -5,7 +5,7 @@ name: Simulator on GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ["prototypes/village-sim/**", ".github/workflows/pages.yml"]
+    paths: ["prototypes/village-sim/**", "internal/**", "cmd/batnetwasm/**", "scenarios/**", "go.mod", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,11 +25,17 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
       - name: Build the site
         # index.html is written without a document skeleton (the artifact host adds one), so add it here.
         run: |
-          mkdir _site
-          cp prototypes/village-sim/sim.js _site/
+          mkdir -p _site/scenarios
+          cp prototypes/village-sim/sim.js prototypes/village-sim/real.js _site/
+          cp scenarios/*.json _site/scenarios/
+          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o _site/batnet.wasm ./cmd/batnetwasm
+          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" _site/
           {
             echo '<!doctype html>'
             echo '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
