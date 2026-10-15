@@ -1,0 +1,153 @@
+package sim
+
+import (
+	"hash/fnv"
+	"math"
+	"math/rand"
+
+	"github.com/johnusher/batnet/internal/lora"
+)
+
+// LoRaAir is the 868 MHz channel in virtual time: one preset for everyone,
+// range and distance loss, collisions, and Meshtastic's managed flooding.
+type LoRaAir struct {
+	Preset     lora.Preset
+	BaseLoss   float64
+	EdgeLoss   float64 // extra loss at the edge of range, growing with distance cubed (default 0.3)
+	Stats      LoRaStats
+	OnTransmit func(from string, at, durUs int64, heard []string)
+
+	sch    *Scheduler
+	rnd    *rand.Rand
+	radios []*LoRaRadio
+	live   []transmission // recent and current packets, for collisions
+}
+
+// LoRaStats counts packets since the start.
+type LoRaStats struct{ Packets, Delivered, Collided, Lost, Rebroadcasts int }
+
+type transmission struct {
+	from       *LoRaRadio
+	start, end int64
+}
+
+// LoRaRadio is one node's LoRa radio (a batnet gateway or a Meshtastic user).
+type LoRaRadio struct {
+	Name    string
+	X, Y    float64
+	On      bool
+	Duty    *lora.DutyMeter
+	air     *LoRaAir
+	onFrame func([]byte)
+	seen    map[uint32]bool // packets heard (for managed flooding)
+	pending map[uint32]bool // rebroadcasts waiting
+}
+
+// NewLoRaAir returns an empty channel for one preset.
+func NewLoRaAir(s *Scheduler, p lora.Preset, seed int64) *LoRaAir {
+	return &LoRaAir{Preset: p, BaseLoss: 0.02, EdgeLoss: 0.3, sch: s, rnd: rand.New(rand.NewSource(seed))}
+}
+
+// Add puts a radio at (x, y); onFrame receives what it hears (nil for none).
+func (a *LoRaAir) Add(name string, x, y float64, onFrame func([]byte)) *LoRaRadio {
+	r := &LoRaRadio{Name: name, X: x, Y: y, On: true, Duty: lora.NewDutyMeter(), air: a, onFrame: onFrame, seen: map[uint32]bool{}, pending: map[uint32]bool{}}
+	a.radios = append(a.radios, r)
+	return r
+}
+
+// Reach reports whether two radios hear each other directly.
+func (a *LoRaAir) Reach(p, q *LoRaRadio) bool {
+	return math.Hypot(p.X-q.X, p.Y-q.Y) <= a.Preset.RangeM
+}
+
+func packetID(frame []byte) uint32 {
+	h := fnv.New32a()
+	h.Write(frame)
+	return h.Sum32()
+}
+
+// Transmit starts sending a frame now (lora.Radio).
+func (r *LoRaRadio) Transmit(frame []byte, durUs int64) {
+	if !r.On {
+		return
+	}
+	r.seen[packetID(frame)] = true
+	r.air.send(r, append([]byte(nil), frame...), durUs)
+}
+
+// BusyUntil is when the last packet this radio can hear ends (lora.Radio).
+func (r *LoRaRadio) BusyUntil() int64 {
+	var until int64
+	for _, t := range r.air.live {
+		if (t.from == r || r.air.Reach(t.from, r)) && t.end > until {
+			until = t.end
+		}
+	}
+	return until
+}
+
+func (a *LoRaAir) send(from *LoRaRadio, frame []byte, dur int64) {
+	now := a.sch.Now()
+	keep := a.live[:0]
+	for _, t := range a.live {
+		if t.end > now-10*Second {
+			keep = append(keep, t)
+		}
+	}
+	a.live = append(keep, transmission{from: from, start: now, end: now + dur})
+	a.Stats.Packets++
+	var heard []string
+	id := packetID(frame)
+	for _, r := range a.radios {
+		if r == from || !r.On || !a.Reach(from, r) {
+			continue
+		}
+		r, d := r, math.Hypot(from.X-r.X, from.Y-r.Y)
+		heard = append(heard, r.Name)
+		a.sch.At(now+dur, func() { a.arrive(from, r, frame, id, now, now+dur, d) })
+	}
+	if a.OnTransmit != nil {
+		a.OnTransmit(from.Name, now, dur, heard)
+	}
+}
+
+func (a *LoRaAir) arrive(from, r *LoRaRadio, frame []byte, id uint32, start, end int64, d float64) {
+	if !r.On {
+		return
+	}
+	for _, t := range a.live {
+		if t.from != from && t.start < end && t.end > start && (t.from == r || a.Reach(t.from, r)) {
+			a.Stats.Collided++
+			return
+		}
+	}
+	if a.rnd.Float64() < a.BaseLoss+a.EdgeLoss*math.Pow(d/a.Preset.RangeM, 3) {
+		a.Stats.Lost++
+		return
+	}
+	if r.seen[id] {
+		delete(r.pending, id) // someone else rebroadcast it first: managed flooding stands down
+		return
+	}
+	r.seen[id] = true
+	a.Stats.Delivered++
+	if r.onFrame != nil {
+		r.onFrame(frame)
+	}
+	r.pending[id] = true
+	delay := 200*Ms + a.rnd.Int63n(1000*Ms)
+	a.sch.After(delay, func() {
+		if !r.pending[id] || !r.On {
+			return
+		}
+		delete(r.pending, id)
+		dur := lora.AirtimeUs(len(frame), a.Preset)
+		now := a.sch.Now()
+		if r.Duty.AllowedAt(now, dur) > now || r.BusyUntil() > now {
+			return
+		}
+		r.Duty.Record(now, dur)
+		a.Stats.Rebroadcasts++
+		a.send(r, frame, dur)
+	})
+}
