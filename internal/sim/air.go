@@ -51,6 +51,7 @@ type Air struct {
 type AirStats struct {
 	Frames, Delivered, Lost int
 	Bytes                   int64
+	RequestBytes            int64 // repair requests and answers
 	MaxUtil                 float64
 }
 
@@ -231,17 +232,49 @@ func (n *AirNode) Broadcast(pkt []byte) error {
 	return nil
 }
 
+// Request is a unicast exchange over the mesh. It takes airtime on the group's
+// channel for the request and the answer across every hop, and either leg can be
+// lost when the channel is busy. (It is answered at once in virtual time; only
+// the channel's load records its cost.)
 func (n *AirNode) Request(ctx context.Context, to string, req []byte) ([]byte, error) {
-	t := n.air.byAddr[to]
+	a := n.air
+	t := a.byAddr[to]
 	if t == nil || !n.On || !t.On || t.handler == nil {
 		return nil, errUnreachable
 	}
-	if _, h := n.air.hops(n); h == nil {
-		return nil, errUnreachable
-	} else if _, ok := h[t]; !ok {
+	others, h := a.hops(n)
+	hopsTo, ok := h[t]
+	if !ok {
 		return nil, errUnreachable
 	}
-	return t.handler(n.Name, append([]byte(nil), req...)), nil
+	c := a.channelFor(n, others)
+	if !a.useChannel(c, len(req), hopsTo) {
+		return nil, errLost
+	}
+	resp := t.handler(n.Name, append([]byte(nil), req...))
+	if !a.useChannel(c, len(resp), hopsTo) {
+		return nil, errLost
+	}
+	return resp, nil
+}
+
+// errLost means a unicast leg was lost on a busy channel.
+var errLost = errors.New("sim: request lost on a busy channel")
+
+// useChannel books airtime for one unicast leg of size bytes over hops hops
+// and reports whether it got through.
+func (a *Air) useChannel(c *channel, size, hops int) bool {
+	now := a.sch.Now()
+	start := max(now, c.busyUntil)
+	occupancy := (200 + 8*int64(size)) * int64(max(1, hops))
+	util := c.utilisation(start)
+	c.busyUntil = start + occupancy
+	c.spans = append(c.spans, [2]int64{start, start + occupancy})
+	if u := c.utilisation(start + occupancy); u > a.Stats.MaxUtil {
+		a.Stats.MaxUtil = u
+	}
+	a.Stats.RequestBytes += int64(size)
+	return a.rnd.Float64() >= a.BaseLoss+math.Min(0.6, util*util)
 }
 
 func (n *AirNode) Inbox() <-chan meshsync.Packet { return nil }

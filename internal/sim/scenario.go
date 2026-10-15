@@ -1,6 +1,7 @@
 package sim
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -33,6 +34,9 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 // Scenario is a village, what its people do, and what must hold.
 type Scenario struct {
 	Name     string      `json:"name"`
+	About    string      `json:"about"`
+	Expect   string      `json:"expect"`  // "pass" (default) or "fail": a known problem, see Because
+	Because  string      `json:"because"` // why a scenario is expected to fail
 	Seed     int64       `json:"seed"`
 	Duration Duration    `json:"duration"`
 	Start    string      `json:"start"`
@@ -93,8 +97,13 @@ var chatter = []string{"Water point open until 18:00", "Anyone have spare batter
 // LoadScenario parses and checks a scenario file.
 func LoadScenario(b []byte) (*Scenario, error) {
 	var sc Scenario
-	if err := json.Unmarshal(b, &sc); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&sc); err != nil {
 		return nil, fmt.Errorf("scenario: %v", err)
+	}
+	if err := sc.validate(); err != nil {
+		return nil, fmt.Errorf("scenario %q: %v", sc.Name, err)
 	}
 	if sc.Duration <= 0 {
 		return nil, fmt.Errorf("scenario %q: duration missing", sc.Name)
@@ -108,6 +117,53 @@ func LoadScenario(b []byte) (*Scenario, error) {
 		}
 	}
 	return &sc, nil
+}
+
+// Limits that keep a scenario from exhausting memory or time.
+const (
+	maxHouses      = 2000
+	maxHamlets     = 200
+	maxPeople      = 200
+	maxRatePerHour = 600
+)
+
+func (sc *Scenario) validate() error {
+	if sc.Expect != "" && sc.Expect != "pass" && sc.Expect != "fail" {
+		return fmt.Errorf("expect must be \"pass\" or \"fail\"")
+	}
+	if sc.Start != "" {
+		if _, err := time.Parse("15:04", sc.Start); err != nil {
+			return fmt.Errorf("start %q is not a time like \"20:00\"", sc.Start)
+		}
+	}
+	if g := sc.Generate; g != nil {
+		if g.Houses < 1 || g.Houses > maxHouses {
+			return fmt.Errorf("generate.houses must be 1-%d", maxHouses)
+		}
+		if g.Hamlets < 0 || g.Hamlets > maxHamlets || g.MaxPeople < 0 || g.MaxPeople > maxPeople {
+			return fmt.Errorf("generate.hamlets must be 0-%d and maxPeople 0-%d", maxHamlets, maxPeople)
+		}
+		if g.Width <= 0 || g.Height <= 0 || g.Spread < 0 || g.DongleShare < 0 || g.DongleShare > 1 {
+			return fmt.Errorf("generate needs width and height above 0, spread 0 or more, dongleShare 0-1")
+		}
+	}
+	if len(sc.Houses) > maxHouses {
+		return fmt.Errorf("at most %d houses", maxHouses)
+	}
+	for _, h := range sc.Houses {
+		if h.People < 0 || h.People > maxPeople {
+			return fmt.Errorf("house %q: people must be 0-%d", h.Name, maxPeople)
+		}
+	}
+	if r := sc.Traffic.PerPersonPerHour; r < 0 || r > maxRatePerHour {
+		return fmt.Errorf("traffic.perPersonPerHour must be 0-%d", maxRatePerHour)
+	}
+	for i, e := range sc.Events {
+		if e.At < 0 || e.For < 0 || e.Within < 0 {
+			return fmt.Errorf("event %d: times must not be negative", i+1)
+		}
+	}
+	return nil
 }
 
 // epochMs turns Start ("20:00") into a wall clock on a fixed day.
@@ -188,8 +244,8 @@ func (sc *Scenario) schedule(v *Village, e Event) error {
 	}
 	switch e.Kind {
 	case "post":
-		if v.Node(e.House) == nil {
-			return fmt.Errorf("no house %q", e.House)
+		if n := v.Node(e.House); n == nil || n.Kind != "house" {
+			return fmt.Errorf("no house %q (relays don't post)", e.House)
 		}
 		v.Sch.At(at, func() { v.Post(e.House, e.Text, prio) })
 	case "power":
@@ -238,9 +294,9 @@ func (sc *Scenario) scheduleTraffic(v *Village) {
 				if v.Node(name).Radio.On {
 					v.Post(name, chatter[v.rnd.Intn(len(chatter))], 5)
 				}
-				v.Sch.After(int64(v.rnd.ExpFloat64()*mean), next)
+				v.Sch.After(1+int64(v.rnd.ExpFloat64()*mean), next) // at least 1 µs apart
 			}
-			v.Sch.After(int64(v.rnd.ExpFloat64()*mean), next)
+			v.Sch.After(1+int64(v.rnd.ExpFloat64()*mean), next)
 		}
 	}
 }

@@ -70,12 +70,19 @@ func TestGenerator(t *testing.T) {
 // Review focus 5.
 func TestScenarioErrors(t *testing.T) {
 	for name, js := range map[string]string{
-		"bad json":      `{`,
-		"bad duration":  `{"name":"x","duration":"soon","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}]}`,
-		"no houses":     `{"name":"x","duration":"1m"}`,
-		"unknown house": `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"1s","kind":"post","house":"B","text":"x"}]}`,
-		"unknown kind":  `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"1s","kind":"party"}]}`,
-		"unknown check": `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"checks":[{"kind":"vibes"}]}`,
+		"bad json":           `{`,
+		"bad duration":       `{"name":"x","duration":"soon","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}]}`,
+		"no houses":          `{"name":"x","duration":"1m"}`,
+		"unknown house":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"1s","kind":"post","house":"B","text":"x"}]}`,
+		"unknown kind":       `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"1s","kind":"party"}]}`,
+		"unknown check":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"checks":[{"kind":"vibes"}]}`,
+		"negative generator": `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"generate":{"houses":-1}}`,
+		"huge generator":     `{"name":"x","duration":"1m","generate":{"houses":100000000,"width":10,"height":10}}`,
+		"huge traffic":       `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"traffic":{"perPersonPerHour":1e13}}`,
+		"post from a relay":  `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"relays":[{"name":"R","pi":"Zero 2 W","wifi":"pole"}],"events":[{"at":"1s","kind":"post","house":"R","text":"x"}]}`,
+		"negative time":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"-5s","kind":"post","house":"A","text":"x"}]}`,
+		"bad start":          `{"name":"x","duration":"1m","start":"teatime","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}]}`,
+		"unknown field":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"evnts":[]}`,
 	} {
 		sc, err := LoadScenario([]byte(js))
 		if err == nil {

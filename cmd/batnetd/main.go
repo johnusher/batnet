@@ -152,7 +152,7 @@ func runScenarios(paths []string) int {
 		}
 		fmt.Print(r)
 		fmt.Printf("      (%s simulated in %s)\n\n", time.Duration(sc.Duration)*time.Microsecond, time.Since(t0).Round(time.Millisecond))
-		if !r.Pass {
+		if !r.OK() {
 			status = 1
 		}
 	}

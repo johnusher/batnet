@@ -59,9 +59,9 @@ growing with load). No LoRa yet.
 |---|---|
 | street (3 houses, a power cut, a small burst) | pass; median delivery 2 ms |
 | storm (8 houses in a line, three power cuts) | pass; posts sent during a split arrive soon after it heals |
-| bang (40 houses, everyone near the school posts within 30 s) | pass; channel 100% busy, 48,000 frame copies lost to receivers, yet every post reached its WiFi group within 1.8 s through repair |
+| bang (40 houses, everyone near the school posts within 30 s) | **fails** once repair pays for airtime: median delivery 41 s, worst 4.7 min, 45 posts never arrive. With 30 s heartbeats instead of 5 s it passes (median 70 ms). An earlier run that passed modelled repair as free (review, 2026-10-15) |
 
-**Finding: flooded heartbeats do not scale.** With no messages at all, the 5 s
+**Finding: flooded heartbeats do not scale, and they break the bang scenario.** With no messages at all, the 5 s
 heartbeats (flooded to every node by batman-adv) keep the channel 5% busy at
 10 houses, 10% at 20, 41% at 40 and 100% at 80 (quiet scenarios, 5 min). Spec
 section 5 needs heartbeats that stay one hop (neighbours compare and repair

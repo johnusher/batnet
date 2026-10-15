@@ -116,3 +116,30 @@ func TestSeparateGroupsSeparateChannels(t *testing.T) {
 	}
 	_ = b
 }
+
+// Review: repair requests use airtime on the group's channel and can fail when it is busy.
+func TestRequestsCostAirtime(t *testing.T) {
+	var s Scheduler
+	air := NewAir(&s, 4)
+	air.BaseLoss = 0
+	a, b := air.Add("a", 0, 0, 350), air.Add("b", 100, 0, 350)
+	b.SetHandler(func(string, []byte) []byte { return make([]byte, 5000) })
+	if _, err := a.Request(context.Background(), "b", make([]byte, 100)); err != nil {
+		t.Fatal(err)
+	}
+	if air.Stats.RequestBytes != 5100 || air.Stats.MaxUtil == 0 {
+		t.Fatalf("a request and its answer used no airtime: %+v", air.Stats)
+	}
+	for i := 0; i < 2000; i++ { // saturate the channel
+		a.Broadcast(make([]byte, 300))
+	}
+	failed := 0
+	for i := 0; i < 50; i++ {
+		if _, err := a.Request(context.Background(), "b", make([]byte, 100)); err != nil {
+			failed++
+		}
+	}
+	if failed == 0 {
+		t.Fatal("no request failed on a saturated channel")
+	}
+}
