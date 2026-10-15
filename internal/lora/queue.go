@@ -1,6 +1,9 @@
 package lora
 
-import "github.com/johnusher/batnet/internal/prio"
+import (
+	"github.com/johnusher/batnet/internal/ledger"
+	"github.com/johnusher/batnet/internal/prio"
+)
 
 // Item is something waiting to go on air: one message, as one or more frames.
 type Item struct {
@@ -10,6 +13,8 @@ type Item struct {
 	Enqueued int64
 	Frames   [][]byte
 	Next     int // frames already sent
+
+	entry *ledger.Entry // for entries: what to put back if another gateway's copy never completes
 }
 
 // Queue orders items by effective level (with ageing), then by age.

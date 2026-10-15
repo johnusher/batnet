@@ -21,6 +21,10 @@ const (
 	suppressSpanUs  = 3_000_000
 	maxRecoverEach  = 8
 	reassemblyTTLUs = 10 * 60_000_000
+	// holdFactor: how long to wait for the rest of an entry another gateway
+	// started, in fragment times. A busy channel stretches a sender's fragments
+	// apart; 6 gave the fewest missing and late posts on farms over six seeds.
+	holdFactor = 6
 )
 
 // Radio is the bridge's view of the LoRa radio (meshtasticd on a Pi; the
@@ -62,18 +66,28 @@ type Bridge struct {
 	heard      map[ledger.Key]bool
 	waiting    map[string]int64 // key → time it may be queued (suppression delay)
 	waitEntry  map[string]*ledger.Entry
-	waitKind   map[string]Kind // KindEntry, or KindRecovery for beacon answers
-	backoff    int64           // don't transmit before this: a random wait after the channel was busy (CSMA)
-	remoteAt   int64           // last time a batnet radio outside this group was heard; -1 never
+	waitKind   map[string]Kind      // KindEntry, or KindRecovery for beacon answers
+	held       map[string]heldEntry // another gateway started sending these: wait for the rest
+	backoff    int64                // don't transmit before this: a random wait after the channel was busy (CSMA)
+	remoteAt   int64                // last time a batnet radio outside this group was heard; -1 never
 	nextBeacon int64
 	busyUntil  int64 // our own transmission in progress
+}
+
+// heldEntry is one of ours that another gateway started sending. If the rest
+// of it isn't heard by until (its frames collided, or the sender lost power),
+// it goes back in line.
+type heldEntry struct {
+	e     *ledger.Entry
+	kind  Kind
+	until int64
 }
 
 // NewBridge returns a bridge; its first beacon goes at a random point in the first 15 min.
 func NewBridge(cfg BridgeConfig) *Bridge {
 	b := &Bridge{cfg: cfg, Duty: NewDutyMeter(), self: ShortID(cfg.Self), rnd: rand.New(rand.NewSource(cfg.Seed)),
 		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]bool{}, waiting: map[string]int64{},
-		waitEntry: map[string]*ledger.Entry{}, waitKind: map[string]Kind{}, remoteAt: -1}
+		waitEntry: map[string]*ledger.Entry{}, waitKind: map[string]Kind{}, held: map[string]heldEntry{}, remoteAt: -1}
 	b.nextBeacon = cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 	return b
 }
@@ -86,6 +100,7 @@ func (b *Bridge) Restart() {
 	b.waiting = map[string]int64{}
 	b.waitEntry = map[string]*ledger.Entry{}
 	b.waitKind = map[string]Kind{}
+	b.held = map[string]heldEntry{}
 	b.reasm = NewReassembler(reassemblyTTLUs, 64)
 	b.busyUntil = 0
 	b.backoff = 0
@@ -121,7 +136,7 @@ func (b *Bridge) Consider(e *ledger.Entry) {
 // heard on air cancels the rest (decision 0022).
 func (b *Bridge) wait(e *ledger.Entry, kind Kind) bool {
 	k := keyString(e.Key)
-	if b.Queue.Has(k) || b.waiting[k] != 0 {
+	if b.Queue.Has(k) || b.waiting[k] != 0 || b.held[k].e != nil {
 		return false
 	}
 	h := fnv.New32a()
@@ -143,7 +158,7 @@ func (b *Bridge) queueEntry(e *ledger.Entry, kind Kind, level prio.Level) {
 	if err != nil {
 		return
 	}
-	b.Queue.Push(&Item{Key: keyString(e.Key), Kind: kind, Base: level, Enqueued: b.cfg.Now(), Frames: frames})
+	b.Queue.Push(&Item{Key: keyString(e.Key), Kind: kind, Base: level, Enqueued: b.cfg.Now(), Frames: frames, entry: e})
 }
 
 // resendLevel is a resend's level: one below its own, but High and Alert keep theirs (decision 0015).
@@ -181,7 +196,7 @@ func (b *Bridge) Receive(frame []byte) {
 	// were all waiting for this frame to end don't start together.
 	b.backoff = max(b.backoff, b.cfg.Now()+lbtMinUs+b.rnd.Int63n(lbtJitterUs))
 	if f.Kind != KindBeacon {
-		b.cancelByMsgID(f.MsgID) // someone is already sending this entry: don't start it too
+		b.holdByMsgID(f.MsgID, int(f.Count)) // someone is already sending this entry: don't start it too
 	}
 	if !b.cfg.InMyGroup(f.Sender) {
 		b.remoteAt = b.cfg.Now()
@@ -200,10 +215,11 @@ func (b *Bridge) Receive(frame []byte) {
 		}
 		b.heard[e.Key] = true
 		k := keyString(e.Key)
-		if b.Queue.Remove(k) || b.waiting[k] != 0 {
+		if b.Queue.Remove(k) || b.waiting[k] != 0 || b.held[k].e != nil {
 			delete(b.waiting, k)
 			delete(b.waitEntry, k)
 			delete(b.waitKind, k)
+			delete(b.held, k)
 			b.Stats.Suppressed++
 		}
 		if b.cfg.Inject(&e) {
@@ -285,6 +301,17 @@ func (b *Bridge) Tick() int64 {
 			delete(b.waitKind, k)
 		}
 	}
+	held := make([]string, 0, len(b.held))
+	for k := range b.held {
+		held = append(held, k)
+	}
+	sort.Strings(held)
+	for _, k := range held {
+		if h := b.held[k]; h.until <= now {
+			delete(b.held, k) // the other sender stopped: back in line
+			b.wait(h.e, h.kind)
+		}
+	}
 	if now >= b.nextBeacon {
 		b.queueBeacon()
 		b.Stats.Beacons++
@@ -293,6 +320,9 @@ func (b *Bridge) Tick() int64 {
 	next := b.nextBeacon
 	for _, at := range b.waiting {
 		next = min(next, at)
+	}
+	for _, h := range b.held {
+		next = min(next, h.until)
 	}
 	it := b.Queue.Peek(now)
 	if it == nil {
@@ -327,23 +357,25 @@ func (b *Bridge) Tick() int64 {
 	return min(next, b.busyUntil)
 }
 
-// cancelByMsgID drops a waiting or not-yet-started queued entry whose payload
-// has this message ID: hearing its first fragment is enough to know another
-// gateway is sending it (entries of two fragments otherwise both get sent).
-func (b *Bridge) cancelByMsgID(id uint32) {
+// holdByMsgID holds back a waiting or not-yet-started queued entry whose
+// payload has this message ID: another gateway has started sending it. It is
+// dropped when the whole entry is heard, and goes back in line if that doesn't
+// happen within the time its remaining fragments take.
+func (b *Bridge) holdByMsgID(id uint32, count int) {
+	until := b.cfg.Now() + int64(max(count, 1))*holdFactor*(AirtimeUs(MaxFrame, b.cfg.Preset)+lbtMinUs+lbtJitterUs)
 	for k, e := range b.waitEntry {
 		if raw, err := e.MarshalBinary(); err == nil && msgID(raw) == id {
+			b.held[k] = heldEntry{e: e, kind: b.waitKind[k], until: until}
 			delete(b.waiting, k)
 			delete(b.waitEntry, k)
 			delete(b.waitKind, k)
-			b.Stats.Suppressed++
 		}
 	}
 	for _, it := range b.Queue.items {
-		if it.Next == 0 && it.Kind != KindBeacon && len(it.Frames) > 0 {
+		if it.Next == 0 && it.Kind != KindBeacon && it.entry != nil && len(it.Frames) > 0 {
 			if f, err := Parse(it.Frames[0]); err == nil && f.MsgID == id {
+				b.held[it.Key] = heldEntry{e: it.entry, kind: it.Kind, until: until}
 				b.Queue.Remove(it.Key)
-				b.Stats.Suppressed++
 				return
 			}
 		}

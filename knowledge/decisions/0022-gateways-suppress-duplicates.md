@@ -20,7 +20,8 @@ gateway no longer hears every other gateway of its group.
   radio outside its own WiFi group (batman-adv's originator table says who is in it).
 * It waits `hash(post, gateway) mod 3 s` (plus 3 s if it has used over half its
   hourly airtime), then queues the post. Hearing the post on air from another
-  gateway cancels its own send.
+  gateway cancels its own send. (Refined by [0023](0023-hold-on-a-first-fragment.md):
+  its first fragment only holds the send back.)
 * Entries received over LoRa are never re-sent, except to answer a beacon.
 
 Built in plan 3 and exercised in the simulator's village scenario (four

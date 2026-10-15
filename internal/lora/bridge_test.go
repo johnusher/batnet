@@ -234,3 +234,29 @@ func TestRestartBeaconsSoon(t *testing.T) {
 		t.Fatal("no beacon within a minute of a restart")
 	}
 }
+
+// Hearing another gateway start an entry only holds ours back: if the rest of
+// it never arrives (a collision, a power cut), we send it ourselves.
+func TestHeldEntryResumesWhenTheOtherSenderStops(t *testing.T) {
+	air, gws := newGateways(t, 1, 1, 2)
+	run(air, gws, 16*60_000_000)
+	long := ""
+	for len(long) < 3*MaxFrame {
+		long += "The bridge on the north road is closed; use the ford by the mill. "
+	}
+	e, err := gws[0].author.Append(ledger.TypeMsgPost, uint8(prio.Normal), map[string]string{"audience": "everyone", "text": long})
+	if err != nil {
+		t.Fatal(err)
+	}
+	gws[1].store.Put(e)
+	gws[1].b.Consider(e)
+	frames, _ := Split(KindEntry, prio.Normal, ShortID(gws[0].author.ID()), mustMarshal(e))
+	if len(frames) < 2 {
+		t.Fatal("the test needs an entry of several fragments")
+	}
+	gws[1].b.Receive(frames[0]) // gateway 0 starts it, then goes silent
+	run(air, gws, 5*60_000_000)
+	if got, _ := gws[2].store.Get(e.Key); got == nil {
+		t.Fatal("the entry never crossed: hearing its first fragment cancelled it for good")
+	}
+}

@@ -82,6 +82,7 @@ type Village struct {
 	preset     lora.Preset
 
 	rnd    *rand.Rand
+	who    *rand.Rand // who writes a post: apart from rnd, so it doesn't shift the schedule
 	key    seal.VillageKey
 	groups []groupSnap // WiFi groups over time, recorded when they can change
 	byName map[string]*Node
@@ -96,7 +97,7 @@ func NewVillage(seed, epochMs int64, preset lora.Preset) (*Village, error) {
 	rnd.Read(key[:]) // deterministic per seed; a real village uses crypto/rand
 	sch := &Scheduler{}
 	return &Village{Sch: sch, Air: NewAir(sch, seed+1), LoRa: NewLoRaAir(sch, preset, seed+2), preset: preset,
-		EpochMs: epochMs, rnd: rnd, key: key, byName: map[string]*Node{}, byKey: map[ledger.Key]*Post{}}, nil
+		EpochMs: epochMs, rnd: rnd, who: rand.New(rand.NewSource(seed + 3)), key: key, byName: map[string]*Node{}, byKey: map[ledger.Key]*Post{}}, nil
 }
 
 func (v *Village) add(name, kind string, x, y float64, pi, wifi string, withLoRa bool) (*Node, error) {
@@ -226,7 +227,7 @@ func (v *Village) Post(house, text string, level uint8) (*Post, error) {
 	}
 	from := ""
 	if len(n.People) > 0 {
-		from = n.People[v.rnd.Intn(len(n.People))] // one of the people living here
+		from = n.People[v.who.Intn(len(n.People))] // one of the people living here
 	}
 	// Written through the house server, as the app would: stored, folded, published, handed to the radio.
 	e, err := n.Web.Write(ledger.TypeMsgPost, prio.Level(level), map[string]string{"from": state.CompactAccount(from, n.Author.ID()), "audience": "everyone", "text": text})

@@ -2,7 +2,7 @@
   "name": "farms",
   "about": "8 farms 1.5-2.5 km apart, each with its own Pi and LoRa radio, no WiFi links between them: everything goes by radio, with one hill-top Meshtastic relay.",
   "expect": "fail",
-  "because": "LoRa-only farms up to 5 km apart (modelled with 50 ms carrier sense, per-transmission packet IDs and real accounts): farms that can't hear each other collide (about 6,700 collisions at receivers in 90 min); 3 of 53 posts missing, 6 late against a 20 min limit, the busiest radio at 98% of its hourly limit. Ideas: a hop limit on rebroadcasts, beacons that ask for specific gaps, a second radio on a faster preset (decision 0008). Model numbers, not field data.",
+  "because": "LoRa-only farms up to 5 km apart (modelled with 50 ms carrier sense, per-transmission packet IDs and real accounts): farms that can't hear each other collide (about 5,400 collisions at receivers in 90 min); 1 of 50 posts missing, 8 late against a 20 min limit, the busiest radio at 88% of its hourly limit; over six other seeds 2 missing and 26 late in all. Ideas: a hop limit on rebroadcasts, beacons that ask for specific gaps, a second radio on a faster preset (decision 0008). Model numbers, not field data.",
   "seed": 13,
   "duration": "90m",
   "start": "07:00",

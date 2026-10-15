@@ -202,3 +202,17 @@ func TestSeededDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// Who posts is drawn from its own random source: adding people (or picking one)
+// must not shift a scenario's schedule of posts, radio timing or losses.
+func TestPostLeavesTheVillageRandomnessAlone(t *testing.T) {
+	a, b := smallVillage(t, 4), smallVillage(t, 4)
+	for i := 0; i < 5; i++ {
+		if _, err := a.Post("Okafor", "who wrote this?", 5); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if x, y := a.rnd.Int63(), b.rnd.Int63(); x != y {
+		t.Fatal("Village.Post drew from the village's shared random stream")
+	}
+}

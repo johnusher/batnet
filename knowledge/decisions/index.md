@@ -24,3 +24,4 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0020 Photos](0020-photos.md) - metadata stripped, resampled above 500 KB, full over WiFi, blurred preview over LoRa (M2)
 * [0021 One-hop heartbeats](0021-one-hop-heartbeats.md) - heartbeats reach direct neighbours only; flooded ones saturated a 40-house mesh
 * [0022 Gateways suppress duplicates](0022-gateways-suppress-duplicates.md) - any gateway may send after a per-post delay; hearing it sent cancels the rest; supersedes 0017's hash assignment
+* [0023 Hold on a first fragment](0023-hold-on-a-first-fragment.md) - hearing another gateway start a post holds ours; the whole post cancels it; if the rest never comes, ours goes; refines 0022
