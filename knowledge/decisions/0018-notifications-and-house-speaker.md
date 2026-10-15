@@ -26,8 +26,9 @@ phones need another way too ([0016](0016-no-phone-mode.md)).
    * Chime plus spoken "Message for Ben, from Anna at Miller House": who for and
      who from, never what it says. High: "Urgent message for Ben". Alert: siren,
      then the full text.
-   * Only for people who opt in (Settings). Quiet hours, default 22:00-07:00,
-     except High and Alert.
+   * Announces direct and group messages for people who opt in (Settings);
+     everyone-channel posts only when High; Alerts always. Quiet hours,
+     default 22:00-07:00, except High and Alert.
    * Speech by espeak-ng in M1 (a separate process, GPL), Piper in M2.
 4. **Button and LED on the house Pi (M1):** the LED blinks while someone in the
    house has unread messages; pressing the button reads waiting announcements

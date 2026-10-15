@@ -155,7 +155,7 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .phone { width: 100%; max-width: 360px; height: 720px; border-radius: 42px; border: 11px solid var(--bezel); background: var(--app-bg); color: var(--app-fg); font-family: var(--f-app); font-size: 15px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 18px 40px -24px rgba(0,0,0,.45); }
 .statusbar { display: flex; justify-content: space-between; padding: 8px 20px 4px; font-size: 12px; font-weight: 600; color: var(--app-fg); }
 .statusbar .nointernet { color: var(--app-sub); font-weight: 500; }
-.screen { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.screen { flex: 1; display: flex; flex-direction: column; min-height: 0; position: relative; }
 .phonenote { max-width: 360px; font-size: 13px; color: var(--muted); margin: 0; }
 
 .ap-head { padding: 8px 16px 10px; border-bottom: 1px solid var(--app-line); display: flex; align-items: center; gap: 10px; }
@@ -221,6 +221,10 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .review .row { display: flex; gap: 8px; }
 .review .row button { flex: 1; padding: 9px; font-size: 15px; }
 /* message priority */
+.iconbtn.locon { background: var(--app-accent); color: var(--app-bg); }
+.locline { font-size: 12.5px; color: var(--app-sub); margin-top: 3px; }
+.bedside { position: absolute; inset: 0; background: #000; color: #8a8f93; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 5; border-radius: inherit; text-align: center; padding: 20px; }
+.bedside .clk { font: 300 54px var(--f-mono); color: #9aa0a4; }
 .priobtn { border: 0; height: 40px; min-width: 40px; padding: 0 10px; border-radius: 20px; background: var(--app-chip); color: var(--app-sub); font-weight: 800; font-size: 13px; flex: none; }
 .priobtn.high { background: #c62f2f; color: #fff; }
 .priobtn.low { color: var(--app-sub); }
@@ -409,7 +413,7 @@ let selectedId = null;
 const pulses = [];
 const beams = []; // packet from one radio to each radio that heard it
 let lastFrame = performance.now();
-const app = { prio: 'normal', prioOpen: false, rec: null, persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
+const app = { loc: false, locSource: 'phone', speakerOptIn: new Set(), quietHours: true, bedside: false, prio: 'normal', prioOpen: false, rec: null, persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
 
 function cfgFromForm() {
   return {
@@ -439,6 +443,7 @@ function updateOutputs() {
 function build(cfg) {
   sim = createSim(cfg);
   S = sim.S;
+  app.speakerOptIn = new Set(S.people.filter((p, i) => i % 3 === 0).map((p) => p.id)); // a third of people opted in to announcements
   pulses.length = 0;
   frame.lastEv = 0;
   view.w = 0;
@@ -703,7 +708,8 @@ function renderInspector() {
       ${n.kind === 'house' ? `<span>People</span><input class="field num" id="i-size" type="number" min="1" max="30" value="${n.people.length}" style="width:80px">
       <span>Point-to-point</span><select class="field" id="i-p2p"><option value="">None</option>${houses.map((h) => `<option value="${h.id}" ${n.p2p === h.id ? 'selected' : ''}>${esc(h.name)}</option>`).join('')}</select>` : ''}
     </div>
-    <div class="caps"><span class="chip">${prof.phones} phones</span><span class="chip">speech-to-text: ${prof.stt}</span></div>
+    <div class="caps"><span class="chip">${prof.phones} phones</span><span class="chip">speech-to-text: ${prof.stt}</span>${n.kind === 'house' ? `<span class="chip">LED: ${unreadInHouse(n) ? 'blinking · ' + unreadInHouse(n) + ' of ' + n.people.length + ' people have unread' : 'off'}</span>` : ''}</div>
+    ${n.kind === 'house' ? (() => { const an = announcements(n, S.now - 30 * 60000).slice(-3); return `<p class="note" style="margin-top:8px"><b>House speaker, last 30 min:</b> ${an.length ? an.map((x) => `<br>${hhmm(x.t)} “${esc(x.text)}”`).join('') : 'nothing announced (only people who opted in, in Settings)'}</p>`; })() : ''}
     <p class="note">${prof.note}</p>
     ${warns.map((w) => `<div class="warnline">${esc(w)}</div>`).join('')}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
@@ -954,6 +960,55 @@ function recipientsSplit(me) {
   const none = houses.length - wifi - radio;
   return { wifi, radio, none };
 }
+// ---- location (decision 0019) and the house speaker (decision 0018) ----
+const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+function makeLoc(me) {
+  // simulated fix: the phone is near its house; the node's GPS is the house itself
+  const h = S.nodeById.get(me.houseId);
+  if (app.locSource === 'node') return { x: h.x, y: h.y, acc: 5, source: 'node' };
+  return { x: h.x + (Math.random() - 0.5) * 60, y: h.y + (Math.random() - 0.5) * 60, acc: 12, source: 'phone' };
+}
+function locLine(m, me) {
+  const h = S.nodeById.get(me.houseId), d = Math.hypot(m.loc.x - h.x, m.loc.y - h.y);
+  const src = m.loc.source === 'node' ? 'house GPS' : 'phone GPS';
+  if (m.from === me.id) return `📍 Your location is attached (${src})`;
+  if (d < 25) return `📍 at your house (${src})`;
+  const ang = Math.atan2(m.loc.x - h.x, -(m.loc.y - h.y)); // map y grows southwards
+  const dir = DIRS[Math.round(((ang * 180 / Math.PI) + 360) % 360 / 45) % 8];
+  const dist = d < 1000 ? Math.round(d / 10) * 10 + ' m' : (d / 1000).toFixed(1) + ' km';
+  return `📍 ${dist} ${dir} of your house (${src})`;
+}
+function quiet(t) { const hr = Math.floor(t / 3600000) % 24; return app.quietHours && (hr >= 22 || hr < 7); }
+// What the house speaker said lately: DMs and group messages for people who opted in;
+// everyone-channel posts only when High; Alerts always (siren + full text).
+function announcements(h, since) {
+  const out = [];
+  for (const m of S.msgs) {
+    if (m.t < since || m.from === null || m.fromHouse === h.id) continue;
+    const d = m.deliv.get(h.id);
+    if (!d || d.t > S.now) continue;
+    const from = senderName(m).replace(' · ', ' at ') + ' House';
+    if (m.prio === 'alert') { out.push({ t: d.t, text: `Siren. Alert from ${from}: ${m.text}` }); continue; }
+    let who = [];
+    if (m.kind === 'dm') who = [m.to].filter((pid) => S.personById.get(pid).houseId === h.id);
+    else if (m.kind === 'group') { const g = S.groups.find((x) => x.id === m.to); who = h.people.filter((pid) => g.members.has(pid)); }
+    else if (m.prio === 'high') who = h.people;
+    who = who.filter((pid) => app.speakerOptIn.has(pid));
+    if (!who.length || (quiet(d.t) && m.prio !== 'high')) continue;
+    const names = who.map((pid) => S.personById.get(pid).name.split(' ')[0]).join(' and ');
+    out.push({ t: d.t, text: `${m.prio === 'high' ? 'Urgent message' : 'Message'} for ${names}, from ${from}.` });
+  }
+  return out.sort((a, b) => a.t - b.t);
+}
+// people in the house with an unread direct or group message from the last hour (the LED blinks for them)
+function unreadInHouse(h) {
+  let n = 0;
+  for (const pid of h.people) {
+    const p = S.personById.get(pid);
+    if (S.msgs.some((m) => m.from !== pid && (m.kind === 'dm' || m.kind === 'group') && m.t > S.now - 3600000 && visibleTo(m, p) && m.t > (app.lastRead.get(pid + convKey(m, p)) || 0))) n++;
+  }
+  return n;
+}
 const HIGH_PER_HOUR = 3; // a house admin could change this
 function highLeft(me) { return HIGH_PER_HOUR - S.msgs.filter((m) => m.from === me.id && m.prio === 'high' && m.t > S.now - 3600000).length; }
 function prioMenu(me) {
@@ -984,7 +1039,7 @@ function composeArea(me, key) {
       <span class="who">${esc(who || 'Only your house')}</span>
       <div class="row"><button class="ap-btn ghost" data-act="recDiscard">Discard</button><button class="ap-btn" data-act="recSend">Send</button></div></div>`;
   }
-  return `${prioMenu(me)}<form class="compose" data-form="send">${key === 'public' ? '' : prioButton()}<button type="button" class="iconbtn" data-act="recStart" title="Record a voice message" aria-label="Record a voice message">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
+  return `${prioMenu(me)}<form class="compose" data-form="send">${key === 'public' ? '' : prioButton()}<button type="button" class="iconbtn ${app.loc ? 'locon' : ''}" data-act="locToggle" aria-pressed="${app.loc}" title="${app.loc ? 'Your location will be attached' : 'Attach your location'}" aria-label="Attach location">📍</button><button type="button" class="iconbtn" data-act="recStart" title="Record a voice message" aria-label="Record a voice message">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
 }
 function screenConv(me) {
   const key = app.conv;
@@ -1000,7 +1055,7 @@ function screenConv(me) {
     if (callReason) banner = `<div class="banner ${r === 'lora' ? 'lora' : ''}">${esc(callReason)}</div>`;
   }
   if (key === 'public') banner = '<div class="banner lora">Public Meshtastic channel. Anyone with a Meshtastic radio can read this.</div>';
-  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''} ${m.prio && m.prio !== 'normal' ? m.prio : ''}">${m.prio === 'alert' ? '<div class="who">⚠ Alert from the house admin</div>' : ''}${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${m.voice ? voiceBubble(m, me) : esc(m.text)}<div class="meta">${m.prio === 'high' ? '<span class="ptag high">❗ High</span>' : m.prio === 'low' ? '<span class="ptag">Low</span>' : ''}<span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
+  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''} ${m.prio && m.prio !== 'normal' ? m.prio : ''}">${m.prio === 'alert' ? '<div class="who">⚠ Alert from the house admin</div>' : ''}${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${m.voice ? voiceBubble(m, me) : esc(m.text)}${m.loc ? `<div class="locline">${locLine(m, me)}</div>` : ''}<div class="meta">${m.prio === 'high' ? '<span class="ptag high">❗ High</span>' : m.prio === 'low' ? '<span class="ptag">Low</span>' : ''}<span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
   return `<div class="ap-head"><button class="ap-back" data-act="toApp" aria-label="Back">‹</button><h2>${esc(convName(key))}<span class="sub">${esc(convSub(key, me))}</span></h2>${key.startsWith('dm:') ? `<button class="iconbtn" data-act="call" ${canCall ? '' : 'disabled'} title="${canCall ? 'Call over the WiFi mesh' : esc(callReason)}" aria-label="Call">${ICON.call}</button>` : ''}</div>
   ${banner}
   <div class="ap-body" id="msglist"><div class="msgs">${items || '<p class="ap-p" style="text-align:center;padding:24px 0">No messages yet. Say hello.</p>'}</div></div>
@@ -1045,6 +1100,14 @@ function screenSettings(me) {
     <div class="ap-section"><span>Display</span></div>
     ${row('disabled', '', 'Language', '', '<span class="val">English</span>')}
     ${row('data-act="textSize"', '', 'Large text', '', `<span class="val">${app.large ? 'On' : 'Off'}</span>`)}
+    ${row('data-act="bedside"', '', 'Bedside mode', 'Keeps the screen on and dim while charging, so the phone can ring at night', '<span class="val">Start</span>')}
+    <div class="ap-section"><span>Notifications</span></div>
+    ${row('data-act="speakerOpt"', '', 'Announce my messages on the house speaker', 'Says who a message is for and who sent it, never what it says', `<span class="val">${app.speakerOptIn.has(me.id) ? 'On' : 'Off'}</span>`)}
+    ${row('data-act="quietHours"', '', 'Quiet hours, 22:00–07:00', 'Only High messages and Alerts are announced', `<span class="val">${app.quietHours ? 'On' : 'Off'}</span>`)}
+    ${row('disabled', '', 'Sound and vibration', 'While batnet is open. A locked phone can\'t ring: keep batnet open or use bedside mode', '<span class="val">On</span>')}
+    <div class="ap-section"><span>Location</span></div>
+    ${row('data-act="locSource"', '', 'Location from', h.pi === 'Pi 4' || h.pi === 'Pi 5' ? 'The house GPS needs a USB GPS dongle on the house Pi' : '', `<span class="val">${app.locSource === 'phone' ? 'This phone' : 'House GPS'}</span>`)}
+    ${row('disabled', '', 'Share my location', 'Every 2 min over WiFi; latest position every 15 min by radio. Coming in milestone 2', '<span class="val">Off</span>')}
     <div class="ap-section"><span>Radio</span></div>
     ${row('data-tab="scan"', ICON.radio, 'Scan the air', 'Who else is using radio nearby: walkie-talkies, Meshtastic, WiFi')}
     ${row('data-tab="radios"', ICON.radio, 'Radios nearby', 'Meshtastic nodes this house can hear')}
@@ -1160,13 +1223,14 @@ function renderPhone(force) {
   else if (app.tab === 'help') html = screenHelp(me) + tabBar(me);
   else html = screenChats(me);
   scr.classList.toggle('large', !!app.large);
+  if (app.bedside && me) html += `<div class="bedside" data-act="bedside" role="button" aria-label="Leave bedside mode"><div class="clk">${hhmm(S.now)}</div><div>Bedside mode · screen stays on<br>batnet will ring for new messages</div><div style="font-size:12px">Tap to leave</div></div>`;
   scr.innerHTML = html;
   const nl = $('#msglist');
   if (nl && (atBottom || force)) nl.scrollTop = nl.scrollHeight;
 }
 $('#screen').addEventListener('click', (e) => {
   const prioBtn = e.target.closest('[data-prio]');
-  if (prioBtn) { app.prio = prioBtn.dataset.prio; app.prioOpen = false; renderPhone(true); return; }
+  if (prioBtn) { app.prio = prioBtn.dataset.prio; app.prioOpen = false; if (app.prio === 'high') app.loc = true; renderPhone(true); return; }
   const sayBtn = e.target.closest('[data-say]');
   if (sayBtn) { const m = S.msgById.get(+sayBtn.dataset.say); if (m) sayAloud(m.text); return; }
   const t = e.target.closest('[data-act],[data-tab],[data-conv],[data-dm],[data-approve],[data-deny]');
@@ -1188,6 +1252,11 @@ $('#screen').addEventListener('click', (e) => {
     if (a === 'toApp') { app.conv = null; app.tab = app.tab === 'help' ? 'settings' : app.tab; app.screen = 'app'; }
     if (a === 'signOut') { app.persona = { visitor: true, houseId: homeHouse().id }; app.screen = 'landing'; app.tab = 'chats'; fillPersonas(); }
     if (a === 'textSize') app.large = !app.large;
+    if (a === 'locToggle') app.loc = !app.loc;
+    if (a === 'locSource') app.locSource = app.locSource === 'phone' ? 'node' : 'phone';
+    if (a === 'speakerOpt' && me) { if (app.speakerOptIn.has(me.id)) app.speakerOptIn.delete(me.id); else app.speakerOptIn.add(me.id); }
+    if (a === 'quietHours') app.quietHours = !app.quietHours;
+    if (a === 'bedside') app.bedside = !app.bedside;
     if (a === 'rescan') app.scanSeed = (app.scanSeed || 0) + 1;
     if (a === 'toAdminView') { setPersona(homeHouse().admin); app.tab = 'admin'; renderPhone(true); return; }
     if (a === 'enterApproved') { const s = S.signups.find((x) => x.id === app.persona.signupId); const pid = homeHouse().people.find((id) => S.personById.get(id).name === s.name.split(' ')[0]); if (pid) { fillPersonas(); setPersona(pid); } return; }
@@ -1230,11 +1299,13 @@ $('#screen').addEventListener('submit', (e) => {
     const me = currentPerson(); const text = $('#draft').value.trim(); if (!text || !me) return;
     const k = app.conv;
     const pr = k === 'public' ? 'normal' : app.prio;
-    if (k === 'everyone') sim.send(me.id, 'everyone', null, text, pr);
-    else if (k === 'public') sim.send(me.id, 'public', null, text, pr);
-    else if (k.startsWith('g:')) sim.send(me.id, 'group', k, text, pr);
-    else sim.send(me.id, 'dm', k.slice(3), text, pr);
-    app.draft = ''; app.prio = 'normal'; app.prioOpen = false;
+    let m;
+    if (k === 'everyone') m = sim.send(me.id, 'everyone', null, text, pr);
+    else if (k === 'public') m = sim.send(me.id, 'public', null, text, pr);
+    else if (k.startsWith('g:')) m = sim.send(me.id, 'group', k, text, pr);
+    else m = sim.send(me.id, 'dm', k.slice(3), text, pr);
+    if (m && app.loc) m.loc = makeLoc(me);
+    app.draft = ''; app.prio = 'normal'; app.prioOpen = false; app.loc = false;
   }
   renderPhone(true);
 });
