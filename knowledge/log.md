@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Update**: Plan 1 of milestone 1 built: signed log, SQLite store, sealing, mesh sync with repair, and a mock village (`go run ./cmd/batnetd -mock 5`).
 * **Update**: The [milestone 1 spec](https://github.com/johnusher/batnet/blob/main/docs/specs/2026-10-15-m1-design.md) was approved; decisions 0007, 0008, 0012, 0013, 0015 and 0016 are now stable, and [0017](/decisions/0017-gateways-share-the-radio.md) supersedes 0007's single LoRa sender. Simulator findings gained priority and Meshtastic results. The [skill catalog](/skills/catalog.md) gained a tool that replaced a skill (`shoot.sh`) and three planned skills.
 * **Creation**: Draft decision [0016 No-phone mode](/decisions/0016-no-phone-mode.md) and a no-phone section in the [vision](/vision.md); design sections 3 (web app) and 4 (set-up, keys, QR join) approved.
 * **Creation**: Draft decision [0015 Message priority](/decisions/0015-message-priority.md), modelled in the village simulator.

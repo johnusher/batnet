@@ -235,14 +235,16 @@ stored as an
 bundle, which both people and coding agents can read. Instructions for agents
 are in [AGENTS.md](AGENTS.md).
 
-**Set up a clone.** You need `git`, [Go](https://go.dev/dl/) 1.22 or newer, and
+**Set up a clone.** You need `git`, [Go](https://go.dev/dl/) 1.26 or newer, and
 [gitleaks](https://github.com/gitleaks/gitleaks#installing):
 
 ```sh
 git clone https://github.com/johnusher/batnet.git
 cd batnet
 git config core.hooksPath .githooks          # secret scan + knowledge check on every commit
-cd tools/okflint && go run . ../../knowledge  # check the knowledge bundle by hand
+go test ./...                                 # run the tests
+go run ./cmd/batnetd -mock 5 -loss 0.3        # a pretend village of 5 houses on this computer
+(cd tools/okflint && go run . ../../knowledge) # check the knowledge bundle by hand
 ```
 
 This repository is public, so never commit keys, passwords, real names or
