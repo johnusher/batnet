@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Creation**: [To do](/todo.md) list; plan 3 review fixes and nine deferred findings in [known problems](/known-problems.md).
 * **Update**: Plan 3 built: the LoRa bridge and priority run in the simulator ([findings](/research/village-sim-findings.md)); decision [0022](/decisions/0022-gateways-suppress-duplicates.md) supersedes 0017's assignment rule.
 * **Creation**: Research note [EU868 radio basics](/research/eu868-radio-basics.md), behind the README's new radio section (band, rules, antennas, range, history, with diagrams); LongFast airtime for 150 bytes corrected to ~1.4 s in [LoRa airtime](/research/lora-airtime-eu868.md); glossary gained ERP, dBi, chirp, Fresnel zone and waterfall.
 * **Creation**: [Known problems](/known-problems.md) list (new type `Issue List`); decision [0021 one-hop heartbeats](/decisions/0021-one-hop-heartbeats.md), which makes bang pass.

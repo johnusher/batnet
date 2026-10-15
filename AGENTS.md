@@ -45,6 +45,7 @@ implementation follows the plans in `docs/plans/`.
 5. **Keep the known-problems list current.** Any bug you find, review finding
    you defer, or limit you accept goes in
    [`knowledge/known-problems.md`](knowledge/known-problems.md) with where it
-   came from; move it to Resolved when fixed.
+   came from; move it to Resolved when fixed. The order of work is
+   [`knowledge/todo.md`](knowledge/todo.md): tick items off as you finish them.
 6. **Radio rules matter.** Anything that transmits or scans must respect EU868
    duty cycle and power limits and the activity-only scanner rule (decision 0009).
