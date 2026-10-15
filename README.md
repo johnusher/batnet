@@ -7,7 +7,8 @@ and no account with any company.
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
 batnet turns small, cheap computers into a local chat network for a house, a
-street, a village, a festival camp or a group on a hike.
+street, a village, a festival camp or a group on a hike. New to words like
+*node*, *mesh* or *LoRa*? See [Words we use](#words-we-use).
 
 > **Not ready yet.** batnet is still being designed, so there's nothing to
 > install today. The link above shows how the app will look and work. To hear
@@ -52,6 +53,7 @@ street, a village, a festival camp or a group on a hike.
   over WiFi. Far ones (1–3 km) link over a small long-range radio, called
   LoRa, added to the Pi. That radio carries text only. A spoken message is
   turned into text, sent, and read aloud at the other end.
+  [How the radio works](#the-long-range-radio-explained).
 * **Someone in each house approves new accounts,** so strangers can't join just
   by walking past.
 * **It works with [Meshtastic](https://meshtastic.org/),** the popular
@@ -222,6 +224,58 @@ Zero 2 W uses about a fifth of what a Pi 4 or 5 does. Turning speech into text
 is the only per-message cost worth counting. A house node wants mains power, a
 car or leisure battery (about 300 Wh runs it 3–4 days), or a solar panel.
 Phones run on their own batteries.
+
+## Words we use
+
+### batnet's own words
+
+| Word | What it means |
+|---|---|
+| **House** | A household on batnet: the people who share one node, plus that node. It has a name, such as "Miller House", which is also the name of its WiFi. A house doesn't have to be a building. It can be a flat, a camp at a festival or a group on a hike. |
+| **Node** | One of batnet's small computers (a Raspberry Pi) running batnet. Every node keeps a copy of all the village's messages. |
+| **House node** | The node a house uses: a Pi 4 or Pi 5 at home on mains power. It makes the house's WiFi, runs the app for up to about 40–60 phones, and links to the houses around it. |
+| **Pocket node** | A small node (a Pi Zero 2 W) with the long-range radio, running on a power bank. For a camp, a hike or a small household. It serves about 8 phones. |
+| **Relay** | A node that serves no phones. It sits on a pole or a roof between two houses that are too far apart to reach each other over WiFi, and passes messages between them. |
+| **Gateway** | Any node with the long-range radio fitted. It carries messages to and from houses too far away for WiFi. |
+| **Village** | All the houses that share one village key and so can talk to each other, whether by WiFi or by radio. One village might be a street, a hamlet or a festival. |
+| **Village key** | The one secret that a whole village shares. It locks every message that travels between nodes, so outsiders can't read them. A new house gets it by scanning a QR code on an approver's phone. |
+| **WiFi group** | The houses that are linked to each other over WiFi right now. A village can be split into several WiFi groups, joined to each other by the long-range radio. |
+| **Approver** (or **admin**) | The person in each house who lets new people in. The first account made on a house's node is its approver. |
+| **Everyone channel** | One chat that every person in the village can read and post in. |
+| **Groups** | Chats for a purpose, such as *Medical*, *Food*, *Water* or *Childcare*. |
+| **Neighbourhood (public)** | The chat on the open Meshtastic channel. Anyone nearby with a Meshtastic radio can read it, even people who aren't on batnet, so the app warns you before you post there. |
+| **Priority** | How urgent a message is: *Low*, *Normal* or *High*. High goes first over the radio. An approver can also send an **Alert**, which shows at the top of every phone. |
+| **Voice message** | A spoken message. Over WiFi it travels as sound. Over the long-range radio it's turned into text, sent, and read aloud by the phone at the other end. |
+| **House speaker** | An optional speaker on the house's node that says who a message is for and who sent it, never what it says. |
+| **Bedside mode** | A setting that keeps your phone's screen on, dimmed, so batnet can ring you at night. |
+| **No-phone mode** (planned) | A screen and keyboard plugged into the house's node, for people without a phone. It's a shared screen where people sign in, or a notice board that shows alerts and the everyone channel. |
+
+### Technical words
+
+| Word | What it means |
+|---|---|
+| **Raspberry Pi** | A cheap computer about the size of a bank card, made in the UK. "Pi 4", "Pi 5" and "Pi Zero 2 W" are different models. |
+| **Memory card** | The small card (microSD) that holds the Pi's software, like a phone's storage. You put batnet on it from your own computer. |
+| **WiFi stick** (dongle) | A WiFi radio that plugs into a USB socket. A house node uses its own WiFi to serve phones and the stick to link to other houses. |
+| **HAT** | A board that plugs onto the pins on top of a Pi, like a hat. batnet's long-range radio can come as a HAT. |
+| **Hotspot** | A WiFi network that a device makes for phones to join, as a phone does when it shares its internet. Each node makes one, with no internet behind it. |
+| **Sign-in page** (captive portal) | The page that pops up by itself when you join a hotel's or café's WiFi. batnet uses it to welcome you. |
+| **"Not private" warning** | What a browser shows when a website's security certificate can't be checked. Without the internet a node can't get the usual certificate, so you see this warning once. The connection is still encrypted. |
+| **Mesh** | A network with no centre, in which each device passes messages on for the others. If one drops out, messages find another way. |
+| **batman-adv** | The free software that links nodes into a WiFi mesh. It's built into Linux. |
+| **LoRa** | Short for *long range*: a radio that sends small amounts of data over 1–3 km or more using very little power. It's too slow for sound or pictures, so batnet uses it only for text. |
+| **Meshtastic** | A popular free messenger for LoRa radios. batnet's radio runs Meshtastic, so batnet works with other people's Meshtastic radios. |
+| **Channel** | A conversation on the radio that only radios with the same key can read. batnet uses a private channel for its own messages and the open public one for *Neighbourhood (public)*. |
+| **EU868** | The radio band around 868 MHz that anyone in Europe may use without a licence. |
+| **Duty cycle** (airtime) | The share of each hour a radio may transmit in the EU868 band: 10% in the part batnet uses. When a busy radio reaches its limit, messages wait in a queue, which is why urgent ones go first. |
+| **Speech-to-text** | Software that turns a spoken message into written words. It runs on the node, not on the internet. |
+| **Encryption** | Scrambling a message so that only someone with the right key can read it. |
+| **Heartbeat** | A short note that each node sends its direct neighbours every few seconds: "here's what I have". A node that has missed something notices and asks for it. |
+| **Sync** | How nodes catch up with each other. When a node comes back after a power cut, it fetches the messages it missed. |
+| **Simulator** | The [pretend village](https://johnusher.github.io/batnet/) that runs in your web browser, to show and test batnet before there's hardware. |
+
+Developers: the full list of technical terms is in
+[the knowledge glossary](knowledge/glossary.md).
 
 ---
 
