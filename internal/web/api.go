@@ -7,6 +7,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -230,6 +231,8 @@ func (s *Server) api(mux *http.ServeMux) {
 	s.messagesAPI(mux)
 }
 
+var clientIDPattern = regexp.MustCompile(`^[A-Za-z0-9_-]{8,64}$`)
+
 func validLoc(l *state.Location) bool {
 	return l == nil || (l.Lat >= -90 && l.Lat <= 90 && l.Lon >= -180 && l.Lon <= 180 && l.Acc >= 0 && l.Acc <= 10000 &&
 		(l.Source == "phone" || l.Source == "node"))
@@ -273,13 +276,22 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 			return nil, err
 		}
 		var in struct {
-			Conv string          `json:"conv"`
-			Text string          `json:"text"`
-			Prio string          `json:"prio"`
-			Loc  *state.Location `json:"loc"`
+			Conv     string          `json:"conv"`
+			Text     string          `json:"text"`
+			Prio     string          `json:"prio"`
+			Loc      *state.Location `json:"loc"`
+			ClientID string          `json:"clientId"`
 		}
 		if err := decode(r, &in); err != nil {
 			return nil, err
+		}
+		if in.ClientID != "" {
+			if !clientIDPattern.MatchString(in.ClientID) {
+				return nil, fail(http.StatusBadRequest, "That message id isn't valid.")
+			}
+			if m := s.cfg.State.FindClient(a.ID, in.ClientID); m != nil {
+				return m, nil // the outbox retried a message already stored
+			}
 		}
 		text := strings.TrimSpace(in.Text)
 		if text == "" || utf8.RuneCountInString(text) > 2000 {
@@ -325,6 +337,9 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 		body := map[string]any{"from": a.ID, "audience": audience, "text": text}
 		if in.Loc != nil {
 			body["loc"] = in.Loc
+		}
+		if in.ClientID != "" {
+			body["clientId"] = in.ClientID
 		}
 		e, err := s.Write(typ, level, body)
 		if err != nil {

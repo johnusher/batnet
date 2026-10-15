@@ -430,3 +430,19 @@ func TestLogoutEndsEvents(t *testing.T) {
 		t.Fatal("the event stream stayed open after signing out")
 	}
 }
+
+// Review focus 1: the outbox retries; the server stores the post once.
+func TestClientIDDedup(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	body := map[string]any{"conv": "everyone", "text": "Water point open", "clientId": "out-0001"}
+	_, a := anna.do("POST", "/api/post", body)
+	_, b := anna.do("POST", "/api/post", body)
+	if a["id"] == nil || a["id"] != b["id"] {
+		t.Fatalf("retry stored twice: %v vs %v", a["id"], b["id"])
+	}
+	if code, _ := anna.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "x", "clientId": "bad id!"}); code != 400 {
+		t.Fatalf("a malformed clientId: %d", code)
+	}
+}

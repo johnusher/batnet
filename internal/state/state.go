@@ -66,6 +66,7 @@ type Message struct {
 	Alert    bool          `json:"alert"`
 	Loc      *Location     `json:"loc,omitempty"`
 	TS       hlc.Timestamp `json:"ts"`
+	ClientID string        `json:"clientId,omitempty"` // chosen by the phone; a retry with the same one is stored once
 	origin   ledger.NodeID // the node that wrote it
 }
 
@@ -188,11 +189,19 @@ func (s *State) Apply(e *ledger.Entry) {
 			Audience string    `json:"audience"`
 			Text     string    `json:"text"`
 			Loc      *Location `json:"loc"`
+			ClientID string    `json:"clientId"`
 		}
 		if json.Unmarshal(e.Body, &b) != nil || b.From == "" || b.Text == "" {
 			return
 		}
-		m := &Message{ID: AccountID(e.Key), Key: e.Key, From: b.From, Audience: b.Audience, Text: b.Text, Prio: e.Prio, Loc: b.Loc, TS: e.TS, origin: e.Key.Origin}
+		if b.ClientID != "" {
+			for _, old := range s.messages {
+				if old.From == b.From && old.ClientID == b.ClientID {
+					return // a retry of a message already here
+				}
+			}
+		}
+		m := &Message{ID: AccountID(e.Key), Key: e.Key, From: b.From, Audience: b.Audience, Text: b.Text, Prio: e.Prio, Loc: b.Loc, TS: e.TS, ClientID: b.ClientID, origin: e.Key.Origin}
 		if e.Type == ledger.TypeAlert {
 			m.Alert, m.Audience = true, "everyone"
 		}
@@ -445,6 +454,18 @@ func (s *State) MessageByID(id string) *Message {
 	for i := len(s.messages) - 1; i >= 0; i-- {
 		if s.messages[i].ID == id {
 			return s.messages[i]
+		}
+	}
+	return nil
+}
+
+// FindClient returns account's message with this clientId, or nil.
+func (s *State) FindClient(account, clientID string) *Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for i := len(s.messages) - 1; i >= 0; i-- {
+		if m := s.messages[i]; m.From == account && m.ClientID == clientID {
+			return m
 		}
 	}
 	return nil
