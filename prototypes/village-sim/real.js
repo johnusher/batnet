@@ -239,7 +239,7 @@
     $('#rv-person').onfocus = () => refreshPeople(true); // pick up people approved since
     $('#rv-person').onchange = openPhone;
     $('#rv-run').onclick = () => { running = !running; $('#rv-run').textContent = running ? 'Pause' : 'Run'; };
-    $('#rv-restart').onclick = () => loadScenario($('#rv-scenario').value);
+    $('#rv-restart').onclick = () => loadScenario($('#rv-scenario').value).catch((err) => { $('#rv-status').textContent = err.message; }); // B2: a failed load is shown, not an unhandled rejection
     for (const b of document.querySelectorAll('#rv-speeds button')) b.onclick = () => { speed = +b.dataset.speed; for (const x of document.querySelectorAll('#rv-speeds button')) x.setAttribute('aria-pressed', x === b); };
     requestAnimationFrame(frame);
   });

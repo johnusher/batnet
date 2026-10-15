@@ -83,6 +83,10 @@ func TestScenarioErrors(t *testing.T) {
 		"negative time":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"events":[{"at":"-5s","kind":"post","house":"A","text":"x"}]}`,
 		"bad start":          `{"name":"x","duration":"1m","start":"teatime","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}]}`,
 		"unknown field":      `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"evnts":[]}`,
+		// B17: Meshtastic users are checked like houses
+		"nameless meshtastic":   `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"meshtastic":[{"x":1,"y":1}]}`,
+		"meshtastic named as a house": `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"meshtastic":[{"name":"A","x":1,"y":1}]}`,
+		"meshtastic twice":          `{"name":"x","duration":"1m","houses":[{"name":"A","pi":"Pi 4","wifi":"dongle"}],"meshtastic":[{"name":"M","x":1,"y":1},{"name":"M","x":2,"y":2}]}`,
 	} {
 		sc, err := LoadScenario([]byte(js))
 		if err == nil {

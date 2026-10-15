@@ -1,0 +1,22 @@
+{
+  "name": "festival",
+  "about": "Six pocket nodes (Pi Zero 2 W with a LoRa HAT, on power banks) spread over a festival field 400 m across: their built-in WiFi doesn't reach each other, so everything goes by radio; every radio hears every other, so there are no hidden terminals, and the question is airtime. A lost-child alert at 21:00, then a burst as the headline act ends.",
+  "seed": 21,
+  "duration": "45m",
+  "start": "20:30",
+  "preset": "LongFast",
+  "houses": [
+    {"name": "Gate", "x": 0, "y": 0, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 6},
+    {"name": "Stage", "x": 400, "y": 50, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 8},
+    {"name": "Kitchen", "x": 200, "y": 250, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 5},
+    {"name": "Camp", "x": 50, "y": 420, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 7},
+    {"name": "FirstAid", "x": 380, "y": 400, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 3},
+    {"name": "Carpark", "x": 600, "y": 300, "pi": "Zero 2 W", "wifi": "builtin", "lora": true, "people": 4}
+  ],
+  "traffic": {"perPersonPerHour": 4},
+  "events": [
+    {"at": "30m", "kind": "post", "house": "FirstAid", "text": "Lost child, red jacket, about 6, last seen near the stage", "prio": 8},
+    {"at": "40m", "kind": "burst", "near": {"x": 400, "y": 50, "r": 350}, "within": "2m", "text": "Meet at the gate after this one?"}
+  ],
+  "checks": [{"kind": "delivered", "within": "10m"}, {"kind": "duty"}]
+}

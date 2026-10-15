@@ -56,6 +56,7 @@ type Node struct {
 	LoRaRadio  *LoRaRadio
 	Web        *web.Server // houses: the real house server, with its people as real accounts
 	People     []string    // houses: the account IDs of the people living here
+	Admin      string      // houses: the house admin's account ID (posts when no one else lives here)
 	wakeAt     int64
 }
 
@@ -78,7 +79,8 @@ type Village struct {
 	Nodes      []*Node
 	Posts      []*Post
 	EpochMs    int64
-	MaxDutyUs  int64 // the most any radio used in an hour, sampled each minute
+	MaxDutyUs  int64    // the most any radio put on air in an hour, as the air saw it, sampled each minute
+	Skipped    []string // scripted posts that could not be made (a house without power), as reasons
 	preset     lora.Preset
 
 	rnd    *rand.Rand
@@ -225,7 +227,7 @@ func (v *Village) Post(house, text string, level uint8) (*Post, error) {
 	if !n.Radio.On {
 		return nil, fmt.Errorf("sim: house %q has no power", house)
 	}
-	from := ""
+	from := n.Admin // a house with no one else living there posts as its admin (B31)
 	if len(n.People) > 0 {
 		from = n.People[v.who.Intn(len(n.People))] // one of the people living here
 	}
@@ -235,6 +237,14 @@ func (v *Village) Post(house, text string, level uint8) (*Post, error) {
 		return nil, err
 	}
 	return v.byKey[e.Key], nil // tracked when the server published it
+}
+
+// scriptedPost is Post for a scenario's script: a post that can't be made
+// (the house has no power) is recorded, not dropped in silence (B3).
+func (v *Village) scriptedPost(house, text string, level uint8) {
+	if _, err := v.Post(house, text, level); err != nil {
+		v.Skipped = append(v.Skipped, err.Error())
+	}
 }
 
 // track records every message a house writes, from the page's button or from a
@@ -385,38 +395,20 @@ func (v *Village) AddMeshtastic(name string, x, y float64) *LoRaRadio {
 	return r
 }
 
-// probeDuty samples every radio's hourly airtime each simulated minute.
+// probeDuty samples every radio's hourly airtime each simulated minute, from
+// the air's own tally of what each radio transmitted (B14): a bridge that
+// miscounted its airtime would still be caught.
 func (v *Village) probeDuty() {
 	now := v.Sch.Now()
 	for _, n := range v.Nodes {
 		if n.LoRaRadio != nil {
-			v.MaxDutyUs = max(v.MaxDutyUs, n.LoRaRadio.Duty.Used(now))
+			v.MaxDutyUs = max(v.MaxDutyUs, v.LoRa.Used(n.LoRaRadio, now))
 		}
 	}
 	for _, r := range v.Meshtastic {
-		v.MaxDutyUs = max(v.MaxDutyUs, r.Duty.Used(now))
+		v.MaxDutyUs = max(v.MaxDutyUs, v.LoRa.Used(r, now))
 	}
 	v.Sch.After(Minute, v.probeDuty)
-}
-
-// ConnectedFrom is the first time at or after from when nodes a and b were in
-// the same WiFi group (both powered); false if they never were.
-func (v *Village) ConnectedFrom(a, b string, from int64) (int64, bool) {
-	for i, s := range v.groups {
-		end := int64(1 << 62)
-		if i+1 < len(v.groups) {
-			end = v.groups[i+1].T
-		}
-		if end <= from {
-			continue
-		}
-		ga, okA := s.Group[a]
-		gb, okB := s.Group[b]
-		if okA && okB && ga == gb {
-			return max(s.T, from), true
-		}
-	}
-	return 0, false
 }
 
 // RunFor advances virtual time by d.
@@ -472,6 +464,8 @@ func (v *Village) Seed() error {
 			}
 			if i > 0 {
 				n.People = append(n.People, id)
+			} else {
+				n.Admin = id
 			}
 		}
 		if first {

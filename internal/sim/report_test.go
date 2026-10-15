@@ -71,6 +71,38 @@ func TestDeliveredCountsFromReconnection(t *testing.T) {
 	}
 }
 
+// The limit counts only time connected to a holder: a post whose only holder
+// loses power for two minutes isn't late for those two minutes. A holder dark
+// to the end is still judged on the clock since the first connection.
+func TestDeliveredPausesWhileNoHolderIsReachable(t *testing.T) {
+	sc, _ := LoadScenario([]byte(`{"name":"dark holder","seed":1,"duration":"5m",
+	  "houses":[{"name":"A","x":0,"y":0,"pi":"Pi 4","wifi":"dongle"},{"name":"B","x":100,"y":0,"pi":"Pi 4","wifi":"dongle"}],
+	  "checks":[{"kind":"delivered","within":"30s"}]}`))
+	v, _ := sc.Build()
+	v.Sch.RunUntil(5 * Minute)
+	judge := func(arrivedB int64, groups []groupSnap) CheckResult {
+		p := &Post{House: "A", Arrived: map[string]int64{"A": 20 * Second}}
+		if arrivedB > 0 {
+			p.Arrived["B"] = arrivedB
+		}
+		v.Posts, v.groups = []*Post{p}, groups
+		return checkDelivered(v, 30*Second)
+	}
+	both := map[string]int{"A": 0, "B": 0}
+	onlyB := map[string]int{"B": 0}
+	cut := []groupSnap{{T: 0, Group: both}, {T: 30 * Second, Group: onlyB}, {T: 150 * Second, Group: both}} // A dark 0:30-2:30
+	if r := judge(160*Second, cut); !r.Pass {
+		t.Fatalf("20 s of connected time judged late: %s", r.Detail)
+	}
+	if r := judge(0, cut); r.Pass || !strings.Contains(r.Detail, "1 missing") {
+		t.Fatalf("160 s connected and never delivered should be missing: %s", r.Detail)
+	}
+	dark := []groupSnap{{T: 0, Group: both}, {T: 30 * Second, Group: onlyB}} // A dark for good
+	if r := judge(0, dark); r.Pass || !strings.Contains(r.Detail, "1 missing") {
+		t.Fatalf("a holder dark to the end must not hide a lost post: %s", r.Detail)
+	}
+}
+
 // Review: a gap in the middle of the log must not hide a difference between houses.
 func TestConvergedSeesPastGaps(t *testing.T) {
 	sc, _ := LoadScenario([]byte(`{"name":"gap","seed":1,"duration":"1m",

@@ -109,7 +109,7 @@ func runMock(n int, loss float64, dur time.Duration, withWeb bool) error {
 	}
 	start := time.Now()
 	var nodes []*node
-	for i := 0; i < n; i++ {
+	for i := range n {
 		name := houseNames[i%len(houseNames)]
 		if i >= len(houseNames) {
 			name = fmt.Sprintf("%s-%d", name, i/len(houseNames)+1)
@@ -188,25 +188,29 @@ func runScenarios(paths []string) int {
 		if filepath.Base(p) == "index.json" {
 			continue // the simulator page's list of scenarios, not a scenario
 		}
+		// One bad file is reported and the rest still run (B4); the exit status says it was bad.
 		b, err := os.ReadFile(p)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			return 2
+			status = 2
+			continue
 		}
 		sc, err := sim.LoadScenario(b)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", p, err)
-			return 2
+			status = 2
+			continue
 		}
 		t0 := time.Now()
 		r, _, err := sim.Run(sc)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", p, err)
-			return 2
+			status = 2
+			continue
 		}
 		fmt.Print(r)
 		fmt.Printf("      (%s simulated in %s)\n\n", time.Duration(sc.Duration)*time.Microsecond, time.Since(t0).Round(time.Millisecond))
-		if !r.OK() {
+		if !r.OK() && status == 0 {
 			status = 1
 		}
 	}

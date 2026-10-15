@@ -46,7 +46,7 @@ func (a *API) Load(scenarioJSON []byte) error {
 		return err
 	}
 	a.sc, a.v, a.frames, a.packets, a.subs = sc, v, nil, nil, nil
-	v.LoRa.OnTransmit = func(from string, at, dur int64, heard []string) {
+	v.LoRa.OnTransmit = func(from string, _ []byte, at, dur int64, heard []string) {
 		if len(a.packets) < 300 {
 			a.packets = append(a.packets, packetJSON{From: from, At: at, Dur: dur, Heard: heard})
 		}
@@ -229,8 +229,14 @@ func (a *API) house(name string) (*Node, error) {
 	if n == nil || n.Web == nil {
 		return nil, fmt.Errorf("sim: no house %q", name)
 	}
+	if !n.Radio.On {
+		return nil, errNoPower // its phones lose the app (spec §13, B30)
+	}
 	return n, nil
 }
+
+// errNoPower: the house Pi is off, so nothing answers its phones.
+var errNoPower = errors.New("sim: the house has no power")
 
 // Login signs a person in at a house without a PIN and returns the session token.
 func (a *API) Login(house, account string) (string, error) {
@@ -247,6 +253,9 @@ func (a *API) Login(house, account string) (string, error) {
 // HTTP runs one request against a house's real server, in process.
 func (a *API) HTTP(house, method, path, body, token string) (int, string, string) {
 	n, err := a.house(house)
+	if errors.Is(err, errNoPower) {
+		return 503, token, `{"error":"` + err.Error() + `"}` // as a phone sees a Pi that is off: the app's outbox keeps waiting
+	}
 	if err != nil {
 		return 400, token, `{"error":"` + err.Error() + `"}`
 	}

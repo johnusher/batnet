@@ -177,6 +177,26 @@ func (sc *Scenario) validate() error {
 			return fmt.Errorf("event %d: times must not be negative", i+1)
 		}
 	}
+	// Meshtastic users: a bounded number, each named once, apart from the houses and relays (B17).
+	if len(sc.Meshtastic) > maxHouses {
+		return fmt.Errorf("at most %d meshtastic users", maxHouses)
+	}
+	taken := map[string]string{}
+	for _, h := range sc.houses() {
+		taken[h.Name] = "house"
+	}
+	for _, r := range sc.Relays {
+		taken[r.Name] = "relay"
+	}
+	for _, m := range sc.Meshtastic {
+		if m.Name == "" {
+			return fmt.Errorf("a meshtastic user has no name")
+		}
+		if kind, used := taken[m.Name]; used {
+			return fmt.Errorf("meshtastic user %q: the name is already a %s", m.Name, kind)
+		}
+		taken[m.Name] = "meshtastic user"
+	}
 	return nil
 }
 
@@ -271,7 +291,7 @@ func (sc *Scenario) schedule(v *Village, e Event) error {
 		if n := v.Node(e.House); n == nil || n.Kind != "house" {
 			return fmt.Errorf("no house %q (relays don't post)", e.House)
 		}
-		v.Sch.At(at, func() { v.Post(e.House, e.Text, prio) })
+		v.Sch.At(at, func() { v.scriptedPost(e.House, e.Text, prio) })
 	case "power":
 		if v.Node(e.House) == nil || e.On == nil {
 			return fmt.Errorf("power needs a known house and \"on\"")
@@ -291,7 +311,7 @@ func (sc *Scenario) schedule(v *Village, e Event) error {
 			}
 			for p := 0; p < n.House.People; p++ {
 				name := n.Name
-				v.Sch.At(at+v.rnd.Int63n(int64(e.Within)), func() { v.Post(name, e.Text, prio) })
+				v.Sch.At(at+v.rnd.Int63n(int64(e.Within)), func() { v.scriptedPost(name, e.Text, prio) })
 			}
 		}
 	default:

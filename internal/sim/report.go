@@ -26,6 +26,7 @@ type Report struct {
 	LoRaPackets, LoRaCollided, LoRaRebroadcasts int
 	LoRaMaxDutyPct                              float64
 	MaxChannelUse                               float64
+	Skipped                                     []string // scripted posts that could not be made, with why
 	Checks                                      []CheckResult
 	Pass                                        bool
 	Expect, Because                             string
@@ -49,7 +50,7 @@ func Run(sc *Scenario) (*Report, *Village, error) {
 // Judge measures a finished (or paused) village against the scenario's checks.
 func Judge(sc *Scenario, v *Village) *Report {
 	r := &Report{Scenario: sc.Name, Seed: sc.Seed, Posts: len(v.Posts), Frames: v.Air.Stats.Frames,
-		FramesLost: v.Air.Stats.Lost, MaxChannelUse: v.Air.Stats.MaxUtil, Pass: true, Expect: sc.Expect, Because: sc.Because,
+		FramesLost: v.Air.Stats.Lost, MaxChannelUse: v.Air.Stats.MaxUtil, Pass: true, Expect: sc.Expect, Because: sc.Because, Skipped: v.Skipped,
 		LoRaPackets: v.LoRa.Stats.Packets, LoRaCollided: v.LoRa.Stats.Collided, LoRaRebroadcasts: v.LoRa.Stats.Rebroadcasts,
 		LoRaMaxDutyPct: float64(v.MaxDutyUs) * 100 / float64(lora.DutyLimitUs)}
 	for _, n := range v.Nodes {
@@ -133,25 +134,81 @@ func checkConverged(v *Village, group map[string]int) CheckResult {
 	return CheckResult{Kind: "converged", Pass: true, Detail: fmt.Sprintf("%d WiFi groups each agree", len(hashes))}
 }
 
-// requiredFrom is the earliest time house h was connected to any node holding
-// p since it got it: from then on, h should get p. False if never.
-func requiredFrom(v *Village, p *Post, h string) (int64, bool) {
-	best, found := int64(0), false
-	for holder, at := range p.Arrived {
-		if holder == h {
+// connectedUs is how long, before until, house h was connected (in the same
+// group of the snapshots: WiFi links and LoRa links between powered radios)
+// to any node holding p, counted from the moment that node got it. Time while
+// no holder was reachable (the holder's power was cut, the group was split)
+// doesn't count: spec §13 says messages wait and arrive on return.
+func connectedUs(v *Village, p *Post, h string, until int64) int64 {
+	var total int64
+	for i, s := range v.groups {
+		lo, hi := s.T, until
+		if i+1 < len(v.groups) {
+			hi = min(hi, v.groups[i+1].T)
+		}
+		if hi <= lo {
 			continue
 		}
-		if t, ok := v.ConnectedFrom(holder, h, at); ok && (!found || t < best) {
-			best, found = t, true
+		g, here := s.Group[h]
+		if !here {
+			continue
+		}
+		earliest, found := int64(0), false
+		for holder, at := range p.Arrived {
+			if holder == h || s.Group[holder] != g {
+				continue
+			}
+			if _, powered := s.Group[holder]; powered && (!found || at < earliest) {
+				earliest, found = at, true
+			}
+		}
+		if found && max(lo, earliest) < hi {
+			total += hi - max(lo, earliest)
 		}
 	}
-	return best, found
+	return total
+}
+
+// firstConnectedUs is the first time h was connected to a holder of p (after
+// that holder got it), and whether h still is at time until.
+func firstConnectedUs(v *Village, p *Post, h string, until int64) (first int64, stillAtEnd bool) {
+	found := false
+	for i, s := range v.groups {
+		lo, hi := s.T, until
+		if i+1 < len(v.groups) {
+			hi = min(hi, v.groups[i+1].T)
+		}
+		if hi < lo {
+			continue
+		}
+		g, here := s.Group[h]
+		if !here {
+			stillAtEnd = false
+			continue
+		}
+		connected := false
+		for holder, at := range p.Arrived {
+			if holder == h || s.Group[holder] != g {
+				continue
+			}
+			if _, powered := s.Group[holder]; powered && at < hi {
+				connected = true
+				if !found || max(lo, at) < first {
+					first, found = max(lo, at), true
+				}
+			}
+		}
+		stillAtEnd = connected
+	}
+	return first, stillAtEnd
 }
 
 // checkDelivered: every house that was connected (directly or through a node
-// holding the post) to a holder must get the post within the limit, counted
-// from that connection. A post that could not yet have arrived by the end is
-// pending, not missing. A sender that ends the run without power is still judged.
+// holding the post) to a holder must get the post within the limit of
+// connected time. A post that could not yet have arrived by the end is
+// pending, not missing. A house whose holders are all dark at the end is
+// judged on the clock since it was first connected: a sender that goes dark
+// for good can't hide a lost post behind "still on its way".
 func checkDelivered(v *Village, within int64) CheckResult {
 	end := v.Sch.Now()
 	grace := within
@@ -165,30 +222,36 @@ func checkDelivered(v *Village, within int64) CheckResult {
 			if n.Kind != "house" || n.Name == p.House {
 				continue
 			}
-			from, ok := requiredFrom(v, p, n.Name)
 			at, got := p.Arrived[n.Name]
+			if !got {
+				at = end
+			}
+			conn := connectedUs(v, p, n.Name, at)
+			if !got && conn > 0 {
+				if first, still := firstConnectedUs(v, p, n.Name, end); !still {
+					conn = end - first // every holder dark at the end: the clock since the first connection
+				}
+			}
 			switch {
-			case !ok:
-				continue // never connected to anyone holding it
-			case got && at <= from:
-				continue // it arrived before the connection we measure from
-			case !got && from+grace > end:
+			case conn == 0:
+				continue // never connected to anyone holding it, or got it in the same instant
+			case !got && conn <= grace:
 				pending++
 			case !got:
 				missing++
 				if example == "" {
 					example = fmt.Sprintf("%q from %s never reached %s", p.Text, p.House, n.Name)
 				}
-			case within > 0 && at-from > within:
+			case within > 0 && conn > within:
 				late++
 				if example == "" {
-					example = fmt.Sprintf("%q from %s reached %s %.1f s after they were connected", p.Text, p.House, n.Name, float64(at-from)/float64(Second))
+					example = fmt.Sprintf("%q from %s reached %s after %.1f s connected to a holder", p.Text, p.House, n.Name, float64(conn)/float64(Second))
 				}
 			}
 		}
 	}
 	res := CheckResult{Kind: "delivered", Pass: missing == 0 && late == 0}
-	res.Detail = fmt.Sprintf("%d missing, %d late, %d still on their way at the end (limit %s, counted from when the house was connected to a holder)", missing, late, pending, fmtDur(within))
+	res.Detail = fmt.Sprintf("%d missing, %d late, %d still on their way at the end (limit %s of time connected to a holder)", missing, late, pending, fmtDur(within))
 	if example != "" {
 		res.Detail += "; e.g. " + example
 	}
@@ -219,6 +282,9 @@ func (r *Report) String() string {
 	fmt.Fprintf(&b, "      WiFi frames: %d, lost to receivers: %d, busiest channel %.0f%%\n", r.Frames, r.FramesLost, r.MaxChannelUse*100)
 	if r.LoRaPackets > 0 {
 		fmt.Fprintf(&b, "      LoRa packets: %d, collided at receivers: %d, rebroadcasts: %d, busiest radio %.0f%% of its hourly limit\n", r.LoRaPackets, r.LoRaCollided, r.LoRaRebroadcasts, r.LoRaMaxDutyPct)
+	}
+	if n := len(r.Skipped); n > 0 {
+		fmt.Fprintf(&b, "      scripted posts not made: %d (e.g. %s)\n", n, r.Skipped[0])
 	}
 	if r.Expect == "fail" {
 		fmt.Fprintf(&b, "      known problem: %s\n", r.Because)

@@ -89,6 +89,40 @@ func TestSimEvents(t *testing.T) {
 	}
 }
 
+// B30: a phone at a house without power loses the app (spec §13): its
+// requests fail as they would against a Pi that is off, and its outbox waits.
+// B3: a scripted post at such a house is reported, not dropped in silence.
+func TestNoPowerNoApp(t *testing.T) {
+	var a API
+	if err := a.Load([]byte(street)); err != nil {
+		t.Fatal(err)
+	}
+	var people []struct {
+		House  string
+		People []struct{ ID, Name string }
+	}
+	json.Unmarshal(a.People(), &people)
+	fern := people[1]
+	tok, _ := a.Login(fern.House, fern.People[0].ID)
+	a.Power(fern.House, false)
+	if status, _, _ := a.HTTP(fern.House, "POST", "/api/post", `{"conv":"everyone","text":"into the dark"}`, tok); status != 503 {
+		t.Fatalf("a post at a house without power got %d, want 503", status)
+	}
+	if _, err := a.Login(fern.House, fern.People[0].ID); err == nil {
+		t.Fatal("signed in at a house without power")
+	}
+	a.v.scriptedPost(fern.House, "scripted into the dark", 5)
+	var r Report
+	json.Unmarshal(a.Report(), &r)
+	if len(r.Skipped) != 1 || !strings.Contains(r.Skipped[0], "no power") {
+		t.Fatalf("skipped posts: %v", r.Skipped)
+	}
+	a.Power(fern.House, true)
+	if status, _, _ := a.HTTP(fern.House, "POST", "/api/post", `{"conv":"everyone","text":"lights back on"}`, tok); status != 200 {
+		t.Fatalf("a post after power returned got %d", status)
+	}
+}
+
 // A post written on a phone counts like any other: it is in the village's
 // posts, so the page lists it and the checks judge its delivery.
 func TestPhonePostIsTracked(t *testing.T) {

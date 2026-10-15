@@ -112,6 +112,47 @@ func TestIdenticalFramesAreSeparatePackets(t *testing.T) {
 	}
 }
 
+// B15: a packet is rebroadcast at most MaxHops times (Meshtastic's hop
+// limit), so a chain of relays doesn't carry it for ever.
+func TestHopLimit(t *testing.T) {
+	var s Scheduler
+	air := NewLoRaAir(&s, lora.Presets["LongFast"], 3)
+	air.BaseLoss, air.EdgeLoss = 0, 0
+	heard := map[string]int{}
+	a := air.Add("a", 0, 0, nil)
+	for i := 1; i <= 5; i++ { // relays 2.8 km apart: each hears only its neighbours
+		name := string(rune('a' + i))
+		air.Add(name, float64(i)*2800, 0, func([]byte) { heard[name]++ })
+	}
+	a.Transmit(make([]byte, 60), lora.AirtimeUs(60, air.Preset))
+	s.RunUntil(2 * Minute)
+	for i := 1; i <= MaxHops+1; i++ { // within reach of hop 0..MaxHops
+		if heard[string(rune('a'+i))] != 1 {
+			t.Fatalf("radio %d hops away heard it %d times, want once", i, heard[string(rune('a'+i))])
+		}
+	}
+	if heard[string(rune('a'+MaxHops+2))] != 0 {
+		t.Fatalf("a radio %d hops away heard the packet: no hop limit", MaxHops+2)
+	}
+}
+
+// B14: the duty check reads the air's own tally of what each radio sent, so a
+// sender that misreports its airtime is still caught.
+func TestAirTalliesAirtimeItself(t *testing.T) {
+	var s Scheduler
+	air := NewLoRaAir(&s, lora.Presets["LongFast"], 1)
+	a := air.Add("a", 0, 0, nil)
+	dur := lora.AirtimeUs(100, air.Preset)
+	a.Transmit(make([]byte, 100), dur) // straight to the air: a.Duty was never told
+	s.RunUntil(Second)
+	if a.Duty.Used(s.Now()) != 0 {
+		t.Fatal("the test needs a transmission the radio's own meter missed")
+	}
+	if got := air.Used(a, s.Now()); got != dur {
+		t.Fatalf("the air tallied %d µs for a, want %d", got, dur)
+	}
+}
+
 // Review I5: a radio needs a moment to notice another one has started.
 func TestCarrierSenseTakesTime(t *testing.T) {
 	var s Scheduler
