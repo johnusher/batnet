@@ -16,7 +16,6 @@ No Linear for batnet yet: this page is the list.
 
 | # | Problem | Found | Area |
 |---|---|---|---|
-| B1 | The WebAssembly bridge panics on a missing or non-number argument from the page, which stops the Go program; every later call fails | plan 2 review | `cmd/batnetwasm` |
 | B2 | Restart in the real engine view doesn't catch a failed scenario load (unhandled rejection) | plan 2 review | `real.js` |
 | B3 | A scripted post or power change that fails (house without power) is dropped without a report | plan 2 review | `internal/sim/scenario.go` |
 | B4 | One unreadable or invalid scenario file stops `batnetd -sim` before the remaining files | plan 2 review | `cmd/batnetd` |
@@ -51,11 +50,12 @@ No Linear for batnet yet: this page is the list.
 
 | # | Limit | Why / when it changes |
 |---|---|---|
-| L10 | The app is a first version: no outbox, bedside mode, speaker settings, voice, photos or German yet | plan 4b |
+| L10 | The app has no voice messages, photos or location sharing on a map yet | milestone 2 ([0019](/decisions/0019-location.md), [0020](/decisions/0020-photos.md)) |
+| L11 | The simulator's phone: its bedside clock shows the real time, not the village's; the page never closes the sessions and live streams it opens, so they pile up over a long visit; each phone's outbox lives only until the phone is reloaded | plan 4b, minor |
 | L1 | A locked phone doesn't ring; batnet must be open (bedside mode) | browsers offline have no service worker or push ([0018](/decisions/0018-notifications-and-house-speaker.md)) |
 | L3 | The simulator's WiFi model is not measured: ranges, the loss curve (2% + load²) and frame overhead are guesses | bench and field tests |
 | L4 | In the simulator a WiFi channel is tracked per group; when groups split or merge the backlog resets, and loss ignores hop count | plan 2 review, minor |
-| L5 | The model engine (JavaScript) and the real engine (Go) differ until accounts and the app join the real one | plans 4-5 |
+| L5 | The model engine (JavaScript) shows screens the real one hasn't got yet: voice, the radio scan, a neighbour's Meshtastic app | milestone 2, plan 3b |
 | L8 | Everyone-channel posts don't yet go out as plain Meshtastic text for users holding the key (done-when check 3); public-channel text interop isn't built | plan 3b (meshtasticd client) |
 | L9 | A signed entry costs about 100 bytes before its text on LoRa (origin key and signature): two packets for a 100-character post | a compact LoRa form, later |
 | L6 | An author signing two different entries with the same seq would not be detected (vectors hold seqs, not content) | plan 1 review; needs a protocol decision |
@@ -83,6 +83,7 @@ No Linear for batnet yet: this page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| The WebAssembly bridge stopped on a bad call from the page (B1); the app lacked an outbox, bedside mode, speaker and notification settings, German and help (L10); the real engine had no phone | plan 4b, 2026-10-15 |
 | Concurrent map access could crash the server; parallel wrong PINs switched the lockout off; unlimited sign-ups; verdicts and group changes depended on arrival order; alerts forgeable by another node; live streams outlived sign-out; the app missed dropped streams and wiped typing | plan 4a review fixes, 2026-10-15 |
 | Recovery stalled behind non-post entries; gateways echoed other groups' posts; public posts triggered catch-up beacons; recovered High posts dropped to 4; the simulated air merged identical frames and had instant carrier sense; power cuts didn't reboot gateways; two gateways answered every beacon together | plan 3 review fixes, 2026-10-15 (with a CSMA backoff after every frame heard) |
 | Posts couldn't cross between WiFi groups | the LoRa bridge, plan 3, 2026-10-15 |

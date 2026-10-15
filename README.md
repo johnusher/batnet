@@ -580,14 +580,23 @@ that runs entirely in your web browser.
 *Real batnet code* runs batnet's actual Go code for every house, compiled for
 the browser, through prepared scenarios such as *bang* (everyone hears a bang
 and posts at once) and *storm* (houses lose power and catch up). It covers the
-WiFi mesh and the long-range radio (with Meshtastic users relaying); accounts
-and the app join as they are built.
+WiFi mesh and the long-range radio (with Meshtastic users relaying).
 
-To run it offline:
+**A real phone in the real engine.** Pick a house and a person, and the phone
+beside the map runs the real batnet app, talking to that house's real server.
+Post something, let the village run a minute, then switch to someone at another
+house to see it arrive. Choose *New visitor* to ask to join, then switch to the
+house's admin to let them in.
+
+[![The real engine: a map of three hamlets linked by WiFi and radio, and a phone at the Okafor house showing a message posted at the Miller house](docs/img/sim-phone.png)](https://johnusher.github.io/batnet/)
+
+To run it offline (the *Model* engine only):
 1. Click the green **Code** button at the top of this page, then
    **Download ZIP**.
 2. Unzip it, open the folder `prototypes`, then `village-sim`.
 3. Double-click `index.html`.
+
+The *Real batnet code* engine needs to be built first; developers, see below.
 
 The numbers in the simulator come from a model, not from real radios. What
 we've learned from it is in
@@ -617,6 +626,8 @@ go test ./...                                 # run the tests
 go run ./cmd/batnetd -mock 5 -loss 0.3        # a pretend village of 5 houses on this computer
 go run ./cmd/batnetd -sim scenarios/*.json    # village scenarios with the real code, judged pass/fail
 go run ./cmd/batnetd -mock 3 -web -for 0      # three houses, each serving the real app on 127.0.0.1:8001-8003
+sh prototypes/village-sim/build-site.sh _site  # build the simulator with the real engine
+(cd _site && python3 -m http.server)          # then open http://localhost:8000
 (cd tools/okflint && go run . ../../knowledge) # check the knowledge bundle by hand
 ```
 
