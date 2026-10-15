@@ -154,6 +154,26 @@ repository instead: see [For developers](#for-developers).
    The page shows you how to continue, and the connection is still encrypted.
 4. Create an account and wait for your house's approver to let you in.
 
+### How you find out about new messages
+
+Without the internet, a web page can't make a locked phone ring. So batnet
+tells you in other ways:
+
+* **Keep batnet open.** Your phone plays a sound for each new message, and
+  vibrates on Android. Urgent messages are louder, and an alert from your
+  house's approver sounds a siren.
+* **Bedside mode.** At night, put the phone on charge and tap *Bedside mode* in
+  Settings. The screen stays on, dimmed, so batnet can ring.
+* **The house speaker.** Plug a small speaker into the house's Pi. It says who a
+  message is for and who sent it ("Message for Ben, from Anna at Miller House"),
+  never what it says, and only for people who switch this on. It stays quiet at
+  night, except for urgent messages and alerts.
+* **A button and a light on the Pi.** The light blinks while someone in the
+  house has unread messages. Press the button to hear the announcements again.
+* **Android phones, optional:** install the free
+  [ntfy](https://ntfy.sh/) app *before* you need it. It can show real
+  notifications from the house's Pi with no internet. iPhones can't do this.
+
 ## 3D-printable cases
 
 Free designs that people have shared. Most are for non-commercial use: print
