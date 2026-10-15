@@ -38,8 +38,11 @@ video editor. Read `video/README.md` first.
 
 * **Credible**: every number on screen comes from the repo or a public
   record, and the knowledge bundle or the scene comment says where. The Berlin
-  figures (8 January 2025, Treptow-Köpenick, about 50,000 homes, up to three
-  days) are the public reporting of the arson attack; the simulator figures
+  figures (the night of 8/9 September 2025, two 110 kV pylons in Johannisthal,
+  about 50,000 customers, about 60 hours; the six localities drawn dark) are
+  the public reporting of the arson attack, in
+  `knowledge/research/berlin-blackout-2025.md` (cut 1 wrongly said January
+  and a cable tunnel: check a date before narrating it); the simulator figures
   (247 posts, 8,968 deliveries, 12 ms median, 0 missing) are `bang.json`'s
   report on its CI seed; re-run `go run ./cmd/batnetd -sim scenarios/bang.json`
   before changing them. Crowd sizes: Glastonbury about 210,000, Black Rock
@@ -76,7 +79,11 @@ video editor. Read `video/README.md` first.
   is identical. Never use `Math.random()` except for the one-frame shake.
 * **Secrets and people**: the ElevenLabs key stays in
   `~/.config/elevenlabs/api_key`; `video/out/` is ignored; no real names or
-  precise places beyond the public ones above.
+  precise places beyond the public ones above. The Berlin scene's map (tiles
+  and outlines, OpenStreetMap) is fetched by `video/fetch_map.py` on the
+  first render and stays out of the repo: gitleaks' `precise-coordinates`
+  rule refuses it, rightly. Any new coordinate in the sources is rounded to
+  two decimals (about a kilometre).
 * **Cost**: one full voice pass is about 1,800 characters (about 800 credits
   on Multilingual v2, half that on Flash); clips are cached by text and voice,
   so only changed scenes are re-spoken.

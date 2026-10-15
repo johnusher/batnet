@@ -17,8 +17,10 @@
   cv.width = tl.width; cv.height = tl.height;
   const ctx = cv.getContext('2d');
 
+  const mapData = await (await fetch('assets/berlin-map.json')).json(); // Berlin: tile grid, outlines (see knowledge/research/berlin-blackout-2025.md)
+  const tileNames = []; for (let x = 0; x < mapData.cols; x++) for (let y = 0; y < mapData.rows; y++) tileNames.push(`berlin/${mapData.z}-${mapData.x0 + x}-${mapData.y0 + y}`);
   const images = {};
-  await Promise.all(['app-sign-in', 'app-conversation', 'village-sim-dark'].map((n) => new Promise((ok) => {
+  await Promise.all(['app-sign-in', 'app-conversation', 'village-sim-dark', ...tileNames].map((n) => new Promise((ok) => {
     const im = new Image(); im.onload = () => { images[n] = im; ok(); }; im.onerror = () => { log('no image', n); ok(); }; im.src = 'assets/' + n + '.png';
   })));
 
@@ -144,30 +146,43 @@
     },
   };
 
-  // --- Berlin: a city map that goes dark, then starts talking ---
+  // --- Berlin: the real map; the south-east goes dark, then starts talking ---
+  // The map is CARTO's dark tiles on OpenStreetMap data; the outlines are OpenStreetMap's (ODbL), fetched
+  // once into assets/berlin-map.json. The facts: knowledge/research/berlin-blackout-2025.md.
   const berlin = {
-    tunnel: [150, 1010], blocks: [], nodes: [], links: [], msgs: [], phones: [],
+    lights: [], dark: [], nodes: [], links: [], msgs: [], phones: [], M: null, rings: null, fire: [0, 0], shout: [0, 0],
+    raw(lon, lat) { const M = this.M, n = 2 ** M.z, r = lat * Math.PI / 180; return [((lon + 180) / 360 * n - M.x0) * M.tile, ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n - M.y0) * M.tile]; },
+    proj(lon, lat) { const [X, Y] = this.raw(lon, lat), M = this.M; return [X * M.s + M.ox, Y * M.s + M.oy]; },
+    inside(p, ring) { let c = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const [xi, yi] = ring[i], [xj, yj] = ring[j]; if ((yi > p[1]) !== (yj > p[1]) && p[0] < (xj - xi) * (p[1] - yi) / (yj - yi) + xi) c = !c; } return c; },
     setup() {
-      const r = rng(7); const cols = 13, rows = 7, bw = (W - 80) / cols, bh = (H - 200) / rows;
-      for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
-        if ((i === 5 && j >= 2 && j <= 3) || (i === 6 && j === 3)) continue; // a park
-        const x = 40 + i * bw + 12 + r() * 6, y = 140 + j * bh + 12 + r() * 6, w = bw - 28 - r() * 10, h = bh - 28 - r() * 10;
-        const d = Math.hypot(x + w / 2 - this.tunnel[0], y + h / 2 - this.tunnel[1]) / 1900;
-        const win = []; for (let a = 0; a < Math.floor(w / 14); a++) for (let b = 0; b < Math.floor(h / 16); b++) if (r() < .72) win.push([x + 8 + a * 14, y + 9 + b * 16, r()]);
-        this.blocks.push({ x, y, w, h, dark: 2.6 + d * 3.8 + r() * .4, win, i, j });
+      const M = this.M = Object.assign({ s: 1.2, ox: 0, oy: 0 }, mapData);
+      // the view: the pylons at (1000, 560); the city centre lands top-left, Köpenick right, Grünau at the bottom
+      const fr = this.raw(...M.fire); M.ox = 1000 - fr[0] * M.s; M.oy = 560 - fr[1] * M.s;
+      // the map, drawn once: OpenStreetMap's tiles inverted to a dark style
+      const oc = document.createElement('canvas'); oc.width = tl.width; oc.height = tl.height; const o = oc.getContext('2d');
+      o.setTransform(S, 0, 0, S, 0, 0); o.fillStyle = '#0a0d14'; o.fillRect(0, 0, W, H); o.filter = 'invert(1) hue-rotate(180deg) saturate(.45) brightness(.8)';
+      for (let x = 0; x < M.cols; x++) for (let y = 0; y < M.rows; y++) { const im = images[`berlin/${M.z}-${M.x0 + x}-${M.y0 + y}`]; if (im) o.drawImage(im, M.ox + x * M.tile * M.s, M.oy + y * M.tile * M.s, M.tile * M.s + .5, M.tile * M.s + .5); }
+      o.filter = 'none'; o.fillStyle = 'rgba(5,8,16,.5)'; o.fillRect(0, 0, W, H); this.mapCanvas = oc;
+      const ring = (r) => r.map(([lo, la]) => this.proj(lo, la));
+      this.rings = { berlin: ring(M.berlin), district: ring(M.district), dark: Object.values(M.dark).map(ring) };
+      this.fire = this.proj(...M.fire);
+      // the city's lights: random points in the outline, denser toward the centre; those in the six localities go dark
+      const r = rng(7), centre = this.proj(13.40, 52.52), bb = [-100, -100, W + 100, H + 100];
+      while (this.lights.length < 2600) {
+        const p = [bb[0] + r() * (bb[2] - bb[0]), bb[1] + r() * (bb[3] - bb[1])]; if (!this.inside(p, this.rings.berlin)) continue;
+        const dc = Math.hypot(p[0] - centre[0], p[1] - centre[1]); if (r() > .15 + .85 * Math.exp(-((dc / 700) ** 2))) continue;
+        const dark = this.rings.dark.some((rg) => this.inside(p, rg)); const df = Math.hypot(p[0] - this.fire[0], p[1] - this.fire[1]);
+        const l = { x: p[0], y: p[1], a: .35 + r() * .55, f: r() * 6, dark, at: 2.6 + df / 520 * 3.8 + r() * .4 }; this.lights.push(l); if (dark) this.dark.push(l);
       }
-      // nodes: every third block, at a window
-      this.blocks.forEach((b, i) => { if (i % 3 === 1) this.nodes.push({ x: b.x + b.w * .5, y: b.y + b.h * .55, t0: 18.2 + (i / 3) * .13 + r() * .1, b }); });
-      for (let a = 0; a < this.nodes.length; a++) for (let b = a + 1; b < this.nodes.length; b++) {
-        const d = Math.hypot(this.nodes[a].x - this.nodes[b].x, this.nodes[a].y - this.nodes[b].y);
-        if (d < 420) this.links.push([a, b, d]);
-      }
-      this.phones = this.blocks.filter((_, i) => i % 7 === 3).slice(0, 9).map((b) => ({ x: b.x + b.w * .25, y: b.y + b.h * .3, t0: 7.5 + r() * 2.5 }));
+      this.shout = this.dark[Math.floor(this.dark.length * .3)];
+      // nodes: every third dark house, spaced out; links between near ones
+      for (const l of this.dark) { if (this.nodes.every((n) => Math.hypot(n.x - l.x, n.y - l.y) > 52)) this.nodes.push({ x: l.x, y: l.y, t0: 18.2 + this.nodes.length * .1 + r() * .1 }); }
+      for (let a = 0; a < this.nodes.length; a++) for (let b = a + 1; b < this.nodes.length; b++) { const d = Math.hypot(this.nodes[a].x - this.nodes[b].x, this.nodes[a].y - this.nodes[b].y); if (d < 150) this.links.push([a, b, d]); }
+      this.phones = this.dark.filter((_, i) => i % 23 === 5).slice(0, 9).map((l) => ({ x: l.x, y: l.y, t0: 7.5 + r() * 2.5 }));
       const texts = ['Generator at number 14: phones charge 9 to 11', 'Pharmacy on the corner open till 20:00', 'Insulin needed, block C, anyone with a cold box?'];
       texts.forEach((s, k) => {
         const from = [4, 17, 26][k] % this.nodes.length, t0 = 20.4 + k * 2.3;
-        // breadth-first over the links: hop times
-        const at = new Map([[from, t0]]); const q = [from];
+        const at = new Map([[from, t0]]); const q = [from]; // breadth-first over the links: hop times
         while (q.length) { const a = q.shift(); for (const [p, qq] of this.links) { const o = p === a ? qq : qq === a ? p : -1; if (o >= 0 && !at.has(o)) { at.set(o, at.get(a) + .22); q.push(o); } } }
         const hops = []; for (const [p, qq] of this.links) { const ta = at.get(p), tb = at.get(qq); if (ta == null || tb == null) continue; if (Math.abs(ta - tb) > .2 && Math.abs(ta - tb) < .3) hops.push(ta < tb ? [p, qq, ta] : [qq, p, tb]); }
         hops.sort((x, y) => x[2] - y[2]);
@@ -177,37 +192,38 @@
       ev('berlin', 2.05, 'boom', -8);
     },
     map(ug) {
-      ctx.fillStyle = '#0d1220'; ctx.fillRect(0, 0, W, H);
-      // the river
-      ctx.strokeStyle = '#132238'; ctx.lineWidth = 70; ctx.beginPath(); ctx.moveTo(-50, 300); ctx.bezierCurveTo(500, 200, 900, 700, W + 50, 560); ctx.stroke();
-      ctx.fillStyle = '#121a2a';
-      for (const b of this.blocks) { rr(b.x, b.y, b.w, b.h, 4); ctx.fill(); }
-      for (const b of this.blocks) {
-        const flick = ug > b.dark - .5 && ug < b.dark ? (Math.sin(ug * 60 + b.i) > 0 ? 1 : .3) : 1;
-        const on = ug < b.dark ? flick : 0;
-        for (const [x, y, f] of b.win) {
-          if (on > 0) { ctx.fillStyle = C.warm; ctx.globalAlpha = (.55 + .45 * f) * on; ctx.fillRect(x, y, 5, 6); }
-          else { ctx.fillStyle = '#1b2333'; ctx.globalAlpha = 1; ctx.fillRect(x, y, 5, 6); }
-        }
+      ctx.drawImage(this.mapCanvas, 0, 0, W, H);
+      // the district outline, faint
+      ctx.strokeStyle = 'rgba(242,165,65,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 8]); ctx.beginPath(); this.rings.district.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+      // the lights
+      for (const l of this.lights) {
+        const flick = l.dark && ug > l.at - .5 && ug < l.at ? (Math.sin(ug * 60 + l.f) > 0 ? 1 : .3) : 1;
+        const on = l.dark && ug >= l.at ? 0 : flick;
+        if (on > 0) { ctx.fillStyle = C.warm; ctx.globalAlpha = l.a * on * (.8 + .2 * Math.sin(ug * 2 + l.f)); ctx.beginPath(); ctx.arc(l.x, l.y, 1.9, 0, 7); ctx.fill(); }
+        else { ctx.fillStyle = '#2a3140'; ctx.globalAlpha = 1; ctx.beginPath(); ctx.arc(l.x, l.y, 1.6, 0, 7); ctx.fill(); }
       }
       ctx.globalAlpha = 1;
-      if (ug < 3.2) { const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, 1000); g.addColorStop(0, 'rgba(255,210,122,.10)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
-      // the fire at the cable tunnel
-      const [tx, ty] = this.tunnel; const f = ramp(ug, 1.9, 2.1) * (1 - ramp(ug, 9, 12));
-      if (f > 0) { glow(tx, ty, 260, 'rgba(255,120,40,.85)', f * (0.7 + .3 * Math.sin(ug * 20))); ctx.fillStyle = '#ffb347'; ctx.globalAlpha = f; ctx.beginPath(); ctx.arc(tx, ty, 9, 0, 7); ctx.fill(); ctx.globalAlpha = 1; text('cable tunnel', tx + 24, ty - 8, 20, '#ffb347'); }
-      ring(tx, ty, ug, 2.0, 2.8, 1900, 'rgba(255,140,60,.6)', 5);
+      // the dark localities, shaded and outlined once they have gone
+      const dk = ramp(ug, 6.5, 9);
+      if (dk > 0) { ctx.globalAlpha = dk; for (const rg of this.rings.dark) { ctx.beginPath(); rg.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.fillStyle = 'rgba(238,75,58,.10)'; ctx.fill(); ctx.strokeStyle = 'rgba(238,75,58,.8)'; ctx.lineWidth = 2; ctx.stroke(); } ctx.globalAlpha = 1; }
+      // the fire at the pylons
+      const [tx, ty] = this.fire; const f = ramp(ug, 1.9, 2.1) * (1 - ramp(ug, 9, 12));
+      if (f > 0) { glow(tx, ty, 220, 'rgba(255,120,40,.85)', f * (0.7 + .3 * Math.sin(ug * 20))); ctx.fillStyle = '#ffb347'; ctx.globalAlpha = f; ctx.beginPath(); ctx.arc(tx, ty, 8, 0, 7); ctx.fill(); ctx.globalAlpha = 1; text('Johannisthal: two 110 kV pylons', tx - 22, ty + 34, 20, '#ffb347', 'right', 600); }
+      ring(tx, ty, ug, 2.0, 2.8, 1200, 'rgba(255,140,60,.6)', 5);
+      text('Map © OpenStreetMap contributors', W - 64, H - 36, 15, 'rgba(154,166,180,.8)', 'right');
     },
   };
   scenes.berlin = {
     setup() { berlin.setup(); },
     draw(u, len) {
       berlin.map(u);
-      for (const p of berlin.phones) { const k = ramp(u, p.t0, p.t0 + .5) * (1 - ramp(u, 19, 20.5)); if (k <= 0) continue; ctx.globalAlpha = k; phone(p.x - 14, p.y - 26, 28, 52, '#222b38'); text('no service', p.x, p.y - 44, 15, C.alert, 'center', 600); ctx.strokeStyle = C.alert; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(p.x - 9, p.y - 10); ctx.lineTo(p.x + 9, p.y + 10); ctx.moveTo(p.x + 9, p.y - 10); ctx.lineTo(p.x - 9, p.y + 10); ctx.stroke(); ctx.globalAlpha = 1; }
-      // the numbers
-      const stat = (v, unit, y, t0) => { const k = ramp(u, t0, t0 + 2.2); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 4) * (1 - ramp(u, len - .4, len)); const n = typeof v === 'number' ? Math.round(easeOut(k) * v).toLocaleString('en-GB') : v; text(n, W - 100, y, 92, C.ink, 'right', 700, MONO); text(unit, W - 100, y + 62, 26, C.sub, 'right', 500); ctx.globalAlpha = 1; };
-      stat(50000, 'homes dark', 330, 11); stat('3 days', 'without power or heating', 520, 13.6); stat('0 bars', 'mobile masts out after a few hours', 710, 15.4);
-      const pt = cue('berlin', 'Put zat light out'), pb = berlin.blocks[44]; bubble('Put that light out!', pb.x + pb.w / 2, pb.y + pb.h / 2, u, pt, { fill: C.warm, alpha: 1 - ramp(u, pt + 2.4, pt + 3) });
-      label('Berlin, Treptow-Köpenick', '8 January 2025: an arson attack on two high-voltage cables');
+      for (const p of berlin.phones) { const k = ramp(u, p.t0, p.t0 + .5) * (1 - ramp(u, 19, 20.5)); if (k <= 0) continue; ctx.globalAlpha = k; phone(p.x - 12, p.y - 22, 24, 44, '#222b38'); text('no service', p.x, p.y - 38, 14, C.alert, 'center', 600); ctx.strokeStyle = C.alert; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(p.x - 7, p.y - 8); ctx.lineTo(p.x + 7, p.y + 8); ctx.moveTo(p.x + 7, p.y - 8); ctx.lineTo(p.x - 7, p.y + 8); ctx.stroke(); ctx.globalAlpha = 1; }
+      // the numbers, right, over the empty land east of the city
+      const stat = (v, unit, y, t0) => { const k = ramp(u, t0, t0 + 2.2); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 4) * (1 - ramp(u, len - .4, len)); ctx.fillStyle = 'rgba(10,15,28,.72)'; rr(W - 520, y - 70, 460, 170, 14); ctx.fill(); const n = typeof v === 'number' ? Math.round(easeOut(k) * v).toLocaleString('en-GB') : v; text(n, W - 90, y, 88, C.ink, 'right', 700, MONO); text(unit, W - 90, y + 60, 24, C.sub, 'right', 500); ctx.globalAlpha = 1; };
+      stat(50000, 'customers dark', 330, 11); stat('2½ days', 'until the last were back', 520, 13.6); stat('0 bars', 'mobile masts out after a few hours', 710, 15.4);
+      const dl = ramp(u, 9, 9.6); if (dl > 0) { ctx.globalAlpha = dl; text('Johannisthal · Adlershof · Niederschöneweide · Altglienicke · Grünau · Rudow', 64, 150, 20, C.alert, 'left', 600); ctx.globalAlpha = 1; }
+      const pt = cue('berlin', 'Put zat light out'), pb = berlin.shout; bubble('Put that light out!', pb.x, pb.y, u, pt, { fill: C.warm, alpha: 1 - ramp(u, pt + 2.4, pt + 3) });
+      label('Berlin, Treptow-Köpenick', 'the night of 8/9 September 2025: arson at two high-voltage pylons');
       vignette(); fade(1 - ramp(u, 0, .6));
     },
   };
@@ -216,13 +232,14 @@
     draw(u, len) {
       const ug = u + 18; berlin.map(ug);
       ctx.strokeStyle = C.wifi;
-      for (const [a, b] of berlin.links) { const na = berlin.nodes[a], nb = berlin.nodes[b]; const k = ramp(ug, Math.max(na.t0, nb.t0) + .3, Math.max(na.t0, nb.t0) + .9); if (k <= 0) continue; ctx.globalAlpha = .35 * k; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y); ctx.stroke(); }
+      for (const [a, b] of berlin.links) { const na = berlin.nodes[a], nb = berlin.nodes[b]; const k = ramp(ug, Math.max(na.t0, nb.t0) + .3, Math.max(na.t0, nb.t0) + .9); if (k <= 0) continue; ctx.globalAlpha = .35 * k; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y); ctx.stroke(); }
       ctx.globalAlpha = 1;
-      for (const n of berlin.nodes) { node(n.x, n.y, ug, n.t0, C.wifi, 8); if (ug > n.t0 + 1) pulse(n.x, n.y, ug, n.t0 + 1, 'rgba(111,182,234,.35)', 3.2, 150, 1); }
+      for (const n of berlin.nodes) { node(n.x, n.y, ug, n.t0, C.wifi, 5); if (ug > n.t0 + 1) pulse(n.x, n.y, ug, n.t0 + 1, 'rgba(111,182,234,.35)', 3.2, 70, 1); }
       for (const m of berlin.msgs) {
-        for (const [a, b, ta] of m.hops) { const na = berlin.nodes[a], nb = berlin.nodes[b]; dot(na.x, na.y, nb.x, nb.y, (ug - ta) / .22, C.wifi, 4); const ka = ramp(ug, ta + .22, ta + .32) * (1 - ramp(ug, ta + .5, ta + 1.4)); if (ka > 0) glow(nb.x, nb.y, 40, 'rgba(111,182,234,.9)', ka); }
-        const nf = berlin.nodes[m.from]; bubble(m.s, nf.x, nf.y - 10, ug, m.t0, { alpha: 1 - ramp(ug, m.t0 + 4.5, m.t0 + 5.2) });
+        for (const [a, b, ta] of m.hops) { const na = berlin.nodes[a], nb = berlin.nodes[b]; dot(na.x, na.y, nb.x, nb.y, (ug - ta) / .22, C.wifi, 3); const ka = ramp(ug, ta + .22, ta + .32) * (1 - ramp(ug, ta + .5, ta + 1.4)); if (ka > 0) glow(nb.x, nb.y, 30, 'rgba(111,182,234,.9)', ka); }
+        const nf = berlin.nodes[m.from]; bubble(m.s, nf.x, nf.y - 8, ug, m.t0, { alpha: 1 - ramp(ug, m.t0 + 4.5, m.t0 + 5.2) });
       }
+      const nk = ramp(ug, 19.5, 20.1); if (nk > 0) { ctx.globalAlpha = nk; ctx.fillStyle = 'rgba(10,15,28,.72)'; rr(W - 520, 260, 460, 170, 14); ctx.fill(); text(`${berlin.nodes.length} nodes`, W - 90, 330, 88, C.wifi, 'right', 700, MONO); text('every third dark house', W - 90, 390, 24, C.sub, 'right'); ctx.globalAlpha = 1; }
       label('Berlin, the same night', 'every third house with a node');
       vignette(); fade(ramp(u, len - .5, len));
     },
@@ -369,6 +386,37 @@
     },
   };
 
+  // --- what people ask: the short answers (README: at a glance, power table; spec: sealing, approval, sync) ---
+  scenes.questions = {
+    setup() {
+      this.qa = [
+        ['Does it need the internet?', 'No. Nothing leaves the village.', 'Does it need'],
+        ['Do I need an app?', 'No: any browser, on any phone or laptop.', 'Do I need an app'],
+        ['How many people?', 'about 60 phones per house node · 8 on a pocket node', 'How many people'],
+        ['How long on a battery?', 'pocket node: 1½ days on a 10,000 mAh power bank · house node: 3 days on a car battery', 'How long on a battery'],
+        ['Is it legal?', 'yes: a licence-free band, low power, within the rules', 'Is it legal'],
+        ['Who can read my messages?', 'your village only: sealed with the village key', 'Who can read'],
+        ['Can strangers join?', 'only if a neighbour approves them', 'Can strangers'],
+        ['My house loses power?', 'the other houses keep copies; you catch up when you are back', 'My house loses'],
+        ['Photos? Calls?', 'over WiFi, yes · over the long radio, text only', 'Photos'],
+      ].map(([q, a, ph]) => ({ q, a, t: cue('questions', ph) }));
+      this.qa.forEach((x) => ev('questions', x.t, 'blip', -24));
+    },
+    draw(u, len) {
+      ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const cur = this.qa.reduce((c, x, i) => (u >= x.t ? i : c), -1);
+      this.qa.forEach((x, i) => {
+        const k = easeOut(ramp(u, x.t, x.t + .5)); if (k <= 0) return;
+        const y = 160 + i * 80; ctx.globalAlpha = k * (i === cur ? 1 : .55); ctx.save(); ctx.translate((1 - k) * -40, 0);
+        if (i === cur) { ctx.fillStyle = '#121a2a'; rr(72, y - 32, W - 144, 66, 12); ctx.fill(); }
+        text(x.q, 100, y, 27, C.ink, 'left', 700);
+        const ak = ramp(u, x.t + .6, x.t + 1.0); ctx.globalAlpha = k * ak * (i === cur ? 1 : .55); text(x.a, 640, y, 25, C.ok, 'left', 500);
+        ctx.restore(); ctx.globalAlpha = 1;
+      });
+      label('What people ask', 'the short answers; the long ones are in the README'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
+    },
+  };
+
   // --- Glastonbury: hills, tents, pocket nodes; a lost child; a bang ---
   const glasto = {
     tents: [], nodes: [], links: [], reports: [], bang: [420, 640], stage: [700, 470],
@@ -422,7 +470,9 @@
     setup() { glasto.setup(); for (let i = 0; i < 4; i++) ev('glasto', glasto.nodes[0].t0 + .4 + i * .5, 'blip', -22); },
     draw(u, len) {
       glasto.base(u); glasto.nodesAndLinks(u); glasto.signal(u);
-      const td = cue('glasto', "Ve're doomed"), tn = cue('glasto', 'No. Pocket'), th = cue('glasto', 'sree hops');
+      const td = cue('glasto', "Ve're doomed"), tn = cue('glasto', 'No. Pocket'), th = cue('glasto', 'sree hops'), to = cue('glasto', 'Oasis'), tr = cue('glasto', 'robbing tents');
+      bubble('OASIS SECRET GIG AT THE PARK STAGE 1AM!!!', 1100, 640, u, to, { px: 22, alpha: 1 - ramp(u, tr + 2.5, tr + 3) });
+      bubble('Scallies robbing tents in field 7, mind your stuff', 480, 830, u, tr, { px: 22, fill: C.alert, color: '#fff', alpha: 1 - ramp(u, len - .8, len - .3) });
       bubble("We're doomed!", 1330, 745, u, td, { fill: C.alert, color: '#fff', px: 26, alpha: 1 - ramp(u, tn + .6, tn + 1.1) });
       bubble('No.', 1500, 560, u, tn + .3, { px: 26, alpha: 1 - ramp(u, tn + 2.6, tn + 3.1) });
       const hk = ramp(u, th, th + .5); if (hk > 0) { ctx.globalAlpha = hk; text('3 hops: Meshtastic’s limit, enough for the farm', W - 100, 200, 26, C.ink, 'right', 700); ctx.globalAlpha = 1; }

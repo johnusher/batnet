@@ -39,3 +39,6 @@ captures/
 
 # the film: narration cache, frames and renders
 video/out/
+__pycache__/
+video/assets/berlin/
+video/assets/berlin-map.json

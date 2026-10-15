@@ -1,9 +1,9 @@
 # The batnet film
 
-A four-minute animated explainer: a Berlin blackout, how a house node works,
+A four-and-a-half-minute animated explainer: a Berlin blackout on the real map, how a house node works,
 why it has two radios (and how a voice becomes text for the slow one), what it
-costs, Glastonbury (a lost child, a bang that everyone reports), Black Rock
-City (a whiteout alert), and the simulator that runs the real code. Narrated
+costs, the questions people ask, Glastonbury (a lost child, a bang that
+everyone reports), and the simulator that runs the real code. Narrated
 by Klaus, whose German accent is part of the act, with a few lines borrowed
 from 'Allo 'Allo! and Dad's Army.
 
@@ -27,6 +27,7 @@ committed.
 |---|---|---|
 | Narration | `voice.py` | ElevenLabs text-to-speech, one clip per scene, cached by text and voice settings |
 | Timeline | `render.py` | each scene lasts its clip plus `pad` seconds, at least `min` |
+| Map | `fetch_map.py`, once | OpenStreetMap tiles of Berlin and the outlines of the dark localities, into gitignored `assets/berlin*` (the renderer runs it when they are missing) |
 | Frames | `scenes.js` in headless Chrome | a canvas draws second `t` of the film; a scene's moments are keyed to phrases of its narration (`cue()`); every frame is posted to a local server |
 | Sound | `render.py` | synthesised blips, a boom, an alert chime and a quiet synth bed, placed at the events the scenes report; narration at each scene's start; loudness-normalised |
 | Film | ffmpeg | H.264 high profile, AAC 48 kHz, faststart: what YouTube wants |

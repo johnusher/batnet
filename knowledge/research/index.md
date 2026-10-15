@@ -15,4 +15,5 @@ sources, not yet confirmed on our hardware.
 * [OKF and agent knowledge](okf-and-agent-knowledge.md) - why this bundle follows Google's OKF v0.2, what the spec requires, and the practices taken from it
 * [Village simulator findings](village-sim-findings.md) - findings from the in-browser village model - LoRa duty limits at busy gateways, WiFi groups with no LoRa radio, and recovery traffic
 * [EU868 radio basics](eu868-radio-basics.md) - the facts behind the README's radio section - the 863-870 MHz slices and limits, Meshtastic's LongFast parameters, ERP and antennas, Fresnel zone and horizon, range records, and the history of the bands and LoRa
+* [The Berlin blackout of September 2025](berlin-blackout-2025.md) - the public record behind the film's opening (two 110 kV pylons in Johannisthal set on fire the night of 8/9 September 2025, about 50,000 customers, about 60 hours, six localities), and where the scene's map and outlines come from
 * [Power budget](power-budget.md) - daily energy for pocket, house and relay nodes; the Pi's idle draw dominates and messages cost almost nothing

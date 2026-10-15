@@ -24,8 +24,8 @@
       "id": "berlin",
       "min": 8,
       "pad": 0.6,
-      "text": "Berlin, Yanuary last year. One fire in a cable tunnel, unt fifty sousand homes go dark for sree days. No light, no heating, unt after a few hours no mobile netvork: ze masts haff batteries for exactly long enough to be useless. Put zat light out! Ah. Nobody needs to say it. Zis is not a film. Zis happened.",
-      "caption": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: the masts have batteries for exactly long enough to be useless. Put that light out! Ah. Nobody needs to say it. This is not a film. This happened."
+      "text": "Berlin, September last year. One fire at ze foot of two pylons in Johannisthal, unt fifty sousand homes unt businesses go dark for two unt a half days. No light, no trams, no traffic lights, unt after a few hours no mobile netvork: ze masts haff batteries for exactly long enough to be useless. Put zat light out! Ah. Nobody needs to say it. Zis is not a film. Zis happened.",
+      "caption": "Berlin, September last year. One fire at the foot of two pylons in Johannisthal, and fifty thousand homes and businesses go dark for two and a half days. No light, no trams, no traffic lights, and after a few hours no mobile network: the masts have batteries for exactly long enough to be useless. Put that light out! Ah. Nobody needs to say it. This is not a film. This happened."
     },
     {
       "id": "berlin2",
@@ -56,11 +56,18 @@
       "caption": "What does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio module: twenty-five. That is it. Under fifty euros for a radio station in your pocket, on the power bank you already own, for a day and a half. A house node, with WiFi for the whole street and sixty phones: about one hundred and fifty. Yes, estimates: we have not measured them yet. We are not stupid boys."
     },
     {
+      "id": "questions",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Does it need ze internet? No. Nossing leaves ze willage. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? A pocket node: a day unt a half on a power bank. A house node: sree days on a car battery. Is it legal? Ja. A licence-free band, low power, unt ve keep to ze rules. Who can read my messages? Your willage only: zey are sealed vith ze willage key. Can strangers join? Only if a neighbour approves zem. My house loses power? Ze ozer houses keep copies; you catch up ven you are back. Photos, calls? Over Vee-Fee, ja. Over ze long radio, text only.",
+      "caption": "Does it need the internet? No. Nothing leaves the village. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? A pocket node: a day and a half on a power bank. A house node: three days on a car battery. Is it legal? Yes. A licence-free band, low power, and we keep to the rules. Who can read my messages? Your village only: they are sealed with the village key. Can strangers join? Only if a neighbour approves them. My house loses power? The other houses keep copies; you catch up when you are back. Photos, calls? Over WiFi, yes. Over the long radio, text only."
+    },
+    {
       "id": "glasto",
       "min": 8,
       "pad": 0.5,
-      "text": "Glastonbury. Two hundred sousand people, one hill, unt a mobile netvork zat surrenders by Friday lunchtime. Ve're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across ze fields. Each one passes ze message to ze next: sree hops, unt ze vhole farm is covered.",
-      "caption": "Glastonbury. Two hundred thousand people, one hill, and a mobile network that surrenders by Friday lunchtime. We're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across the fields. Each one passes the message to the next: three hops, and the whole farm is covered."
+      "text": "Glastonbury. Two hundred sousand people, one hill, unt a mobile netvork zat surrenders by Friday lunchtime. Ve're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across ze fields. Each one passes ze message to ze next: sree hops, unt ze vhole farm is covered. Ze first messages: Oasis are playing a secret gig. Zey are not. Unt somebody is robbing tents in field seven. Zey are.",
+      "caption": "Glastonbury. Two hundred thousand people, one hill, and a mobile network that surrenders by Friday lunchtime. We're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across the fields. Each one passes the message to the next: three hops, and the whole farm is covered. The first messages: Oasis are playing a secret gig. They are not. And somebody is robbing tents in field seven. They are."
     },
     {
       "id": "lostchild",
@@ -75,13 +82,6 @@
       "pad": 0.8,
       "text": "Zen: a bang, somevhere by ze vest field. Don't panic! Don't panic! Nobody panics: ewerybody reports it, ewerybody sees ze reports, so nobody runs ze vrong vay, unt ze medics see exactly vhere to go. Each report costs half a second of airtime; ze rules allow six minutes an hour. Plenty.",
       "caption": "Then: a bang, somewhere by the west field. Don't panic! Don't panic! Nobody panics: everybody reports it, everybody sees the reports, so nobody runs the wrong way, and the medics see exactly where to go. Each report costs half a second of airtime; the rules allow six minutes an hour. Plenty."
-    },
-    {
-      "id": "burningman",
-      "min": 10,
-      "pad": 0.8,
-      "text": "Black Rock City. Four kilometres across, a city built for one veek in ze Newada desert, nossing betveen you unt ze horizon but dust. Perfect for radio: flat, dry, no trees, so eight nodes cover ze vhole city. A vhiteout comes in, unt 'stay in camp' reaches ewerybody before ze dust does. Going out in it? Do you sink zat's vise, sir? No. Stay in camp.",
-      "caption": "Black Rock City. Four kilometres across, a city built for one week in the Nevada desert, nothing between you and the horizon but dust. Perfect for radio: flat, dry, no trees, so eight nodes cover the whole city. A whiteout comes in, and 'stay in camp' reaches everybody before the dust does. Going out in it? Do you think that's wise, sir? No. Stay in camp."
     },
     {
       "id": "proof",

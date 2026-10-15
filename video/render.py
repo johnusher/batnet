@@ -267,25 +267,49 @@ def mux(tl: dict, audio: Path, draft: bool) -> Path:
 
 # ---------- the README's preview: a few seconds of the film as a GIF, with a play button ----------
 
-PREVIEW_CLIPS = [("berlin", .36), ("berlin2", .45), ("how", .25), ("radio", .72), ("cost", .55), ("glasto", .6), ("bang", .3), ("burningman", .55), ("proof", .35)]
-PLAY_FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"  # has the play triangle
+PREVIEW_CLIPS = [("berlin", .36), ("berlin2", .45), ("how", .25), ("radio", .72), ("cost", .55), ("questions", .4), ("glasto", .6), ("bang", .3), ("proof", .35)]
+
+
+def play_button_png(w: int, h: int, path: Path) -> None:
+    """A transparent PNG with a dark disc and a white play triangle in the middle (pure Python: this
+    ffmpeg has no drawtext, and we don't want a font or PIL dependency for one button)."""
+    import zlib
+    cx, cy, R = w / 2, h / 2, min(w, h) * .115
+    rows = []
+    for y in range(h):
+        row = bytearray([0])
+        for x in range(w):
+            dx, dy = x - cx, y - cy
+            d = (dx * dx + dy * dy) ** .5
+            r, g, b, a = 0, 0, 0, 0
+            if d < R:
+                a = 175 if d < R - 3 else int(175 * (R - d) / 3)
+                # the triangle: left edge at -R*.35, tip at +R*.5
+                tx = dx + R * .08
+                if -R * .38 <= tx <= R * .5 and abs(dy) <= (R * .5 - tx) * .72:
+                    r, g, b, a = 255, 255, 255, 255
+            row += bytes((r, g, b, a))
+        rows.append(bytes(row))
+    raw = b"".join(rows)
+    def chunk(t, d): return len(d).to_bytes(4, "big") + t + d + zlib.crc32(t + d).to_bytes(4, "big")
+    png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b"")
+    path.write_bytes(png)
 
 
 def preview_gif(film: Path, tl: dict) -> Path:
-    """One second from each of a few scenes, 800 px wide at 10 fps, a 'watch' button on top.
+    """One second from each of a few scenes, 800 px wide at 10 fps, a play button on top.
     GitHub's README cannot embed a video from a branch, so this GIF links to the MP4."""
     out = OUT / "preview.gif"
     by = {s["id"]: s for s in tl["scenes"]}
     segs = [by[i]["start"] + (by[i]["end"] - by[i]["start"]) * at for i, at in PREVIEW_CLIPS if i in by]
+    button = OUT / "play.png"
+    if not button.exists():
+        play_button_png(800, 450, button)
     parts = "".join(f"[0:v]trim=start={t:.2f}:duration=1,setpts=PTS-STARTPTS,scale=800:-2[c{k}];" for k, t in enumerate(segs))
     chain = "".join(f"[c{k}]" for k in range(len(segs)))
-    label = "▶   Watch the film  ·  4 min" if Path(PLAY_FONT).exists() else "Watch the film  ·  4 min"
-    font = f"fontfile='{PLAY_FONT}':" if Path(PLAY_FONT).exists() else ""
-    button = (f"drawbox=x=(iw-470)/2:y=(ih-84)/2:w=470:h=84:color=black@0.7:t=fill,"
-              f"drawtext={font}text='{label}':fontsize=34:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-2")
-    graph = (f"{parts}{chain}concat=n={len(segs)}:v=1:a=0,{button},fps=10,split[s0][s1];"
+    graph = (f"{parts}{chain}concat=n={len(segs)}:v=1:a=0[v];[v][1:v]overlay=0:0,fps=10,split[s0][s1];"
              f"[s0]palettegen=max_colors=128:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle")
-    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(film), "-filter_complex", graph, "-loop", "0", str(out)], check=True)
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(film), "-i", str(button), "-filter_complex", graph, "-loop", "0", str(out)], check=True)
     print(f"preview: {out} ({out.stat().st_size / 1e6:.1f} MB)")
     return out
 
@@ -311,6 +335,8 @@ def main() -> None:
     if args.gif:
         preview_gif(OUT / "batnet.mp4", json.loads((OUT / "timeline.json").read_text()))
         return
+    if not (HERE / "assets" / "berlin-map.json").exists():
+        subprocess.run([sys.executable, str(HERE / "fetch_map.py")], check=True)  # the Berlin scene's map, once
     tl = build_timeline(args.draft) if not args.mux else json.loads((OUT / "timeline.json").read_text())
     if args.mux:
         events = json.loads((OUT / "events.json").read_text()) if (OUT / "events.json").exists() else []
