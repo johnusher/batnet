@@ -19,11 +19,14 @@ type Config struct {
 	Heartbeat time.Duration       // 5 s on a Pi
 	OnEntry   func(*ledger.Entry) // once per entry new to this node, from the network
 	Logf      func(format string, args ...any)
+	// Spawn runs a repair. Default: a new goroutine. The simulator runs it inline.
+	Spawn func(func())
 }
 
 // Syncer keeps one node's log in step with the mesh.
 type Syncer struct {
 	cfg       Config
+	ctx       context.Context // for repairs started by HandlePacket
 	mu        sync.Mutex
 	repairing map[string]bool
 	slots     chan struct{} // one per repair allowed to run at once
@@ -47,7 +50,10 @@ func New(cfg Config) *Syncer {
 	if cfg.Logf == nil {
 		cfg.Logf = func(string, ...any) {}
 	}
-	s := &Syncer{cfg: cfg, repairing: map[string]bool{}, slots: make(chan struct{}, maxRepairs)}
+	if cfg.Spawn == nil {
+		cfg.Spawn = func(f func()) { go f() }
+	}
+	s := &Syncer{cfg: cfg, ctx: context.Background(), repairing: map[string]bool{}, slots: make(chan struct{}, maxRepairs)}
 	cfg.Link.SetHandler(s.handle)
 	return s
 }
@@ -91,6 +97,10 @@ func (s *Syncer) Run(ctx context.Context) {
 	}
 }
 
+// HandlePacket processes one broadcast from the mesh. Run calls it for every
+// packet; the simulator calls it directly in virtual time.
+func (s *Syncer) HandlePacket(p Packet) { s.receive(s.ctx, p) }
+
 func (s *Syncer) receive(ctx context.Context, p Packet) {
 	plain, err := s.cfg.Sealer.Open(p.Data)
 	if err != nil {
@@ -125,14 +135,14 @@ func (s *Syncer) receive(ctx context.Context, p Packet) {
 	if busy {
 		return
 	}
-	go func() {
+	s.cfg.Spawn(func() {
 		defer func() { s.mu.Lock(); delete(s.repairing, hb.Addr); <-s.slots; s.mu.Unlock() }()
 		if n, err := s.Repair(ctx, hb.Addr); err != nil {
 			s.cfg.Logf("repair from %s: %v", hb.Addr, err)
 		} else if n > 0 {
 			s.cfg.Logf("repair from %s: %d entries", hb.Addr, n)
 		}
-	}()
+	})
 }
 
 // accept verifies and stores an entry from the network; true if it was new.
