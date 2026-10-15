@@ -4,12 +4,18 @@ import (
 	"crypto/ed25519"
 	"fmt"
 	"math/rand"
+	"strings"
+	"time"
 
+	"github.com/johnusher/batnet/internal/auth"
 	"github.com/johnusher/batnet/internal/hlc"
 	"github.com/johnusher/batnet/internal/ledger"
 	"github.com/johnusher/batnet/internal/lora"
 	"github.com/johnusher/batnet/internal/meshsync"
+	"github.com/johnusher/batnet/internal/prio"
 	"github.com/johnusher/batnet/internal/seal"
+	"github.com/johnusher/batnet/internal/state"
+	"github.com/johnusher/batnet/internal/web"
 )
 
 // HeartbeatEvery is the real nodes' heartbeat interval (spec §5).
@@ -47,6 +53,8 @@ type Node struct {
 	PoweredAll bool         // never lost power during the run
 	Bridge     *lora.Bridge // houses and relays with a LoRa radio
 	LoRaRadio  *LoRaRadio
+	Web        *web.Server // houses: the real house server, with its people as real accounts
+	People     []string    // houses: the account IDs of the people living here
 	wakeAt     int64
 }
 
@@ -77,6 +85,7 @@ type Village struct {
 	groups []groupSnap // WiFi groups over time, recorded when they can change
 	byName map[string]*Node
 	byKey  map[ledger.Key]*Post
+	seeded bool
 }
 
 // NewVillage starts an empty village whose clocks read epochMs at time 0.
@@ -112,6 +121,9 @@ func (v *Village) add(name, kind string, x, y float64, pi, wifi string, withLoRa
 		Spawn: func(f func()) { f() },
 		OnEntry: func(e *ledger.Entry) {
 			v.arrived(n, e)
+			if n.Web != nil {
+				n.Web.OnEntry(e)
+			}
 			if n.Bridge != nil {
 				n.Bridge.Consider(e)
 				v.wakeBridge(n)
@@ -119,6 +131,17 @@ func (v *Village) add(name, kind string, x, y float64, pi, wifi string, withLoRa
 		},
 	})
 	n.Radio.SetDeliver(n.Sync.HandlePacket)
+	if kind == "house" {
+		n.Web = web.New(web.Config{House: name, Author: n.Author, State: state.New(),
+			Now: func() time.Time { return time.UnixMilli(v.EpochMs + v.Sch.Now()/Ms) },
+			Publish: func(e *ledger.Entry) {
+				n.Sync.Publish(e)
+				if n.Bridge != nil {
+					n.Bridge.Consider(e)
+					v.wakeBridge(n)
+				}
+			}})
+	}
 	if withLoRa {
 		n.LoRaRadio = v.LoRa.Add(name, x, y, func(frame []byte) {
 			if n.Bridge != nil {
@@ -166,6 +189,9 @@ func (v *Village) arrived(n *Node, e *ledger.Entry) {
 
 // Start schedules every node's heartbeat every 5 s, each with its own phase.
 func (v *Village) Start() {
+	if err := v.Seed(); err != nil {
+		panic(err) // seeding only fails if signing fails
+	}
 	v.snapGroups()
 	v.Sch.After(Minute, v.probeDuty)
 	for _, n := range v.Nodes {
@@ -188,7 +214,7 @@ func (v *Village) Start() {
 }
 
 // Post makes house append a message and broadcast it now.
-func (v *Village) Post(house, text string, prio uint8) (*Post, error) {
+func (v *Village) Post(house, text string, level uint8) (*Post, error) {
 	n := v.byName[house]
 	if n == nil || n.Kind != "house" {
 		return nil, fmt.Errorf("sim: no house %q", house)
@@ -196,19 +222,19 @@ func (v *Village) Post(house, text string, prio uint8) (*Post, error) {
 	if !n.Radio.On {
 		return nil, fmt.Errorf("sim: house %q has no power", house)
 	}
-	e, err := n.Author.Append(ledger.TypeMsgPost, prio, map[string]string{"audience": "everyone", "text": text})
+	from := ""
+	if len(n.People) > 0 {
+		from = n.People[v.rnd.Intn(len(n.People))] // one of the people living here
+	}
+	// Written through the house server, as the app would: stored, folded, published, handed to the radio.
+	e, err := n.Web.Write(ledger.TypeMsgPost, prio.Level(level), map[string]string{"from": state.CompactAccount(from, n.Author.ID()), "audience": "everyone", "text": text})
 	if err != nil {
 		return nil, err
 	}
-	p := &Post{Key: e.Key, House: house, Text: text, Prio: prio, Created: v.Sch.Now(), Arrived: map[string]int64{house: v.Sch.Now()}}
+	p := &Post{Key: e.Key, House: house, Text: text, Prio: level, Created: v.Sch.Now(), Arrived: map[string]int64{house: v.Sch.Now()}}
 	v.Posts = append(v.Posts, p)
 	v.byKey[e.Key] = p
-	err = n.Sync.Publish(e)
-	if n.Bridge != nil {
-		n.Bridge.Consider(e)
-		v.wakeBridge(n)
-	}
-	return p, err
+	return p, nil
 }
 
 // SetPower cuts or restores a node's power. Its store survives (the SD card).
@@ -380,3 +406,73 @@ func (v *Village) ConnectedFrom(a, b string, from int64) (int64, bool) {
 
 // RunFor advances virtual time by d.
 func (v *Village) RunFor(d int64) { v.Sch.RunUntil(v.Sch.Now() + d) }
+
+// peopleNames are placeholder first names for seeded accounts.
+var peopleNames = []string{"Anna", "Ben", "Cleo", "Dan", "Eva", "Finn", "Greta", "Hugo", "Ida", "Jonas", "Kira", "Leo", "Mila", "Noah", "Olga", "Paul"}
+
+// Seed makes the village an established one: every house announced, with an
+// approved admin and its people as approved accounts, and the groups Medical
+// and Food. The entries go straight into every node's store and state, as if
+// they had been synced long ago: no airtime, nothing to repair.
+func (v *Village) Seed() error {
+	if v.seeded {
+		return nil
+	}
+	v.seeded = true
+	pin, err := auth.HashPIN("000000") // one placeholder PIN for every simulated person, hashed once
+	if err != nil {
+		return err
+	}
+	var all []*ledger.Entry
+	write := func(n *Node, t ledger.Type, body any) (*ledger.Entry, error) {
+		e, err := n.Author.Append(t, uint8(prio.Housekeeping), body)
+		if err == nil {
+			all = append(all, e)
+		}
+		return e, err
+	}
+	first := true
+	for _, n := range v.Nodes {
+		if n.Kind != "house" {
+			continue
+		}
+		if _, err := write(n, ledger.TypeNodeAnnounce, map[string]string{"house": n.Name}); err != nil {
+			return err
+		}
+		names := append([]string{"Admin"}, peopleNames...)
+		for i := 0; i <= n.House.People; i++ {
+			name := names[i%len(names)]
+			if i >= len(names) {
+				name = fmt.Sprintf("%s %d", name, i/len(names)+1)
+			}
+			r, err := write(n, ledger.TypeAccountRequest, map[string]any{"name": name, "pinHash": pin, "admin": i == 0})
+			if err != nil {
+				return err
+			}
+			id := state.AccountID(r.Key)
+			if _, err := write(n, ledger.TypeAccountApprove, map[string]string{"account": id}); err != nil {
+				return err
+			}
+			if i > 0 {
+				n.People = append(n.People, id)
+			}
+		}
+		if first {
+			for _, g := range []string{"Medical", "Food"} {
+				if _, err := write(n, ledger.TypeGroupCreate, map[string]string{"id": strings.ToLower(g), "name": g}); err != nil {
+					return err
+				}
+			}
+			first = false
+		}
+	}
+	for _, n := range v.Nodes {
+		for _, e := range all {
+			n.Store.Put(e)
+			if n.Web != nil {
+				n.Web.State().Apply(e)
+			}
+		}
+	}
+	return nil
+}

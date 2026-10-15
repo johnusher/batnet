@@ -2,6 +2,7 @@ package state
 
 import (
 	"math/rand"
+	"strings"
 	"sync"
 	"testing"
 
@@ -91,5 +92,20 @@ func TestSettingsLatestWins(t *testing.T) {
 	}
 	if b := apply(*all).Account(anna); b.Speaker {
 		t.Fatal("in order: speaker should be off")
+	}
+}
+
+// A post can name its author as "~/<seq>": an account created by the node that wrote the post (saves 64 bytes on LoRa).
+func TestCompactFrom(t *testing.T) {
+	all, miller, _, anna, ben, _ := village(t)
+	seq := anna[strings.Index(anna, "/")+1:]
+	miller.write(t, ledger.TypeMsgPost, map[string]any{"from": "~/" + seq, "audience": "everyone", "text": "short form"})
+	s := apply(*all)
+	got := s.Messages(ben, "everyone", 10)
+	if len(got) != 1 || got[0].From != anna {
+		t.Fatalf("compact author not resolved: %+v", got)
+	}
+	if c := CompactAccount(anna, miller.id); c != "~/"+seq {
+		t.Fatalf("CompactAccount = %q", c)
 	}
 }

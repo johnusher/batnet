@@ -16,6 +16,7 @@ const (
 	firstBeaconUs   = 60_000_000     // after a start or restart, beacon within a minute
 	catchUpBeaconUs = 2 * 60_000_000 // after receiving recovered posts, beacon again soon
 	lbtJitterUs     = 2_000_000      // random wait after a busy channel clears
+	lbtMinUs        = 150_000        // at least this, longer than a radio needs to notice a transmission, so a sender's next fragment is heard first
 	remoteHeardUs   = 30 * 60_000_000
 	suppressSpanUs  = 3_000_000
 	maxRecoverEach  = 8
@@ -178,7 +179,10 @@ func (b *Bridge) Receive(frame []byte) {
 	}
 	// The channel just became free: contend with a random wait, so radios that
 	// were all waiting for this frame to end don't start together.
-	b.backoff = max(b.backoff, b.cfg.Now()+1+b.rnd.Int63n(lbtJitterUs))
+	b.backoff = max(b.backoff, b.cfg.Now()+lbtMinUs+b.rnd.Int63n(lbtJitterUs))
+	if f.Kind != KindBeacon {
+		b.cancelByMsgID(f.MsgID) // someone is already sending this entry: don't start it too
+	}
 	if !b.cfg.InMyGroup(f.Sender) {
 		b.remoteAt = b.cfg.Now()
 	}
@@ -298,7 +302,7 @@ func (b *Bridge) Tick() int64 {
 		return min(next, b.busyUntil)
 	}
 	if busy := b.cfg.Radio.BusyUntil(); busy > now {
-		b.backoff = busy + 1 + b.rnd.Int63n(lbtJitterUs) // listen before talk, then a random wait
+		b.backoff = busy + lbtMinUs + b.rnd.Int63n(lbtJitterUs) // listen before talk, then a random wait
 		return min(next, b.backoff)
 	}
 	if now < b.backoff {
@@ -321,4 +325,27 @@ func (b *Bridge) Tick() int64 {
 		}
 	}
 	return min(next, b.busyUntil)
+}
+
+// cancelByMsgID drops a waiting or not-yet-started queued entry whose payload
+// has this message ID: hearing its first fragment is enough to know another
+// gateway is sending it (entries of two fragments otherwise both get sent).
+func (b *Bridge) cancelByMsgID(id uint32) {
+	for k, e := range b.waitEntry {
+		if raw, err := e.MarshalBinary(); err == nil && msgID(raw) == id {
+			delete(b.waiting, k)
+			delete(b.waitEntry, k)
+			delete(b.waitKind, k)
+			b.Stats.Suppressed++
+		}
+	}
+	for _, it := range b.Queue.items {
+		if it.Next == 0 && it.Kind != KindBeacon && len(it.Frames) > 0 {
+			if f, err := Parse(it.Frames[0]); err == nil && f.MsgID == id {
+				b.Queue.Remove(it.Key)
+				b.Stats.Suppressed++
+				return
+			}
+		}
+	}
 }

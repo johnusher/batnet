@@ -358,7 +358,7 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 			}
 		}
 		level := prio.ForPost(choice, kind, false)
-		body := map[string]any{"from": a.ID, "audience": audience, "text": text}
+		body := map[string]any{"from": state.CompactAccount(a.ID, s.cfg.Author.ID()), "audience": audience, "text": text}
 		if in.Loc != nil {
 			body["loc"] = in.Loc
 		}

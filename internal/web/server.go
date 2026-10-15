@@ -257,3 +257,6 @@ func (h *hub) state() {
 		h.send(l, []byte("event: state\ndata: {}\n\n"))
 	}
 }
+
+// State is the house's view of the village (the simulator and tests read it).
+func (s *Server) State() *state.State { return s.cfg.State }

@@ -202,6 +202,7 @@ func (s *State) Apply(e *ledger.Entry) {
 		if json.Unmarshal(e.Body, &b) != nil || b.From == "" || b.Text == "" {
 			return
 		}
+		b.From = expandAccount(b.From, e.Key.Origin)
 		if b.ClientID != "" {
 			for _, old := range s.messages {
 				if old.From == b.From && old.ClientID == b.ClientID {
@@ -489,4 +490,23 @@ func (s *State) FindClient(account, clientID string) *Message {
 		}
 	}
 	return nil
+}
+
+// CompactAccount writes an account ID short when the account was created by
+// node (the node about to write the entry): "~/<seq>" instead of 64 hex
+// characters and the seq. On LoRa that keeps most posts to one packet.
+func CompactAccount(id string, node ledger.NodeID) string {
+	prefix := hex.EncodeToString(node[:]) + "/"
+	if strings.HasPrefix(id, prefix) {
+		return "~/" + strings.TrimPrefix(id, prefix)
+	}
+	return id
+}
+
+// expandAccount undoes CompactAccount for an entry written by origin.
+func expandAccount(id string, origin ledger.NodeID) string {
+	if strings.HasPrefix(id, "~/") {
+		return hex.EncodeToString(origin[:]) + "/" + strings.TrimPrefix(id, "~/")
+	}
+	return id
 }
