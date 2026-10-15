@@ -225,6 +225,284 @@ is the only per-message cost worth counting. A house node wants mains power, a
 car or leisure battery (about 300 Wh runs it 3–4 days), or a solar panel.
 Phones run on their own batteries.
 
+## The long-range radio, explained
+
+The long-range radio lets houses 1–3 km apart reach each other when WiFi
+can't. It is a small radio board on the Pi that uses **LoRa** (short for
+"long range"): a way of sending data slowly, but very far, on very little
+power. It runs **[Meshtastic](https://meshtastic.org/)**, free software that
+turns these radios into a text messenger that passes messages on from radio to
+radio.
+
+| | |
+|---|---|
+| **Frequency** | 869.525 MHz, in the slice from 869.4 to 869.65 MHz (Europe) |
+| **Licence** | None needed. Anyone may use this slice, within the rules below. |
+| **Power** | Up to 0.5 watts allowed. Our radio sends at most 0.16 watts, about what a mobile phone sends. |
+| **Time on air** | Each radio may send for at most 10% of the time: 6 minutes in every hour |
+| **Speed** | About 1,000 bits a second. A short text takes about half a second to send. |
+| **Range** | 1–3 km from house to house at ground level. Much more from a roof or a hill. |
+| **Radio chip** | Semtech SX1262 |
+| **Settings** | Meshtastic's standard "LongFast": spreading factor 11, 250 kHz wide |
+
+### Where it sits on the dial
+
+Radio waves are measured in **hertz**: how many times a second the wave goes
+up and down. One **megahertz (MHz)** is a million times a second. FM radio is
+around 100 MHz and WiFi is around 2,400 MHz. batnet's long-range radio uses
+869.5 MHz, where one wave is 34.5 cm long, nearly three times the length of a
+WiFi wave. Longer waves travel further and get through walls and trees better.
+
+![Where batnet's radio sits among FM radio, walkie-talkies, mobile phones and WiFi](docs/img/radio/dial-light.svg#gh-light-mode-only)
+![Where batnet's radio sits among FM radio, walkie-talkies, mobile phones and WiFi](docs/img/radio/dial-dark.svg#gh-dark-mode-only)
+
+Europe sets aside **863–870 MHz** for "short-range devices": anyone may send
+on it without a licence, as long as they keep to the rules for each slice. Most
+slices allow 25 milliwatts for 1% of the time. One narrow slice, **869.4–869.65
+MHz**, allows twenty times the power and ten times the time on air. That's
+where Meshtastic, and batnet, live.
+
+![The EU 863–870 MHz band in slices: 869.4–869.65 MHz allows 500 mW at 10% time on air](docs/img/radio/subbands-light.svg#gh-light-mode-only)
+![The EU 863–870 MHz band in slices: 869.4–869.65 MHz allows 500 mW at 10% time on air](docs/img/radio/subbands-dark.svg#gh-dark-mode-only)
+
+### Sharing the band
+
+Nobody owns these frequencies. Many kinds of device share them: sensors that
+report a few bytes now and then, water and heat meters, alarm buttons, and
+Meshtastic radios. The rules are what make sharing work: every radio speaks
+briefly, then stays quiet. A Meshtastic radio also listens before it speaks,
+and waits if someone else is talking.
+
+![An illustrated waterfall of 868–870 MHz over 20 seconds: sensors, meters, an alarm and Meshtastic radios sharing the band](docs/img/radio/waterfall-light.svg#gh-light-mode-only)
+![An illustrated waterfall of 868–870 MHz over 20 seconds: sensors, meters, an alarm and Meshtastic radios sharing the band](docs/img/radio/waterfall-dark.svg#gh-dark-mode-only)
+
+This kind of picture is called a **waterfall**. Frequency runs across, time
+runs down, and colour shows strength. It's how radio hobbyists watch the
+airwaves. You can make your own with a cheap USB radio receiver (an
+"RTL-SDR", about €30) and free software such as
+[SDR++](https://www.sdrpp.org/). Here is a real recording of one Meshtastic
+message, filling the whole 869.4–869.65 MHz slice:
+
+<img src="docs/img/radio/meshtastic-waterfall-real.jpg" width="600" alt="A real recording of a Meshtastic message: a broad band of signal from 869.4 to 869.65 MHz on a waterfall display">
+
+<sub>A Meshtastic message on the "MediumFast" setting, by Tinux,
+[CC0](https://commons.wikimedia.org/wiki/File:Meshtastic-spectrum-medium-fast.png),
+Wikimedia Commons.</sub>
+
+### How LoRa sends a message: chirps
+
+LoRa sends data as **chirps**: a tone that slides up across the whole channel,
+like a quick whistle going up. A message starts with a run of identical chirps
+that say "a message is coming", then a few that mark the start. After that,
+every chirp carries data, and **where a chirp starts** is the data. On
+Meshtastic's LongFast setting, each chirp lasts 8.2 thousandths of a second
+and can start at any of 2,048 places, so each chirp carries 11 bits.
+
+![A LoRa transmission drawn as chirps: preamble, sync word, start mark, then data chirps that start at different heights](docs/img/radio/chirps-light.svg#gh-light-mode-only)
+![A LoRa transmission drawn as chirps: preamble, sync word, start mark, then data chirps that start at different heights](docs/img/radio/chirps-dark.svg#gh-dark-mode-only)
+
+A receiver knows exactly what shape to look for, so it can pick out a chirp
+even when it is **fainter than the background hiss** of the radio. That's
+where LoRa's range comes from. The price is speed: about 1,000 bits a second
+on LongFast, slower than a 1990s dial-up modem. Slower settings (a higher
+"spreading factor") reach further still, and faster ones reach less far. Bats
+hunt with chirps too: many species call with a sweep of pitch and listen for
+the echo.
+
+### How messages hop: Meshtastic
+
+* **Every radio repeats what it hears,** once. When a radio hears a message
+  it hasn't seen before, it waits a moment and sends it again, so messages
+  travel beyond the reach of any single radio.
+* **The furthest radios repeat first.** A radio that heard the message only
+  faintly is probably far from the sender, so it waits the shortest time. The
+  others hear it repeat and stay quiet, which saves airtime.
+* **A message makes at most 3 hops** by default. Each message carries a
+  counter that drops by one at each hop.
+* **Messages are scrambled** (encrypted, with AES). Meshtastic's public channel
+  uses a key everyone knows, so anyone can read it. batnet's private channel
+  uses a key only the village has. Meshtastic radios carry it along all the
+  same, without being able to read it.
+* **The airtime is small, so batnet packs it.** With 6 minutes an hour per
+  radio, a village can send roughly 100–200 batnet messages an hour over the
+  radio. That's plenty for text, and far too little for voice, which is why
+  spoken messages go as text.
+
+### Antennas
+
+The antenna matters more than anything else you buy. A good antenna, mounted
+high, can easily double the range.
+
+<img src="docs/img/radio/rooftop-antenna.jpg" width="300" align="right" alt="A tall white fibreglass antenna on a pole on a flat roof, with a small solar panel and a box for the radio below it">
+
+* **Get an antenna for 868 MHz.** Antennas are cut for one frequency. A 433
+  MHz or 2.4 GHz antenna won't work.
+* **Never switch the radio on without its antenna.** Sending into nothing can
+  damage the radio chip.
+* **Stand it upright.** Radios hear each other best when their antennas point
+  the same way, and Meshtastic radios are upright by convention.
+* **Higher is better.** Outside the window beats inside, and the roof beats
+  the window. Some modern window glass has a thin metal coating that blocks
+  radio.
+* **Keep the cable short.** Thin cable (RG174) loses about half the signal
+  every 3 metres at this frequency. For a long run to the roof, use thick
+  low-loss cable, or put the radio up by the antenna, as on this roof.
+* **Check the plug.** Most radios use SMA plugs. "RP-SMA" plugs look the same
+  but don't connect. Small boards often have a tiny "u.FL" socket and a short
+  adapter cable.
+
+<sub>A solar-powered Meshtastic node on a roof in Germany, by -stk,
+[CC BY-SA 4.0](https://commons.wikimedia.org/wiki/File:2025-10_Meshtastic_Node_temporaerhaus_P1090106.jpg),
+Wikimedia Commons.</sub>
+
+<br clear="right">
+
+**Antenna gain** (measured in **dBi**) is not extra power. An antenna can't
+make power. It changes the shape of where the signal goes. A tall antenna with
+more gain squeezes the signal into a flatter disc, so it reaches further over
+flat land but less up to a hilltop or down into a valley.
+
+![Side views of where the signal goes from a 2 dBi whip and a 6–8 dBi mast antenna, and a home-made quarter-wave antenna](docs/img/radio/antennas-light.svg#gh-light-mode-only)
+![Side views of where the signal goes from a 2 dBi whip and a 6–8 dBi mast antenna, and a home-made quarter-wave antenna](docs/img/radio/antennas-dark.svg#gh-dark-mode-only)
+
+### How far it reaches
+
+Range depends far more on **height** and **what's in the way** than on power.
+At 869 MHz, radio travels in straight lines. Hills, concrete, metal and wet
+leaves weaken or block it. Wooden houses and glass let most of it through.
+
+![Typical ranges on a scale from half a kilometre to hundreds: 0.5–2 km in a pocket in town, up to 100+ km mountain to mountain, record 331 km](docs/img/radio/range-light.svg#gh-light-mode-only)
+![Typical ranges on a scale from half a kilometre to hundreds: 0.5–2 km in a pocket in town, up to 100+ km mountain to mountain, record 331 km](docs/img/radio/range-dark.svg#gh-dark-mode-only)
+
+The signal doesn't travel along a thin line from one antenna to the other. It
+fills a fat, cigar-shaped zone around that line (the **Fresnel zone**). Halfway
+along a 2 km link it is 13 metres deep, so trees and roofs well below the
+straight line still get in the way. That's why a few metres of height beat
+extra power.
+
+![A 2 km link between two houses: the zone the signal travels in is 13 m deep halfway, and trees reach into it](docs/img/radio/fresnel-light.svg#gh-light-mode-only)
+![A 2 km link between two houses: the zone the signal travels in is 13 m deep halfway, and trees reach into it](docs/img/radio/fresnel-dark.svg#gh-dark-mode-only)
+
+The Earth's curve sets a limit too. Two antennas 2 metres off flat ground can
+see each other up to about 12 km apart; at 10 metres, about 26 km. The
+Meshtastic record is **331 km**, between mountaintops in northern Italy and
+Slovenia, on the slowest setting with good antennas.
+
+### Is it legal?
+
+**In Europe, yes, without a licence, if you keep to the rules.** The rules come
+from CEPT, which coordinates radio between 46 European countries (including
+the UK and Switzerland), and each country's radio regulator publishes them
+(in Germany, the Bundesnetzagentur). For 869.4–869.65 MHz:
+
+* **At most 500 milliwatts**, counted after the antenna's gain ("ERP",
+  effective radiated power). Our radio sends at most 160 mW. With the antenna
+  in the box that comes to about 150 mW, and even with a 6 dBi antenna it is
+  about 390 mW. With a bigger antenna, turn the radio's power down.
+* **On the air at most 10% of the time,** counted over each hour. Meshtastic
+  keeps to this by itself when its region is set to **EU_868**. Don't switch
+  on its "override duty cycle" setting.
+* **Set the right region.** A radio set up for America (915 MHz) would send on
+  frequencies used by mobile phone networks and other services in Europe.
+* **Buy radios made for the EU 868 MHz band,** with a CE mark.
+* **Encryption is allowed** here. It isn't on amateur ("ham") radio bands.
+
+People with an **amateur radio licence** can switch Meshtastic to "ham mode"
+for more power and other bands, but then encryption must be off and the radio
+must send their call sign. batnet's private channel needs encryption, so batnet
+stays in the licence-free slice.
+
+**Elsewhere,** the rules and frequencies differ: the Americas use 902–928 MHz,
+for example. Meshtastic's region setting picks the right ones. batnet is being
+built and tested in Europe first.
+
+*This is a plain-words summary, not legal advice. Rules change, so check your
+own country's radio regulator.*
+
+### A short history
+
+* **1947:** at an international radio conference in Atlantic City, countries
+  set aside "ISM" bands (industrial, scientific and medical) for machines like
+  microwave heaters, which spray radio noise. Nobody needed a licence to use
+  them. 2.4 GHz, today's WiFi band, is one of them.
+* **1950s:** radar engineers start sending chirps, which let a weak radar see
+  further.
+* **1985:** America allows anyone to send "spread spectrum" signals in the ISM
+  bands without a licence. This leads to WiFi, Bluetooth and, later, LoRa in
+  America's 902–928 MHz band.
+* **1997:** Europe gathers its rules for licence-free short-range devices into
+  one rule book (CEPT's ERC Recommendation 70-03). Its 863–870 MHz band is
+  Europe's counterpart to America's 902–928 MHz, which is why European LoRa
+  radios are "868 MHz" radios and American ones "915 MHz".
+* **2012:** Semtech, an American chip maker, buys Cycleo, a small company in
+  Grenoble, France, that had built a long-range chirp radio for smart meters.
+  Semtech names it LoRa.
+* **2015:** the LoRa Alliance forms to agree a common way (LoRaWAN) for
+  sensors to report to the internet.
+* **2020:** Kevin Hester starts Meshtastic, a LoRa messenger for hikers and
+  paragliders.
+
+<details>
+<summary><b>For radio hobbyists: the numbers</b></summary>
+
+**LongFast on EU_868** (Meshtastic's defaults):
+
+| | |
+|---|---|
+| Centre frequency | 869.525 MHz (slot 1 of 1 in EU_868) |
+| Bandwidth | 250 kHz |
+| Spreading factor | 11 (2,048 chips per symbol; symbol time 8.192 ms) |
+| Coding rate | 4/5 |
+| Preamble | 16 symbols (Meshtastic lengthens LoRa's usual 8) |
+| Sync word | `0x2B` |
+| Raw data rate | 1.07 kbit/s |
+| Link budget | 153 dB at 22 dBm and a 0 dBi antenna (Meshtastic's figure) |
+| Hop limit | 3 (up to 7) |
+
+**Time on air** for one packet, header and CRC on (the standard LoRa airtime
+formula): 60 bytes ≈ 0.68 s, 100 bytes ≈ 1.0 s, 150 bytes ≈ 1.4 s. The 10%
+limit gives each radio 360 s an hour. Every repeat costs airtime again.
+
+**Other EU presets.** The 500 kHz "Turbo" presets aren't allowed in EU_868.
+
+| Preset | SF | Bandwidth | Data rate | Link budget |
+|---|---|---|---|---|
+| Short Fast | 7 | 250 kHz | 10.94 kbit/s | 143 dB |
+| Short Slow | 8 | 250 kHz | 6.25 kbit/s | 145.5 dB |
+| Medium Fast | 9 | 250 kHz | 3.52 kbit/s | 148 dB |
+| Medium Slow | 10 | 250 kHz | 1.95 kbit/s | 150.5 dB |
+| **Long Fast** | **11** | **250 kHz** | **1.07 kbit/s** | **153 dB** |
+| Long Moderate | 11 | 125 kHz | 0.34 kbit/s | 156 dB |
+
+**Useful formulas** (d in km, f in MHz unless noted, h in metres):
+
+* Free-space path loss: `FSPL(dB) = 20·log10(d) + 20·log10(f) + 32.44`. At
+  869.5 MHz, 10 km is 111 dB, so a 153 dB budget would span over 1,000 km in
+  empty space. On the ground, terrain sets the limit, not power. Each 6 dB
+  more doubles free-space range.
+* Radio horizon over smooth ground: `d ≈ 4.12·(√h1 + √h2)`.
+* First Fresnel zone radius at the middle: `r ≈ 8.66·√(d / f_GHz)` metres. At
+  2 km and 0.8695 GHz, 13.1 m; keep about 60% of it clear.
+* ERP from what the radio sends: `ERP(dBm) = P(dBm) + G(dBi) − cable loss(dB) − 2.15`.
+  The limit is 27 dBm ERP (500 mW). A 22 dBm radio stays legal up to about
+  7 dBi plus your cable loss.
+* Quarter wave at 869.5 MHz: 299.8 / 869.5 / 4 = 8.6 cm; cut the radiator a
+  little shorter (about 8.2 cm) for end effect, then trim against a NanoVNA.
+
+**Listening.** An RTL-SDR tuned to 869.525 MHz shows Meshtastic traffic on a
+waterfall. Watching activity is fine. Some countries, Germany included,
+restrict recording or passing on the content of transmissions not meant for
+you, which is why batnet's own scanner reports activity only
+([decision 0009](knowledge/decisions/0009-scanner-activity-only.md)).
+
+**Sources and more detail:** [EU868 radio basics](knowledge/research/eu868-radio-basics.md),
+[LoRa airtime in EU868](knowledge/research/lora-airtime-eu868.md),
+[radio links compared](knowledge/research/radio-links-compared.md),
+[LoRa radios](knowledge/hardware/lora-radios.md). The diagrams are drawn by
+[`docs/img/radio/make.py`](docs/img/radio/make.py).
+
+</details>
+
 ## Words we use
 
 ### batnet's own words

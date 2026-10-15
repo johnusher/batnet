@@ -27,5 +27,10 @@ generated: { by: claude-code/claude-opus-5-5, at: 2026-10-14T18:10:00Z }
 | Secure context | HTTPS or localhost; required for microphone access in browsers |
 | WebRTC | Browser real-time audio/video; Pion is a pure-Go implementation |
 | SDR | Software-defined radio receiver, e.g. RTL-SDR |
+| ERP | Effective radiated power: transmit power plus antenna gain minus cable loss, relative to a dipole (dBi − 2.15). The 869.4–869.65 MHz limit is 500 mW (27 dBm) ERP |
+| dBi | Antenna gain relative to an ideal isotropic antenna; gain reshapes the pattern, it adds no power |
+| Chirp | A tone sweeping across the channel; LoRa's symbol, its start offset carries SF bits |
+| Fresnel zone | The ellipsoid around a radio path that must stay mostly (~60%) clear; 13 m radius mid-path on 2 km at 869 MHz |
+| Waterfall | A spectrogram display: frequency across, time down, colour for strength |
 | PMR446 | Licence-free EU walkie-talkie band, 446.0–446.2 MHz |
 | OKF | Open Knowledge Format: this bundle's format |

@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="340" viewBox="0 0 900 340" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>A LoRa transmission as chirps: preamble, sync word, down-chirps, then data chirps</title>
+<rect width="100%" height="100%" rx="10" fill="#0d1117"/>
+<text x="450.0" y="30.0" font-size="17" fill="#e6edf3" text-anchor="middle" font-weight="bold">How LoRa sends data: chirps</text>
+<rect x="64.0" y="64.0" width="806.0" height="172.0" rx="6" fill="#151b23" fill-opacity="1"/>
+<text x="56.0" y="74.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">869.65</text>
+<text x="56.0" y="234.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">869.40</text>
+<text x="56.0" y="154.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">MHz</text>
+<path d="M70.0,230 L116.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M116.0,230 L162.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M162.0,230 L208.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M208.0,230 L254.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M254.0,230 L300.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M300.0,230 L346.0,70" stroke="#9198a1" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M346.0,170.0 L374.8,70" stroke="#ab7df8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M374.8,70 L374.8,230" stroke="#ab7df8" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M374.8,230 L392.0,170.0" stroke="#ab7df8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="346.0" cy="170.0" r="3.5" fill="#ab7df8"/>
+<path d="M392.0,150.0 L415.0,70" stroke="#ab7df8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M415.0,70 L415.0,230" stroke="#ab7df8" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M415.0,230 L438.0,150.0" stroke="#ab7df8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="392.0" cy="150.0" r="3.5" fill="#ab7df8"/>
+<path d="M438.0,70 L484.0,230" stroke="#4493f8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M484.0,70 L530.0,230" stroke="#4493f8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M530.0,70 L541.5,110.0" stroke="#4493f8" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M541.5,175.0 L571.7,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M571.7,70 L571.7,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M571.7,230 L587.5,175.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="541.5" cy="175.0" r="3.5" fill="#ff8c42"/>
+<path d="M587.5,75.0 L588.9,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M588.9,70 L588.9,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M588.9,230 L633.5,75.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="587.5" cy="75.0" r="3.5" fill="#ff8c42"/>
+<path d="M633.5,205.0 L672.3,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M672.3,70 L672.3,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M672.3,230 L679.5,205.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="633.5" cy="205.0" r="3.5" fill="#ff8c42"/>
+<path d="M679.5,165.0 L706.8,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M706.8,70 L706.8,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M706.8,230 L725.5,165.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="679.5" cy="165.0" r="3.5" fill="#ff8c42"/>
+<path d="M725.5,125.0 L741.3,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M741.3,70 L741.3,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M741.3,230 L771.5,125.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="725.5" cy="125.0" r="3.5" fill="#ff8c42"/>
+<path d="M771.5,220.0 L814.6,70" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M814.6,70 L814.6,230" stroke="#ff8c42" stroke-width="0.8" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="2 3"/>
+<path d="M814.6,230 L817.5,220.0" stroke="#ff8c42" stroke-width="2.2" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="771.5" cy="220.0" r="3.5" fill="#ff8c42"/>
+<text x="825.5" y="154.0" font-size="18" fill="#ff8c42" text-anchor="start" font-weight="normal">…</text>
+<line x1="72.0" y1="248.0" x2="344.0" y2="248.0" stroke="#9198a1" stroke-width="1.5"/>
+<text x="208.0" y="266.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="normal">preamble: “wake up, a message is coming”</text>
+<line x1="348.0" y1="248.0" x2="436.0" y2="248.0" stroke="#ab7df8" stroke-width="1.5"/>
+<text x="392.0" y="266.0" font-size="12" fill="#ab7df8" text-anchor="middle" font-weight="normal">network</text>
+<line x1="440.0" y1="248.0" x2="539.5" y2="248.0" stroke="#4493f8" stroke-width="1.5"/>
+<text x="489.8" y="266.0" font-size="12" fill="#4493f8" text-anchor="middle" font-weight="normal">start mark</text>
+<line x1="543.5" y1="248.0" x2="815.5" y2="248.0" stroke="#ff8c42" stroke-width="1.5"/>
+<text x="679.5" y="266.0" font-size="12" fill="#ff8c42" text-anchor="middle" font-weight="normal">data: where each chirp starts is the data</text>
+<text x="450.0" y="300.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">Each chirp is a tone that slides up across the whole 250 kHz channel in 8.2 ms. On LongFast a chirp can start</text>
+<text x="450.0" y="318.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">at any of 2,048 places, so each one carries 11 bits. A receiver can pick these slides out even below the background hiss.</text>
+</svg>

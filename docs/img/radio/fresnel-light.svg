@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="330" viewBox="0 0 900 330" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>A 2 km link between two houses: the Fresnel zone is 13 m deep halfway, and trees intrude on it</title>
+<rect width="100%" height="100%" rx="10" fill="#ffffff"/>
+<text x="450.0" y="30.0" font-size="17" fill="#1f2328" text-anchor="middle" font-weight="bold">Why height matters: the signal travels in a fat zone, not a thin line</text>
+<rect x="20.0" y="50.0" width="860.0" height="220.0" rx="0" fill="#ddf4ff" fill-opacity="0.6"/>
+<rect x="20.0" y="270.0" width="860.0" height="30.0" rx="0" fill="#e9e2d0" fill-opacity="1"/>
+<path d="M56,270 L56,210 L90,182 L124,210 L124,270 Z" stroke="#59636e" stroke-width="1.5" fill="#f6f8fa" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="90.0" y1="182.0" x2="90.0" y2="142.0" stroke="#1f2328" stroke-width="2.5"/>
+<circle cx="90" cy="142" r="4" fill="#d9480f"/>
+<path d="M776,270 L776,210 L810,182 L844,210 L844,270 Z" stroke="#59636e" stroke-width="1.5" fill="#f6f8fa" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="810.0" y1="182.0" x2="810.0" y2="142.0" stroke="#1f2328" stroke-width="2.5"/>
+<circle cx="810" cy="142" r="4" fill="#d9480f"/>
+<ellipse cx="450.0" cy="142" rx="360.0" ry="54.6" fill="#d9480f" fill-opacity="0.16" stroke="#d9480f" stroke-width="1.5" stroke-dasharray="5 4"/>
+<line x1="90.0" y1="142.0" x2="810.0" y2="142.0" stroke="#d9480f" stroke-width="1.5"/>
+<ellipse cx="330" cy="184" rx="26" ry="38" fill="#2da44e" fill-opacity="0.85"/>
+<line x1="330.0" y1="210.0" x2="330.0" y2="270.0" stroke="#59636e" stroke-width="4"/>
+<ellipse cx="372" cy="169" rx="26" ry="38" fill="#2da44e" fill-opacity="0.85"/>
+<line x1="372.0" y1="195.0" x2="372.0" y2="270.0" stroke="#59636e" stroke-width="4"/>
+<ellipse cx="412" cy="192" rx="26" ry="38" fill="#2da44e" fill-opacity="0.85"/>
+<line x1="412.0" y1="218.0" x2="412.0" y2="270.0" stroke="#59636e" stroke-width="4"/>
+<line x1="450.0" y1="142.0" x2="450.0" y2="196.6" stroke="#1f2328" stroke-width="1"/>
+<text x="458.0" y="173.3" font-size="13" fill="#1f2328" text-anchor="start" font-weight="bold">13 m</text>
+<text x="450.0" y="77.4" font-size="12" fill="#d9480f" text-anchor="middle" font-weight="normal">the first Fresnel zone, halfway along a 2 km link at 869 MHz</text>
+<text x="296.0" y="224.0" font-size="12" fill="#1f2328" text-anchor="end" font-weight="normal">trees in the lower part</text>
+<text x="296.0" y="238.0" font-size="12" fill="#1f2328" text-anchor="end" font-weight="normal">weaken the signal</text>
+<text x="90.0" y="290.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="normal">house A</text>
+<text x="810.0" y="290.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="normal">house B, 2 km away</text>
+<text x="450.0" y="318.0" font-size="12" fill="#59636e" text-anchor="middle" font-weight="normal" font-style="italic">Keep most of the zone clear: raise the antenna above roofs and trees. A few metres of height beats more power.</text>
+</svg>

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="400" viewBox="0 0 900 400" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>The EU 863-870 MHz band in slices; 869.4-869.65 MHz allows 500 mW at 10% duty cycle</title>
+<rect width="100%" height="100%" rx="10" fill="#0d1117"/>
+<text x="450.0" y="30.0" font-size="17" fill="#e6edf3" text-anchor="middle" font-weight="bold">Europe's 863–870 MHz band: free to use, with rules for each slice</text>
+<rect x="50.5" y="230.0" width="233.3" height="70.0" fill="#3d444d" fill-opacity="0.55"/>
+<text x="167.1" y="248.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">wireless mics</text>
+<text x="167.1" y="264.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">10 mW</text>
+<rect x="284.8" y="212.5" width="350.4" height="87.5" fill="#3d444d" fill-opacity="0.55"/>
+<text x="460.0" y="230.5" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">general use</text>
+<text x="460.0" y="246.5" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">25 mW · 1%</text>
+<rect x="636.2" y="212.5" width="69.3" height="87.5" fill="#3fb950" fill-opacity="0.55"/>
+<rect x="706.5" y="230.0" width="10.7" height="70.0" fill="#f85149" fill-opacity="0.9"/>
+<rect x="718.2" y="212.5" width="57.6" height="87.5" fill="#3d444d" fill-opacity="0.55"/>
+<rect x="776.8" y="230.0" width="22.4" height="70.0" fill="#f85149" fill-opacity="0.9"/>
+<rect x="800.2" y="155.2" width="28.3" height="144.8" fill="#ff8c42" fill-opacity="0.9"/>
+<rect x="829.5" y="212.5" width="4.9" height="87.5" fill="#f85149" fill-opacity="0.9"/>
+<rect x="835.4" y="212.5" width="34.1" height="87.5" fill="#3d444d" fill-opacity="0.55"/>
+<line x1="50.0" y1="300.0" x2="870.0" y2="300.0" stroke="#9198a1" stroke-width="1.5"/>
+<line x1="50.0" y1="300.0" x2="50.0" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="50.0" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">863</text>
+<line x1="167.1" y1="300.0" x2="167.1" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="167.1" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">864</text>
+<line x1="284.3" y1="300.0" x2="284.3" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="284.3" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">865</text>
+<line x1="401.4" y1="300.0" x2="401.4" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="401.4" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">866</text>
+<line x1="518.6" y1="300.0" x2="518.6" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="518.6" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">867</text>
+<line x1="635.7" y1="300.0" x2="635.7" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="635.7" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">868</text>
+<line x1="752.9" y1="300.0" x2="752.9" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="752.9" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">869</text>
+<line x1="870.0" y1="300.0" x2="870.0" y2="306.0" stroke="#9198a1" stroke-width="1"/>
+<text x="870.0" y="320.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">870</text>
+<text x="870.0" y="336.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">MHz</text>
+<text x="42.0" y="155.2" font-size="10" fill="#9198a1" text-anchor="end" font-weight="normal">500 mW</text>
+<text x="42.0" y="216.5" font-size="10" fill="#9198a1" text-anchor="end" font-weight="normal">25 mW</text>
+<line x1="46.0" y1="155.2" x2="50.0" y2="155.2" stroke="#9198a1" stroke-width="1"/>
+<line x1="46.0" y1="212.5" x2="50.0" y2="212.5" stroke="#9198a1" stroke-width="1"/>
+<text x="42.0" y="137.2" font-size="10" fill="#9198a1" text-anchor="end" font-weight="normal">power</text>
+<line x1="814.4" y1="155.2" x2="814.4" y2="72.0" stroke="#ff8c42" stroke-width="1"/>
+<text x="808.4" y="66.0" font-size="13" fill="#ff8c42" text-anchor="end" font-weight="bold">869.4–869.65 MHz: up to 500 mW, on the air 10% of the time</text>
+<text x="808.4" y="84.0" font-size="12" fill="#ff8c42" text-anchor="end" font-weight="normal">Meshtastic and batnet's radio. Only 0.25 MHz wide.</text>
+<line x1="670.9" y1="212.5" x2="670.9" y2="150.0" stroke="#3fb950" stroke-width="1" stroke-dasharray="2 2"/>
+<text x="664.9" y="144.0" font-size="12" fill="#3fb950" text-anchor="end" font-weight="normal">868.1 / 868.3 / 868.5: LoRaWAN sensors</text>
+<text x="664.9" y="160.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">(sensors and trackers, The Things Network)</text>
+<rect x="401.4" y="340" width="12" height="12" fill="#f85149" fill-opacity="0.9"/>
+<text x="419.4" y="351.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">slices kept for alarms (smoke, burglar, social alarms)</text>
+<text x="450.0" y="388.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal" font-style="italic">Simplified from CEPT's ERC Recommendation 70-03. Bar height: the power allowed; label: the share of time a radio may transmit.</text>
+</svg>

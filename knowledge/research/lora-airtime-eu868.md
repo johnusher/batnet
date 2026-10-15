@@ -18,8 +18,8 @@ sources:
 # Numbers
 
 * SF7 / 125 kHz ≈ 5.5 kbit/s raw; each step up in spreading factor roughly halves the rate and adds range.[^ttn-sf]
-* Meshtastic's EU default sits in the 869.4–869.65 MHz sub-band, which allows 10% duty cycle (other EU868 sub-bands: 1%).[^mesh-lora] **To verify** against the current Meshtastic region table and ETSI EN 300 220.
-* **LongFast** (SF11, 250 kHz): a ~150-byte packet ≈ **1.2 s airtime** (computed from the LoRa airtime formula: 8.2 ms symbols, ~148 symbols with preamble). **To verify** with a calculator.
+* Meshtastic's EU default sits in the 869.4–869.65 MHz sub-band, which allows 10% duty cycle (other EU868 sub-bands: 1%).[^mesh-lora] Confirmed 2026-10-15 against Meshtastic's region table and the CEPT slice table: see [EU868 radio basics](/research/eu868-radio-basics.md).
+* **LongFast** (SF11, 250 kHz): a ~150-byte packet ≈ **1.4 s airtime**: ~148 payload symbols of 8.2 ms plus Meshtastic's 16-symbol preamble (~165 ms). Earlier ~1.2 s left the longer preamble out; see [EU868 radio basics](/research/eu868-radio-basics.md).
 * 10% duty = 360 s/hour per device; channel congestion is shared and Meshtastic backs off as utilisation rises, and every rebroadcast hop costs airtime again.
 * **Working budget: ~100–200 batnet messages per hour per village.**
 

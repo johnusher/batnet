@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="350" viewBox="0 0 900 350" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>Typical LoRa ranges from 0.5 km in town to 100+ km mountain to mountain; record 331 km</title>
+<rect width="100%" height="100%" rx="10" fill="#0d1117"/>
+<text x="450.0" y="30.0" font-size="17" fill="#e6edf3" text-anchor="middle" font-weight="bold">How far does it reach? It depends on height and what is in the way</text>
+<text x="288.0" y="84.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">In a pocket, in a town</text>
+<rect x="336.5" y="70.0" width="99.0" height="20.0" rx="4" fill="#ff8c42" fill-opacity="0.85"/>
+<text x="441.5" y="85.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">0.5–2 km</text>
+<text x="288.0" y="122.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Node indoors, in a village</text>
+<rect x="386.0" y="108.0" width="78.5" height="20.0" rx="4" fill="#ff8c42" fill-opacity="0.85"/>
+<text x="470.5" y="123.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">1–3 km</text>
+<text x="288.0" y="160.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Antenna on the roof</text>
+<rect x="464.5" y="146.0" width="86.0" height="20.0" rx="4" fill="#ff8c42" fill-opacity="0.85"/>
+<text x="556.5" y="161.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">3–10 km</text>
+<text x="288.0" y="198.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Mast or hilltop, open view</text>
+<rect x="550.5" y="184.0" width="115.0" height="20.0" rx="4" fill="#ff8c42" fill-opacity="0.85"/>
+<text x="671.5" y="199.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">10–50 km</text>
+<text x="288.0" y="236.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Mountain to mountain</text>
+<rect x="715.0" y="222.0" width="85.5" height="20.0" rx="4" fill="#ff8c42" fill-opacity="0.85"/>
+<text x="806.5" y="237.0" font-size="12" fill="#9198a1" text-anchor="start" font-weight="normal">100+ km</text>
+<line x1="800.5" y1="60.0" x2="800.5" y2="250.0" stroke="#ff8c42" stroke-width="1.5" stroke-dasharray="3 3"/>
+<text x="800.5" y="56.0" font-size="12" fill="#ff8c42" text-anchor="middle" font-weight="bold">record: 331 km</text>
+<line x1="300.0" y1="264.0" x2="830.0" y2="264.0" stroke="#9198a1" stroke-width="1"/>
+<line x1="336.5" y1="264.0" x2="336.5" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="336.5" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">0.5</text>
+<line x1="386.0" y1="264.0" x2="386.0" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="386.0" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">1</text>
+<line x1="435.5" y1="264.0" x2="435.5" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="435.5" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">2</text>
+<line x1="501.0" y1="264.0" x2="501.0" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="501.0" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">5</text>
+<line x1="550.5" y1="264.0" x2="550.5" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="550.5" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">10</text>
+<line x1="600.0" y1="264.0" x2="600.0" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="600.0" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">20</text>
+<line x1="665.5" y1="264.0" x2="665.5" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="665.5" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">50</text>
+<line x1="715.0" y1="264.0" x2="715.0" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="715.0" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">100</text>
+<line x1="764.5" y1="264.0" x2="764.5" y2="269.0" stroke="#9198a1" stroke-width="1"/>
+<text x="764.5" y="283.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">200</text>
+<text x="830.0" y="300.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">kilometres</text>
+<text x="450.0" y="338.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal" font-style="italic">Rough guides, not promises: the reach of one radio. Messages can also hop from radio to radio.</text>
+</svg>
