@@ -6,6 +6,8 @@ and no account with any company.
 
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
+### [🎬 Watch the two-minute film](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
+
 batnet turns small, cheap computers into a local chat network for a house, a
 street, a village, a festival camp or a group on a hike. New to words like
 *node*, *mesh* or *LoRa*? See [Words we use](#words-we-use).
