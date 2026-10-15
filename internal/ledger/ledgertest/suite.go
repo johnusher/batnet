@@ -91,7 +91,7 @@ func Run(t *testing.T, open func(t *testing.T) ledger.Store) {
 				s.Put(Entry(t, priv, seq, int64(seq)))
 			}
 		}
-		got, err := s.Range(ledger.Range{Origin: origin, From: 2, To: 5})
+		got, err := s.Range(ledger.Range{Origin: origin, From: 2, To: 5}, 100)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -110,18 +110,49 @@ func Run(t *testing.T, open func(t *testing.T) ledger.Store) {
 		priv := key(t)
 		origin := ledger.NodeIDFromPublic(priv.Public().(ed25519.PublicKey))
 		s.Put(Entry(t, priv, 1, 1))
+		s.Put(Entry(t, priv, 1<<62, 2)) // an author may pick a huge seq
 		done := make(chan int, 1)
 		go func() {
-			es, _ := s.Range(ledger.Range{Origin: origin, From: 1, To: 1 << 62})
+			es, _ := s.Range(ledger.Range{Origin: origin, From: 1, To: 1 << 62}, 10)
 			done <- len(es)
 		}()
 		select {
 		case n := <-done:
-			if n != 1 {
-				t.Fatalf("Range = %d entries, want 1", n)
+			if n != 2 {
+				t.Fatalf("Range = %d entries, want 2", n)
 			}
 		case <-time.After(2 * time.Second):
 			t.Fatal("Range over a huge span did not return within 2 s")
+		}
+	})
+	t.Run("range limit", func(t *testing.T) {
+		s := open(t)
+		defer s.Close()
+		priv := key(t)
+		origin := ledger.NodeIDFromPublic(priv.Public().(ed25519.PublicKey))
+		for seq := uint64(1); seq <= 5; seq++ {
+			s.Put(Entry(t, priv, seq, int64(seq)))
+		}
+		got, _ := s.Range(ledger.Range{Origin: origin, From: 1, To: 5}, 2)
+		if len(got) != 2 || got[0].Key.Seq != 1 || got[1].Key.Seq != 2 {
+			t.Fatalf("Range with limit 2 = %d entries", len(got))
+		}
+	})
+	t.Run("top and latest", func(t *testing.T) {
+		s := open(t)
+		defer s.Close()
+		priv := key(t)
+		origin := ledger.NodeIDFromPublic(priv.Public().(ed25519.PublicKey))
+		if top, err := s.Top(origin); err != nil || top != 0 {
+			t.Fatalf("empty Top = %d, %v", top, err)
+		}
+		s.Put(Entry(t, priv, 1, 500))
+		s.Put(Entry(t, priv, 4, 300)) // gap at 2-3, older stamp
+		if top, _ := s.Top(origin); top != 4 {
+			t.Fatalf("Top = %d, want 4", top)
+		}
+		if ts, err := s.Latest(); err != nil || ts.Wall != 500 {
+			t.Fatalf("Latest = %v, %v; want wall 500", ts, err)
 		}
 	})
 	t.Run("all ordered by clock", func(t *testing.T) {

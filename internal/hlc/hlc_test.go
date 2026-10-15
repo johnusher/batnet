@@ -58,3 +58,34 @@ func TestLess(t *testing.T) {
 		}
 	}
 }
+
+// A full tie-break counter moves the wall forward instead of wrapping to 0.
+func TestFullCounterMovesWall(t *testing.T) {
+	c := New(func() int64 { return 1_790_000_000_000 })
+	seen := Timestamp{Wall: 1_790_000_000_000, Logical: 1<<32 - 1}
+	c.Observe(seen)
+	if got := c.Now(); !seen.Less(got) {
+		t.Fatalf("Now %v not after %v", got, seen)
+	}
+}
+
+// With a plausible clock, a stamp far in the future (a Pi that booted in 2099,
+// or a forged entry) must not drag this node's clock along.
+func TestFarFutureIgnoredWithPlausibleClock(t *testing.T) {
+	now := int64(1_790_000_000_000)
+	c := New(func() int64 { return now })
+	c.Observe(Timestamp{Wall: now + 365*24*3600*1000})
+	if got := c.Now(); got.Wall > now+MaxSkew {
+		t.Fatalf("clock dragged to %v", got)
+	}
+}
+
+// With an implausible clock (1970 after a power cut), the node follows the village.
+func TestImplausibleClockFollowsVillage(t *testing.T) {
+	c := New(func() int64 { return 5000 })
+	seen := Timestamp{Wall: 1_790_000_000_000}
+	c.Observe(seen)
+	if got := c.Now(); !seen.Less(got) {
+		t.Fatalf("Now %v not after %v", got, seen)
+	}
+}

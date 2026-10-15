@@ -19,14 +19,21 @@ type Author struct {
 	seq   uint64
 }
 
-// NewAuthor continues from the highest seq of this node already in store.
+// NewAuthor continues after the highest seq of this node already in store
+// (gaps or not, so a seq is never reused), and moves the clock past every
+// stored timestamp, so a restart with a wrong clock still orders correctly.
 func NewAuthor(priv ed25519.PrivateKey, clock *hlc.Clock, store Store) (*Author, error) {
 	id := NodeIDFromPublic(priv.Public().(ed25519.PublicKey))
-	v, err := store.Vector()
+	top, err := store.Top(id)
 	if err != nil {
 		return nil, err
 	}
-	return &Author{priv: priv, id: id, clock: clock, store: store, seq: v[id]}, nil
+	latest, err := store.Latest()
+	if err != nil {
+		return nil, err
+	}
+	clock.Observe(latest)
+	return &Author{priv: priv, id: id, clock: clock, store: store, seq: top}, nil
 }
 
 // ID is this node's identity.
@@ -48,8 +55,12 @@ func (a *Author) Append(t Type, prio uint8, body any) (*Entry, error) {
 	defer a.mu.Unlock()
 	e := &Entry{Key: Key{Origin: a.id, Seq: a.seq + 1}, TS: a.clock.Now(), Type: t, Prio: prio, Body: raw}
 	e.Sign(a.priv)
-	if _, err := a.store.Put(e); err != nil {
+	added, err := a.store.Put(e)
+	if err != nil {
 		return nil, err
+	}
+	if !added {
+		return nil, fmt.Errorf("ledger: seq %d of this node is already stored", e.Key.Seq)
 	}
 	a.seq++
 	return e, nil

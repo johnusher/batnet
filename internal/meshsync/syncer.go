@@ -26,11 +26,13 @@ type Syncer struct {
 	cfg       Config
 	mu        sync.Mutex
 	repairing map[string]bool
+	slots     chan struct{} // one per repair allowed to run at once
 }
 
 const (
 	maxRangesPerRequest = 64
 	maxRepairRounds     = 50
+	maxRepairs          = 4 // repairs running at once
 	requestTimeout      = 10 * time.Second
 )
 
@@ -45,7 +47,7 @@ func New(cfg Config) *Syncer {
 	if cfg.Logf == nil {
 		cfg.Logf = func(string, ...any) {}
 	}
-	s := &Syncer{cfg: cfg, repairing: map[string]bool{}}
+	s := &Syncer{cfg: cfg, repairing: map[string]bool{}, slots: make(chan struct{}, maxRepairs)}
 	cfg.Link.SetHandler(s.handle)
 	return s
 }
@@ -102,8 +104,8 @@ func (s *Syncer) receive(ctx context.Context, p Packet) {
 		s.accept(e)
 		return
 	}
-	if hb.Addr == s.cfg.Link.Addr() {
-		return
+	if hb.Addr == s.cfg.Link.Addr() || hb.Addr != p.From {
+		return // our own, or a heartbeat claiming to be someone else
 	}
 	v, err := s.cfg.Store.Vector()
 	if err != nil || v.Hash() == hb.Hash {
@@ -111,13 +113,20 @@ func (s *Syncer) receive(ctx context.Context, p Packet) {
 	}
 	s.mu.Lock()
 	busy := s.repairing[hb.Addr]
-	s.repairing[hb.Addr] = true
+	if !busy {
+		select {
+		case s.slots <- struct{}{}:
+			s.repairing[hb.Addr] = true
+		default:
+			busy = true // enough repairs running; the next heartbeat tries again
+		}
+	}
 	s.mu.Unlock()
 	if busy {
 		return
 	}
 	go func() {
-		defer func() { s.mu.Lock(); delete(s.repairing, hb.Addr); s.mu.Unlock() }()
+		defer func() { s.mu.Lock(); delete(s.repairing, hb.Addr); <-s.slots; s.mu.Unlock() }()
 		if n, err := s.Repair(ctx, hb.Addr); err != nil {
 			s.cfg.Logf("repair from %s: %v", hb.Addr, err)
 		} else if n > 0 {
@@ -220,21 +229,19 @@ func (s *Syncer) handle(from string, req []byte) []byte {
 		resp = ledger.AppendVector(nil, v)
 	case kindRangeReq:
 		rs, rest, err := ledger.ParseRanges(plain[1:])
-		if err != nil || len(rest) != 0 {
+		if err != nil || len(rest) != 0 || len(rs) > maxRangesPerRequest {
 			return nil
 		}
 		var out []*ledger.Entry
 		for _, r := range rs {
-			es, err := s.cfg.Store.Range(r)
+			if len(out) == maxEntriesPerResponse {
+				break
+			}
+			es, err := s.cfg.Store.Range(r, maxEntriesPerResponse-len(out))
 			if err != nil {
 				return nil
 			}
-			for _, e := range es {
-				if len(out) == maxEntriesPerResponse {
-					break
-				}
-				out = append(out, e)
-			}
+			out = append(out, es...)
 		}
 		resp = encodeEntries(out)
 	default:

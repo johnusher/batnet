@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/johnusher/batnet/internal/hlc"
 	"github.com/johnusher/batnet/internal/ledger"
 	_ "modernc.org/sqlite"
 )
@@ -117,9 +118,24 @@ func (s *Store) Vector() (ledger.Vector, error) {
 	return v, rows.Err()
 }
 
-func (s *Store) Range(r ledger.Range) ([]*ledger.Entry, error) {
-	return s.query(`SELECT raw FROM entries WHERE origin = ? AND seq BETWEEN ? AND ? ORDER BY seq`,
-		r.Origin[:], int64(r.From), int64(r.To))
+func (s *Store) Range(r ledger.Range, limit int) ([]*ledger.Entry, error) {
+	return s.query(`SELECT raw FROM entries WHERE origin = ? AND seq BETWEEN ? AND ? ORDER BY seq LIMIT ?`,
+		r.Origin[:], int64(r.From), int64(r.To), limit)
+}
+
+func (s *Store) Top(origin ledger.NodeID) (uint64, error) {
+	var top sql.NullInt64
+	err := s.db.QueryRow(`SELECT MAX(seq) FROM entries WHERE origin = ?`, origin[:]).Scan(&top)
+	return uint64(top.Int64), err
+}
+
+func (s *Store) Latest() (hlc.Timestamp, error) {
+	var wall, logical int64
+	err := s.db.QueryRow(`SELECT wall, logical FROM entries ORDER BY wall DESC, logical DESC LIMIT 1`).Scan(&wall, &logical)
+	if errors.Is(err, sql.ErrNoRows) {
+		return hlc.Timestamp{}, nil
+	}
+	return hlc.Timestamp{Wall: wall, Logical: uint32(logical)}, err
 }
 
 func (s *Store) All() ([]*ledger.Entry, error) {

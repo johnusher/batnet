@@ -4,19 +4,23 @@ import (
 	"bytes"
 	"sort"
 	"sync"
+
+	"github.com/johnusher/batnet/internal/hlc"
 )
 
 // MemStore is a Store in memory, for tests and the mock village.
 type MemStore struct {
-	mu      sync.Mutex
-	entries map[Key]*Entry
-	contig  Vector
-	top     Vector // highest seq stored per origin, gaps or not
+	mu       sync.Mutex
+	entries  map[Key]*Entry
+	byOrigin map[NodeID][]uint64 // seqs stored per origin, unsorted
+	contig   Vector
+	top      Vector // highest seq stored per origin, gaps or not
+	latest   hlc.Timestamp
 }
 
 // NewMemStore returns an empty MemStore.
 func NewMemStore() *MemStore {
-	return &MemStore{entries: map[Key]*Entry{}, contig: Vector{}, top: Vector{}}
+	return &MemStore{entries: map[Key]*Entry{}, byOrigin: map[NodeID][]uint64{}, contig: Vector{}, top: Vector{}}
 }
 
 func (s *MemStore) Put(e *Entry) (bool, error) {
@@ -26,6 +30,10 @@ func (s *MemStore) Put(e *Entry) (bool, error) {
 		return false, nil
 	}
 	s.entries[e.Key] = e
+	s.byOrigin[e.Key.Origin] = append(s.byOrigin[e.Key.Origin], e.Key.Seq)
+	if s.latest.Less(e.TS) {
+		s.latest = e.TS
+	}
 	if e.Key.Seq > s.top[e.Key.Origin] {
 		s.top[e.Key.Origin] = e.Key.Seq
 	}
@@ -58,20 +66,36 @@ func (s *MemStore) Vector() (Vector, error) {
 	return v, nil
 }
 
-func (s *MemStore) Range(r Range) ([]*Entry, error) {
+func (s *MemStore) Range(r Range, limit int) ([]*Entry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var out []*Entry
-	to := r.To
-	if top := s.top[r.Origin]; to > top {
-		to = top // the request's size must not set the cost
-	}
-	for seq := r.From; seq <= to && seq >= r.From; seq++ {
-		if e, ok := s.entries[Key{Origin: r.Origin, Seq: seq}]; ok {
-			out = append(out, e)
+	var seqs []uint64
+	for _, seq := range s.byOrigin[r.Origin] {
+		if seq >= r.From && seq <= r.To {
+			seqs = append(seqs, seq)
 		}
 	}
+	sort.Slice(seqs, func(i, j int) bool { return seqs[i] < seqs[j] })
+	if len(seqs) > limit {
+		seqs = seqs[:limit]
+	}
+	out := make([]*Entry, 0, len(seqs))
+	for _, seq := range seqs {
+		out = append(out, s.entries[Key{Origin: r.Origin, Seq: seq}])
+	}
 	return out, nil
+}
+
+func (s *MemStore) Top(origin NodeID) (uint64, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.top[origin], nil
+}
+
+func (s *MemStore) Latest() (hlc.Timestamp, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.latest, nil
 }
 
 func (s *MemStore) All() ([]*Entry, error) {
