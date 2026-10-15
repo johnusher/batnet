@@ -66,20 +66,6 @@ func TestAlertMustComeFromTheAdminsHouse(t *testing.T) {
 	}
 }
 
-// A message sent twice with the same clientId (a retry) counts once.
-func TestClientIDOnce(t *testing.T) {
-	all, miller, _, anna, ben, _ := village(t)
-	miller.write(t, ledger.TypeMsgPost, map[string]any{"from": anna, "audience": "everyone", "text": "once", "clientId": "abc12345"})
-	miller.write(t, ledger.TypeMsgPost, map[string]any{"from": anna, "audience": "everyone", "text": "once", "clientId": "abc12345"})
-	s := apply(*all)
-	if got := s.Messages(ben, "everyone", 10); len(got) != 1 || got[0].ClientID != "abc12345" {
-		t.Fatalf("got %d messages", len(got))
-	}
-	if s.FindClient(anna, "abc12345") == nil {
-		t.Fatal("FindClient missed it")
-	}
-}
-
 func TestSettingsLatestWins(t *testing.T) {
 	all, miller, _, anna, _, _ := village(t)
 	miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": anna, "speaker": true})

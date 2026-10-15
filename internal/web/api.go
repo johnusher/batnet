@@ -313,8 +313,12 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 			if !clientIDPattern.MatchString(in.ClientID) {
 				return nil, fail(http.StatusBadRequest, "That message id isn't valid.")
 			}
-			if m := s.cfg.State.FindClient(a.ID, in.ClientID); m != nil {
-				return m, nil // the outbox retried a message already stored
+			s.clientMu.Lock() // held until the post is written, so two copies of one retry can't both get through
+			defer s.clientMu.Unlock()
+			if c, ok := s.clients[a.ID+"\x00"+in.ClientID]; ok && s.cfg.Now().Sub(c.at) <= clientKeep {
+				if m := s.cfg.State.MessageByID(c.msg); m != nil {
+					return m, nil // the outbox retried a message already stored
+				}
 			}
 		}
 		text := strings.TrimSpace(in.Text)
@@ -362,12 +366,12 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 		if in.Loc != nil {
 			body["loc"] = in.Loc
 		}
-		if in.ClientID != "" {
-			body["clientId"] = in.ClientID
-		}
 		e, err := s.Write(typ, level, body)
 		if err != nil {
 			return nil, err
+		}
+		if in.ClientID != "" {
+			s.rememberClient(a.ID+"\x00"+in.ClientID, state.AccountID(e.Key))
 		}
 		return s.cfg.State.MessageByID(state.AccountID(e.Key)), nil
 	}))

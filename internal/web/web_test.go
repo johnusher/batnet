@@ -447,6 +447,23 @@ func TestClientIDDedup(t *testing.T) {
 	}
 }
 
+// The clientId is between a phone and its house: it is not written into the
+// signed entry, which crosses the radio, where every byte counts.
+func TestClientIDStaysHome(t *testing.T) {
+	h := newHouse(t, "Miller")
+	var posted []*ledger.Entry
+	h.srv.cfg.Publish = func(e *ledger.Entry) { posted = append(posted, e) }
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	if code, _ := anna.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "Water point open", "clientId": "out-0002"}); code != 200 {
+		t.Fatalf("post: %d", code)
+	}
+	last := posted[len(posted)-1]
+	if last.Type != ledger.TypeMsgPost || strings.Contains(string(last.Body), "out-0002") {
+		t.Fatalf("the entry carries the clientId: %s", last.Body)
+	}
+}
+
 // Review focus 2.
 func TestSettingsOwnOnly(t *testing.T) {
 	h := newHouse(t, "Miller")

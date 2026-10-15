@@ -1,7 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
-* **Update**: Plan 4b built: the full app (outbox, bedside mode, speaker and notification settings, German, help, admin alerts) and the real app in the simulator's phone, talking to each house's real server in WebAssembly; B1 and L10 resolved, L11 added.
+* **Update**: Plan 4b built: the full app (outbox, bedside mode, speaker and notification settings, German, help, admin alerts) and the real app in the simulator's phone, talking to each house's real server in WebAssembly; B1 and L10 resolved, L11 added. Review fixes: the outbox per writer, refused posts don't block it, message ids stay off the radio, decision [0023](/decisions/0023-hold-on-a-first-fragment.md) (hold, don't cancel, on a first fragment); B27-B31 and L12 added.
 * **Update**: Plan 4a built: the house server and a first real app (`batnetd -mock 3 -web`); known problems B19-B20.
 * **Creation**: [To do](/todo.md) list; plan 3 review fixes and nine deferred findings in [known problems](/known-problems.md).
 * **Update**: Plan 3 built: the LoRa bridge and priority run in the simulator ([findings](/research/village-sim-findings.md)); decision [0022](/decisions/0022-gateways-suppress-duplicates.md) supersedes 0017's assignment rule.

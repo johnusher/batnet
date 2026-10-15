@@ -23,7 +23,7 @@ No Linear for batnet yet: this page is the list.
 | B6 | `ParseVector` reserves memory for the claimed count before checking the bytes are there | plan 1 review | `ledger/vector.go` |
 | B7 | Repair goroutines aren't waited for when `Run` returns; closing the store can race in-flight writes (real-time path only) | plan 1 review | `meshsync` |
 
-| B8 | LoRa-only farms (`scenarios/farms.json`, marked known failure): farms that can't hear each other collide (~4,700 collisions in 90 min); 1 of 50 posts missing, 8 late against 20 min; busiest radio at 80% | plan 3 scenarios and review | `internal/lora`, `internal/sim/lora.go` |
+| B8 | LoRa-only farms (`scenarios/farms.json`, marked known failure): farms that can't hear each other collide (~5,400 collisions in 90 min); 1 of 50 posts missing, 8 late against 20 min; busiest radio at 88% (after plan 4b's hold on entries another gateway started) | plan 3 scenarios and review | `internal/lora`, `internal/sim/lora.go` |
 | B9 | A gateway's LoRa duty meter is kept across a restart in the simulator; batnetd must store it, or a reboot could exceed the 10% limit | plan 3 | `internal/lora` |
 
 | B10 | `remoteAt` (the 30-min gate for sending over LoRa) is set by any frame with a valid header, before its payload is verified: garbage can open the gate | plan 3 review m1 | `internal/lora/bridge.go` |
@@ -45,12 +45,18 @@ No Linear for batnet yet: this page is the list.
 | B24 | Sign-in and sign-up accept any content type (login CSRF from a text/plain form); require application/json | plan 4a review | `internal/web/api.go` |
 | B25 | The CSP lacks `frame-ancestors 'none'; base-uri 'none'; form-action 'self'` | plan 4a review | `internal/web/server.go` |
 | B26 | No limit on event streams per account | plan 4a review | `internal/web/api.go` |
+| B27 | A message written while the outbox is sending waits for the next round (up to 15 s) | plan 4b review m7 | `internal/web/app/app.js` |
+| B28 | An Alert that arrives in bedside mode only sounds: the dim screen doesn't show its text | plan 4b review m9 | `internal/web/app/app.js` |
+| B29 | Errors from settings, approve, deny, join and leave are swallowed: the button just does nothing | plan 4b review m10 | `internal/web/app/app.js` |
+| B30 | In the simulator a phone still works at a house with no power, so its posts later seem to travel from a dead house (spec §13: those phones lose the app) | plan 4b review m11 | `internal/sim/api.go` |
+| B31 | A simulated house with no people posts with an empty author, which the state drops | plan 4b review m14 | `internal/sim/village.go` |
 
 # Known limits (by design, for now)
 
 | # | Limit | Why / when it changes |
 |---|---|---|
 | L10 | The app has no voice messages, photos or location sharing on a map yet | milestone 2 ([0019](/decisions/0019-location.md), [0020](/decisions/0020-photos.md)) |
+| L12 | A house remembers the outbox's message ids (clientIds) for a day, in memory: a retry after the house Pi restarts, or at another house, can post twice | plan 4b review (ids kept off the radio) |
 | L11 | The simulator's phone: its bedside clock shows the real time, not the village's; the page never closes the sessions and live streams it opens, so they pile up over a long visit; each phone's outbox lives only until the phone is reloaded | plan 4b, minor |
 | L1 | A locked phone doesn't ring; batnet must be open (bedside mode) | browsers offline have no service worker or push ([0018](/decisions/0018-notifications-and-house-speaker.md)) |
 | L3 | The simulator's WiFi model is not measured: ranges, the loss curve (2% + load²) and frame overhead are guesses | bench and field tests |
@@ -70,6 +76,8 @@ No Linear for batnet yet: this page is the list.
 * No meshsync test delivers seq 5 before 4; the forged-entry test uses a fixed sleep (plan 1).
 * `hops()` and `channelFor` cost O(n²) per broadcast; the page runs `Judge` twice per frame (plan 2).
 * No test of a split and merge under a saturated channel, or of a sender that stays dark (plan 2).
+* `TestSeededDeterministic` compares vector lengths, not contents or results (plan 4b).
+* The compact author form (`~/<seq>`: an account created by the writing node) is not described in the knowledge bundle yet (plan 4b).
 
 # To measure (bench)
 
@@ -83,6 +91,7 @@ No Linear for batnet yet: this page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| On a shared phone a waiting message could go out under the next person's name; one post refused at the High limit stalled the whole outbox; a gateway that heard another start a post dropped its copy for good (now [0023](/decisions/0023-hold-on-a-first-fragment.md)); picking who posts shifted every scenario's timing; message ids rode the radio | plan 4b review fixes, 2026-10-15 |
 | The WebAssembly bridge stopped on a bad call from the page (B1); the app lacked an outbox, bedside mode, speaker and notification settings, German and help (L10); the real engine had no phone | plan 4b, 2026-10-15 |
 | Concurrent map access could crash the server; parallel wrong PINs switched the lockout off; unlimited sign-ups; verdicts and group changes depended on arrival order; alerts forgeable by another node; live streams outlived sign-out; the app missed dropped streams and wiped typing | plan 4a review fixes, 2026-10-15 |
 | Recovery stalled behind non-post entries; gateways echoed other groups' posts; public posts triggered catch-up beacons; recovered High posts dropped to 4; the simulated air merged identical frames and had instant carrier sense; power cuts didn't reboot gateways; two gateways answered every beacon together | plan 3 review fixes, 2026-10-15 (with a CSMA backoff after every frame heard) |

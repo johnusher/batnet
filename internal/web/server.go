@@ -44,6 +44,35 @@ type Server struct {
 
 	signupMu sync.Mutex
 	signups  map[string][]time.Time // by client address; "" is the whole house
+
+	clientMu sync.Mutex
+	clients  map[string]clientPost // account + "\x00" + clientId → the message it made
+}
+
+// clientPost remembers which message a phone's clientId made, so a retry (the
+// response was lost) returns it instead of posting again. Kept here, not in the
+// log: only this house's phones retry here, and the log crosses the radio.
+type clientPost struct {
+	msg string
+	at  time.Time
+}
+
+const clientKeep = 24 * time.Hour
+
+// rememberClient records a post's clientId, forgetting ones older than a day.
+func (s *Server) rememberClient(k, msg string) {
+	now := s.cfg.Now()
+	if s.clients == nil {
+		s.clients = map[string]clientPost{}
+	}
+	if len(s.clients) >= 1000 {
+		for old, c := range s.clients {
+			if now.Sub(c.at) > clientKeep {
+				delete(s.clients, old)
+			}
+		}
+	}
+	s.clients[k] = clientPost{msg: msg, at: now}
 }
 
 // Sign-up limits on the open hotspot (review of plan 4a).
