@@ -2,7 +2,7 @@
 // Every piece of text from the server goes into the page as text, never as HTML.
 
 const app = document.getElementById('app');
-const state = { me: null, house: '', screen: 'boot', conv: null, tab: 'chats', unread: {}, loc: false, prio: 'normal', alert: null, events: null };
+const state = { me: null, house: '', conv: null, tab: 'chats', unread: {}, loc: false, prio: 'normal', alert: null, events: null, names: {}, pendingTimer: null, retry: 1000 };
 
 // ---------- helpers ----------
 
@@ -140,19 +140,25 @@ function landing(mode) {
 }
 
 function pending() {
+  const denied = state.me.status === 'denied';
   show(
     h('header', {}, h('h1', {}, 'batnet · ' + state.house)),
     h('div', { class: 'pad' },
-      h('h2', {}, 'Waiting for approval'),
-      h('p', {}, 'Thanks, ' + state.me.name + '. ' + (state.me.house || state.house) + '\'s admin needs to let you in. This page updates by itself.'),
+      h('h2', {}, denied ? 'Not approved' : 'Waiting for approval'),
+      h('p', {}, denied
+        ? 'Sorry, ' + state.me.name + ': ' + (state.me.house || state.house) + '\'s admin did not approve this account. Ask them in person.'
+        : 'Thanks, ' + state.me.name + '. ' + (state.me.house || state.house) + '\'s admin needs to let you in. This page updates by itself.'),
       h('button', { class: 'btn ghost', onclick: logout }, 'Sign out')));
-  setTimeout(async () => {
+  clearTimeout(state.pendingTimer);
+  if (denied) return;
+  state.pendingTimer = setTimeout(async () => {
     try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
-    if (state.screen !== 'gone') route();
+    route();
   }, 5000);
 }
 
 async function logout() {
+  clearTimeout(state.pendingTimer);
   try { await api('/api/logout', {}); } catch (e) { /* signed out anyway */ }
   if (state.events) state.events.close();
   state.events = null;
@@ -173,13 +179,36 @@ function listen() {
     const key = m.audience.startsWith('dm:') ? (mine ? m.audience : 'dm:' + m.from) : m.audience;
     if (m.alert) state.alert = m;
     if (!mine) beep(m.alert ? 'alert' : m.prio >= 8 ? 'high' : 'normal');
-    if (state.conv === key) conversation();
+    if (state.conv === key) appendBubble(m); // add it in place: rebuilding would wipe what the person is typing
     else {
       if (!mine) state.unread[key] = (state.unread[key] || 0) + 1;
       if (!state.conv) route();
     }
   });
   state.events.addEventListener('state', () => { if (!state.conv) route(); });
+  state.events.addEventListener('open', () => {
+    state.retry = 1000;
+    if (!state.conv) route(); // catch up on anything missed while disconnected
+  });
+  state.events.addEventListener('error', () => {
+    if (state.events && state.events.readyState === EventSource.CLOSED) {
+      // the browser gave up (e.g. the Pi restarted and the session is gone): check, then reconnect with backoff
+      state.events = null;
+      setTimeout(async () => {
+        try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
+        state.retry = Math.min(state.retry * 2, 60000);
+        route();
+      }, state.retry);
+    }
+  });
+}
+
+function appendBubble(m) {
+  const list = document.querySelector('.msgs');
+  if (!list) return conversation();
+  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
+  list.append(bubble(m, state.names));
+  if (atBottom) list.scrollTop = list.scrollHeight;
 }
 
 // ---------- signed in ----------
@@ -221,6 +250,7 @@ async function conversation() {
   } catch (e) { if (e.status === 401) return logout(); }
   const names = {};
   for (const house of dir.houses) for (const p of house.people) names[p.id] = p.name + ' · ' + house.name;
+  state.names = names;
   const title = state.conv === 'everyone' ? 'Everyone'
     : state.conv.startsWith('group:') ? ((dir.groups.find((g) => 'group:' + g.id === state.conv) || {}).name || state.conv)
     : (names[state.conv.slice(3)] || 'Direct message');
@@ -243,7 +273,8 @@ async function conversation() {
       text.value = '';
       state.prio = 'normal';
       state.loc = false;
-      conversation();
+      prio.value = 'normal';
+      locBtn.classList.remove('on');
     } catch (x) {
       err.textContent = x.message;
     }

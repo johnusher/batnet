@@ -40,6 +40,48 @@ type Server struct {
 	high     *prio.Limiter
 	mu       sync.Mutex // serialises writes to the log
 	hub      *hub
+	argon    chan struct{} // at most 2 PIN hashes at once: each takes 19 MiB, a Pi Zero has 512 MB
+
+	signupMu sync.Mutex
+	signups  map[string][]time.Time // by client address; "" is the whole house
+}
+
+// Sign-up limits on the open hotspot (review of plan 4a).
+const (
+	signupsPerAddrPerHour  = 3
+	signupsPerHousePerHour = 20
+	maxPendingPerHouse     = 30
+)
+
+// allowSignup records a sign-up from addr if it is within the limits.
+func (s *Server) allowSignup(addr string) bool {
+	s.signupMu.Lock()
+	defer s.signupMu.Unlock()
+	now := s.cfg.Now()
+	recent := func(k string) []time.Time {
+		keep := s.signups[k][:0]
+		for _, t := range s.signups[k] {
+			if now.Sub(t) < time.Hour {
+				keep = append(keep, t)
+			}
+		}
+		s.signups[k] = keep
+		return keep
+	}
+	if len(recent(addr)) >= signupsPerAddrPerHour || len(recent("")) >= signupsPerHousePerHour ||
+		len(s.cfg.State.Pending(s.cfg.Author.ID())) >= maxPendingPerHouse {
+		return false
+	}
+	s.signups[addr] = append(s.signups[addr], now)
+	s.signups[""] = append(s.signups[""], now)
+	return true
+}
+
+// hashSlot runs f while holding one of the two PIN-hashing slots.
+func (s *Server) hashSlot(f func()) {
+	s.argon <- struct{}{}
+	defer func() { <-s.argon }()
+	f()
 }
 
 // New returns a server.
@@ -53,7 +95,8 @@ func New(cfg Config) *Server {
 	if cfg.Publish == nil {
 		cfg.Publish = func(*ledger.Entry) {}
 	}
-	return &Server{cfg: cfg, sessions: auth.NewSessions(), lockout: auth.NewLockout(), high: prio.NewLimiter(cfg.HighPerHour), hub: newHub()}
+	return &Server{cfg: cfg, sessions: auth.NewSessions(), lockout: auth.NewLockout(), high: prio.NewLimiter(cfg.HighPerHour), hub: newHub(),
+		argon: make(chan struct{}, 2), signups: map[string][]time.Time{}}
 }
 
 // Write appends an entry from this house, applies it, publishes it, and tells listeners.
@@ -79,7 +122,7 @@ func (s *Server) OnEntry(e *ledger.Entry) {
 func (s *Server) notify(e *ledger.Entry) {
 	switch e.Type {
 	case ledger.TypeMsgPost, ledger.TypeAlert:
-		s.hub.message(s.cfg.State, state.AccountID(e.Key))
+		s.hub.message(s.cfg.State, state.AccountID(e.Key), s.alive)
 	default:
 		s.hub.state()
 	}
@@ -136,8 +179,15 @@ func securityHeaders(h http.Handler) http.Handler {
 // ---- server-sent events ----
 
 type listener struct {
-	account string
-	ch      chan []byte
+	account, token string
+	ch             chan []byte
+	done           chan struct{} // closed when the session ends
+}
+
+// alive: the listener's session still exists and its account is still approved.
+func (s *Server) alive(l *listener) bool {
+	id, ok := s.sessions.Get(l.token, s.cfg.Now())
+	return ok && id == l.account && s.cfg.State.Approved(l.account)
 }
 
 type hub struct {
@@ -147,8 +197,8 @@ type hub struct {
 
 func newHub() *hub { return &hub{listeners: map[*listener]bool{}} }
 
-func (h *hub) add(account string) *listener {
-	l := &listener{account: account, ch: make(chan []byte, 64)}
+func (h *hub) add(account, token string) *listener {
+	l := &listener{account: account, token: token, ch: make(chan []byte, 64), done: make(chan struct{})}
 	h.mu.Lock()
 	h.listeners[l] = true
 	h.mu.Unlock()
@@ -161,6 +211,18 @@ func (h *hub) remove(l *listener) {
 	h.mu.Unlock()
 }
 
+// end closes every stream of a session (sign-out).
+func (h *hub) end(token string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for l := range h.listeners {
+		if l.token == token {
+			close(l.done)
+			delete(h.listeners, l)
+		}
+	}
+}
+
 func (h *hub) send(l *listener, b []byte) {
 	select {
 	case l.ch <- b:
@@ -168,16 +230,21 @@ func (h *hub) send(l *listener, b []byte) {
 	}
 }
 
-func (h *hub) message(st *state.State, id string) {
+func (h *hub) message(st *state.State, id string, alive func(*listener) bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	m := st.MessageByID(id)
 	if m == nil {
 		return
 	}
+	b, _ := json.Marshal(m)
 	for l := range h.listeners {
+		if !alive(l) {
+			close(l.done)
+			delete(h.listeners, l)
+			continue
+		}
 		if st.Visible(m, l.account) {
-			b, _ := json.Marshal(m)
 			h.send(l, []byte("event: message\ndata: "+string(b)+"\n\n"))
 		}
 	}

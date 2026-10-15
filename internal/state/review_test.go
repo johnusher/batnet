@@ -1,0 +1,66 @@
+package state
+
+import (
+	"math/rand"
+	"sync"
+	"testing"
+
+	"github.com/johnusher/batnet/internal/ledger"
+)
+
+// Review C1: reading an account while its groups change must not race.
+func TestAccountCopiesDontRace(t *testing.T) {
+	all, miller, _, anna, _, _ := village(t)
+	s := apply(*all)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			verb := "join"
+			if i%2 == 1 {
+				verb = "leave"
+			}
+			s.Apply(miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": anna, verb: []string{"medical"}}))
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 200; i++ {
+			a := s.Account(anna)
+			_ = a.Groups["medical"]
+			_ = s.Directory()
+		}
+	}()
+	wg.Wait()
+}
+
+// Review I4: the latest verdict and the latest join/leave win, whatever the arrival order.
+func TestLatestWins(t *testing.T) {
+	all, miller, _, _, ben, _ := village(t)
+	miller.write(t, ledger.TypeAccountDeny, map[string]string{"account": ben}) // after the approval
+	miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": ben, "join": []string{"medical"}})
+	miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": ben, "leave": []string{"medical"}})
+	rnd := rand.New(rand.NewSource(2))
+	for i := 0; i < 30; i++ {
+		es := append([]*ledger.Entry(nil), *all...)
+		rnd.Shuffle(len(es), func(a, b int) { es[a], es[b] = es[b], es[a] })
+		s := apply(es)
+		a := s.Account(ben)
+		if a.Status != "denied" || a.Groups["medical"] {
+			t.Fatalf("order %d: status %s, medical %v; want denied and not a member", i, a.Status, a.Groups["medical"])
+		}
+	}
+}
+
+// Review I5: an alert counts only if written by the admin's own house node.
+func TestAlertMustComeFromTheAdminsHouse(t *testing.T) {
+	all, _, fern, anna, ben, _ := village(t)
+	fern.write(t, ledger.TypeAlert, map[string]string{"from": anna, "text": "forged in Anna's name"})
+	s := apply(*all)
+	for _, m := range s.Messages(ben, "everyone", 50) {
+		if m.Alert {
+			t.Fatal("an alert written by another house in Anna's name counts")
+		}
+	}
+}

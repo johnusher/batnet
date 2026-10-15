@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"net"
 	"net/http"
 	"sort"
 	"strings"
@@ -131,7 +132,13 @@ func (s *Server) api(mux *http.ServeMux) {
 		if !validName(in.Name) || !auth.ValidPIN(in.Pin) {
 			return nil, fail(http.StatusBadRequest, "Choose a name and a 6-digit PIN.")
 		}
-		h, err := auth.HashPIN(in.Pin)
+		addr, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !s.allowSignup(addr) {
+			return nil, fail(http.StatusTooManyRequests, "Too many new accounts from here just now. Ask someone in the house, or try again later.")
+		}
+		var h string
+		var err error
+		s.hashSlot(func() { h, err = auth.HashPIN(in.Pin) })
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +157,7 @@ func (s *Server) api(mux *http.ServeMux) {
 		}
 		now := s.cfg.Now()
 		key := strings.ToLower(strings.TrimSpace(in.Name))
-		if wait := s.lockout.Wait(key, now); wait > 0 {
+		if wait := s.lockout.Try(key, now); wait > 0 { // counts this attempt before checking, so parallel guesses can't slip through
 			return nil, &apiError{code: http.StatusTooManyRequests, msg: "Too many wrong PINs. Try again later.", wait: wait}
 		}
 		named := s.cfg.State.AccountsNamed(in.Name)
@@ -158,18 +165,20 @@ func (s *Server) api(mux *http.ServeMux) {
 			return named[i].Home == s.cfg.Author.ID() && named[j].Home != s.cfg.Author.ID()
 		})
 		for _, a := range named {
-			if auth.CheckPIN(a.PinHash, in.Pin) {
+			match := false
+			s.hashSlot(func() { match = auth.CheckPIN(a.PinHash, in.Pin) })
+			if match {
 				s.lockout.Success(key)
 				s.setSession(w, a.ID)
 				return map[string]string{"account": a.ID}, nil
 			}
 		}
-		s.lockout.Fail(key, now)
 		return nil, fail(http.StatusUnauthorized, "Name or PIN not recognised.")
 	}))
 	mux.HandleFunc("POST /api/logout", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if ck, err := r.Cookie("batnet"); err == nil {
 			s.sessions.End(ck.Value)
+			s.hub.end(ck.Value)
 		}
 		http.SetCookie(w, &http.Cookie{Name: "batnet", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.SecureCookie, SameSite: http.SameSiteStrictMode})
 		return map[string]bool{"ok": true}, nil
@@ -362,13 +371,16 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		fl.Flush()
-		l := s.hub.add(a.ID)
+		ck, _ := r.Cookie("batnet")
+		l := s.hub.add(a.ID, ck.Value)
 		defer s.hub.remove(l)
 		ping := time.NewTicker(25 * time.Second)
 		defer ping.Stop()
 		for {
 			select {
 			case <-r.Context().Done():
+				return
+			case <-l.done:
 				return
 			case b := <-l.ch:
 				w.Write(b)

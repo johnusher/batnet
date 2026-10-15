@@ -33,6 +33,20 @@ type Account struct {
 	Status  string          `json:"status"` // pending, approved, denied
 	Groups  map[string]bool `json:"-"`
 	Since   hlc.Timestamp   `json:"-"`
+
+	verdictTS hlc.Timestamp            // the verdict in force: the latest valid one wins
+	groupTS   map[string]hlc.Timestamp // per group, the latest join or leave wins
+}
+
+// clone copies an account so callers never share its maps with the state.
+func (a *Account) clone() *Account {
+	c := *a
+	c.Groups = make(map[string]bool, len(a.Groups))
+	for g, in := range a.Groups {
+		c.Groups[g] = in
+	}
+	c.groupTS = nil
+	return &c
 }
 
 // Group is a named conversation people join.
@@ -52,6 +66,7 @@ type Message struct {
 	Alert    bool          `json:"alert"`
 	Loc      *Location     `json:"loc,omitempty"`
 	TS       hlc.Timestamp `json:"ts"`
+	origin   ledger.NodeID // the node that wrote it
 }
 
 // Conversation is one chat as a person sees it.
@@ -127,7 +142,7 @@ func (s *State) Apply(e *ledger.Entry) {
 			return
 		}
 		id := AccountID(e.Key)
-		a := &Account{ID: id, Name: b.Name, PinHash: b.PinHash, Home: e.Key.Origin, Admin: b.Admin, Status: "pending", Groups: map[string]bool{}, Since: e.TS}
+		a := &Account{ID: id, Name: b.Name, PinHash: b.PinHash, Home: e.Key.Origin, Admin: b.Admin, Status: "pending", Groups: map[string]bool{}, Since: e.TS, groupTS: map[string]hlc.Timestamp{}}
 		s.accounts[id] = a
 		for _, v := range s.verdicts[id] {
 			s.decide(a, v)
@@ -177,7 +192,7 @@ func (s *State) Apply(e *ledger.Entry) {
 		if json.Unmarshal(e.Body, &b) != nil || b.From == "" || b.Text == "" {
 			return
 		}
-		m := &Message{ID: AccountID(e.Key), Key: e.Key, From: b.From, Audience: b.Audience, Text: b.Text, Prio: e.Prio, Loc: b.Loc, TS: e.TS}
+		m := &Message{ID: AccountID(e.Key), Key: e.Key, From: b.From, Audience: b.Audience, Text: b.Text, Prio: e.Prio, Loc: b.Loc, TS: e.TS, origin: e.Key.Origin}
 		if e.Type == ledger.TypeAlert {
 			m.Alert, m.Audience = true, "everyone"
 		}
@@ -200,9 +215,10 @@ func less(a, b *Message) bool {
 
 // decide applies a verdict if the account's own house wrote it. The latest valid verdict wins.
 func (s *State) decide(a *Account, v verdict) {
-	if v.by != a.Home {
-		return
+	if v.by != a.Home || (a.Status != "pending" && !a.verdictTS.Less(v.ts)) {
+		return // not this account's house, or older than the verdict in force
 	}
+	a.verdictTS = v.ts
 	if v.approve {
 		a.Status = "approved"
 	} else {
@@ -210,12 +226,24 @@ func (s *State) decide(a *Account, v verdict) {
 	}
 }
 
+// member applies joins and leaves; for each group the latest change wins.
 func (s *State) member(a *Account, u membership) {
+	set := func(g string, in bool) {
+		if last, ok := a.groupTS[g]; ok && !last.Less(u.ts) {
+			return
+		}
+		a.groupTS[g] = u.ts
+		if in {
+			a.Groups[g] = true
+		} else {
+			delete(a.Groups, g)
+		}
+	}
 	for _, g := range u.join {
-		a.Groups[g] = true
+		set(g, true)
 	}
 	for _, g := range u.leave {
-		delete(a.Groups, g)
+		set(g, false)
 	}
 }
 
@@ -223,7 +251,10 @@ func (s *State) member(a *Account, u membership) {
 func (s *State) Account(id string) *Account {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.accounts[id]
+	if a := s.accounts[id]; a != nil {
+		return a.clone()
+	}
+	return nil
 }
 
 // Approved reports whether the account exists and is approved.
@@ -241,7 +272,7 @@ func (s *State) AccountsNamed(name string) []*Account {
 	var out []*Account
 	for _, a := range s.accounts {
 		if a.Status == "approved" && strings.EqualFold(a.Name, strings.TrimSpace(name)) {
-			out = append(out, a)
+			out = append(out, a.clone())
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
@@ -255,7 +286,7 @@ func (s *State) Pending(home ledger.NodeID) []*Account {
 	var out []*Account
 	for _, a := range s.accounts {
 		if a.Home == home && a.Status == "pending" {
-			out = append(out, a)
+			out = append(out, a.clone())
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Since.Less(out[j].Since) })
@@ -286,7 +317,7 @@ func (s *State) Directory() []HouseDir {
 			h = &HouseDir{Node: hex.EncodeToString(a.Home[:4]), Name: "?"}
 			byNode[a.Home] = h
 		}
-		h.People = append(h.People, a)
+		h.People = append(h.People, a.clone())
 	}
 	var out []HouseDir
 	for _, h := range byNode {
@@ -312,7 +343,7 @@ func (s *State) Groups() []*Group {
 // counts reports whether a message counts at all: an approved author, and an admin for alerts. Caller holds the lock.
 func (s *State) counts(m *Message) bool {
 	a := s.accounts[m.From]
-	return a != nil && a.Status == "approved" && (!m.Alert || a.Admin)
+	return a != nil && a.Status == "approved" && (!m.Alert || (a.Admin && m.origin == a.Home))
 }
 
 // Visible reports whether acct may see m.

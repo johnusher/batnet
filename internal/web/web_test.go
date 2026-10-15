@@ -5,11 +5,13 @@ import (
 	"bytes"
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -366,5 +368,65 @@ func TestLoginPrefersThisHouse(t *testing.T) {
 		if _, me := c.do("GET", "/api/me", nil); me["admin"] != true || me["house"] != h.name {
 			t.Fatalf("signed in at %s as %v", h.name, me)
 		}
+	}
+}
+
+// Review I3: sign-ups from one phone (address) are limited.
+func TestSignupRateLimit(t *testing.T) {
+	h := newHouse(t, "Miller")
+	c := &client{t: t, h: h}
+	ok := 0
+	for i := 0; i < 8; i++ {
+		code, _ := c.do("POST", "/api/signup", map[string]string{"name": fmt.Sprintf("Spam %d", i), "pin": "123456"})
+		if code == 200 {
+			ok++
+		} else if code != http.StatusTooManyRequests {
+			t.Fatalf("sign-up %d: %d", i, code)
+		}
+	}
+	if ok != signupsPerAddrPerHour {
+		t.Fatalf("%d sign-ups from one address in an hour, want %d", ok, signupsPerAddrPerHour)
+	}
+}
+
+// Review C2 through the API: parallel wrong PINs can't open the account.
+func TestParallelGuessesStayLocked(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	var wg sync.WaitGroup
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			(&client{t: t, h: h}).do("POST", "/api/login", map[string]string{"name": "Anna", "pin": fmt.Sprintf("%06d", i)})
+		}(i)
+	}
+	wg.Wait()
+	if code, _ := (&client{t: t, h: h}).do("POST", "/api/login", map[string]string{"name": "Anna", "pin": "482915"}); code != http.StatusTooManyRequests {
+		t.Fatalf("after 40 parallel guesses the right PIN got %d, want 429 (locked)", code)
+	}
+}
+
+// Review I6: signing out ends the live stream.
+func TestLogoutEndsEvents(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	req, _ := http.NewRequest("GET", h.ts.URL+"/api/events", nil)
+	for _, ck := range anna.jar {
+		req.AddCookie(ck)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("events: %v", err)
+	}
+	defer resp.Body.Close()
+	anna.do("POST", "/api/logout", map[string]string{})
+	done := make(chan error, 1)
+	go func() { _, err := io.ReadAll(resp.Body); done <- err }()
+	select {
+	case <-done: // the server closed the stream
+	case <-time.After(2 * time.Second):
+		t.Fatal("the event stream stayed open after signing out")
 	}
 }

@@ -32,6 +32,7 @@ for batnet yet.
 
 # Known problems to fix first
 
+- [ ] B21-B25 sign-in hardening: exact argon2 parameters, lockout by account, constant-time sign-in, JSON-only, a stricter CSP
 - [ ] B13 cap High at 8 (High DMs reach 9, reserved for Alerts)
 - [ ] B10 open the LoRa gate only after a verified frame
 - [ ] B14 a duty check that can fail (tally airtime from the air)

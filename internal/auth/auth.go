@@ -91,10 +91,30 @@ func (l *Lockout) Wait(account string, now time.Time) time.Duration {
 func (l *Lockout) Fail(account string, now time.Time) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.fail(account, now)
+}
+
+// maxShift caps the doubling (1 min << 12 is about 68 h), so it can't overflow.
+const maxShift = 12
+
+func (l *Lockout) fail(account string, now time.Time) {
 	l.fails[account]++
 	if n := l.fails[account]; n >= freeTries {
-		l.until[account] = now.Add(time.Minute << (n - freeTries))
+		l.until[account] = now.Add(time.Minute << min(n-freeTries, maxShift))
 	}
+}
+
+// Try is Wait and Fail in one step: it returns how long to wait (0: go
+// ahead), and counts the attempt as a failure until Success clears it, so
+// parallel attempts can't all slip past the check.
+func (l *Lockout) Try(account string, now time.Time) time.Duration {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if u := l.until[account]; now.Before(u) {
+		return u.Sub(now)
+	}
+	l.fail(account, now)
+	return 0
 }
 
 // Success clears the account's failures.

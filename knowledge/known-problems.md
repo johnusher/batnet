@@ -40,6 +40,13 @@ No Linear for batnet yet: this page is the list.
 | B19 | Sessions and PIN lockouts live in memory: a reboot signs everyone out, and a guesser can move to another house to reset the lockout | plan 4a | `internal/auth`, `internal/web` |
 | B20 | Two people with the same name and the same PIN at one house can't be told apart at sign-in | plan 4a | `internal/web/api.go` |
 
+| B21 | A PIN hash from the log sets its own argon2 cost (up to 1 GiB): a rogue node's account makes each sign-in allocate that much; require the exact parameters | plan 4a review | `internal/auth` |
+| B22 | The lockout is keyed by name: anyone can keep a named person (or "Admin") locked out; made-up names grow the table | plan 4a review | `internal/web/api.go` |
+| B23 | Sign-in timing shows whether a name exists (argon2 runs only on a match); run one dummy check when nothing matches | plan 4a review | `internal/web/api.go` |
+| B24 | Sign-in and sign-up accept any content type (login CSRF from a text/plain form); require application/json | plan 4a review | `internal/web/api.go` |
+| B25 | The CSP lacks `frame-ancestors 'none'; base-uri 'none'; form-action 'self'` | plan 4a review | `internal/web/server.go` |
+| B26 | No limit on event streams per account | plan 4a review | `internal/web/api.go` |
+
 # Known limits (by design, for now)
 
 | # | Limit | Why / when it changes |
@@ -76,6 +83,7 @@ No Linear for batnet yet: this page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| Concurrent map access could crash the server; parallel wrong PINs switched the lockout off; unlimited sign-ups; verdicts and group changes depended on arrival order; alerts forgeable by another node; live streams outlived sign-out; the app missed dropped streams and wiped typing | plan 4a review fixes, 2026-10-15 |
 | Recovery stalled behind non-post entries; gateways echoed other groups' posts; public posts triggered catch-up beacons; recovered High posts dropped to 4; the simulated air merged identical frames and had instant carrier sense; power cuts didn't reboot gateways; two gateways answered every beacon together | plan 3 review fixes, 2026-10-15 (with a CSMA backoff after every frame heard) |
 | Posts couldn't cross between WiFi groups | the LoRa bridge, plan 3, 2026-10-15 |
 | Flooded heartbeats saturated a 40-house mesh; bang failed | [0021](/decisions/0021-one-hop-heartbeats.md), 2026-10-15 |
