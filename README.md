@@ -89,7 +89,7 @@ can:
 * **Change the village:** more houses, bigger households, fewer radios. You can
   also cut a house's power and watch what still gets through.
 
-**Open it online:** <https://claude.ai/artifact/HrAVUe9mnGgZhesEDuZfDx>
+**Open it online:** <https://johnusher.github.io/batnet/>
 
 **Or run it on your own computer, offline:**
 

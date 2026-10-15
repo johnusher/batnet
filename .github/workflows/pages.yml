@@ -1,0 +1,41 @@
+# Publishes the village simulator to GitHub Pages: https://johnusher.github.io/batnet/
+# Only prototypes/village-sim is published, not the rest of the repo.
+name: Simulator on GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths: ["prototypes/village-sim/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the site
+        # index.html is written without a document skeleton (the artifact host adds one), so add it here.
+        run: |
+          mkdir _site
+          cp prototypes/village-sim/sim.js _site/
+          {
+            echo '<!doctype html>'
+            echo '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            cat prototypes/village-sim/index.html
+          } > _site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+      - id: deployment
+        uses: actions/deploy-pages@v4
