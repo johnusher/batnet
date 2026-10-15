@@ -13,3 +13,4 @@ sources, not yet confirmed on our hardware.
 * [WiFi mesh modes](wifi-mesh-modes.md) - brcmfmac support for ad-hoc and 802.11s, running a hotspot at the same time, and which USB dongles to use
 * [OKF and agent knowledge](okf-and-agent-knowledge.md) - why this bundle follows Google's OKF v0.2, what the spec requires, and the practices taken from it
 * [Village simulator findings](village-sim-findings.md) - findings from the in-browser village model - LoRa duty limits at busy gateways, WiFi groups with no LoRa radio, and recovery traffic
+* [Power budget](power-budget.md) - daily energy for pocket, house and relay nodes; the Pi's idle draw dominates and messages cost almost nothing
