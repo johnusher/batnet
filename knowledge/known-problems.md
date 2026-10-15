@@ -24,8 +24,18 @@ No Linear for batnet yet: this page is the list.
 | B6 | `ParseVector` reserves memory for the claimed count before checking the bytes are there | plan 1 review | `ledger/vector.go` |
 | B7 | Repair goroutines aren't waited for when `Run` returns; closing the store can race in-flight writes (real-time path only) | plan 1 review | `meshsync` |
 
-| B8 | LoRa-only farms (`scenarios/farms.json`, marked known failure): farms that can't hear each other collide; 1 of 50 posts missing, 1 late (27 min against 20) | plan 3 scenarios | `internal/lora`, `internal/sim/lora.go` |
+| B8 | LoRa-only farms (`scenarios/farms.json`, marked known failure): farms that can't hear each other collide (~4,700 collisions in 90 min); 1 of 50 posts missing, 8 late against 20 min; busiest radio at 80% | plan 3 scenarios and review | `internal/lora`, `internal/sim/lora.go` |
 | B9 | A gateway's LoRa duty meter is kept across a restart in the simulator; batnetd must store it, or a reboot could exceed the 10% limit | plan 3 | `internal/lora` |
+
+| B10 | `remoteAt` (the 30-min gate for sending over LoRa) is set by any frame with a valid header, before its payload is verified: garbage can open the gate | plan 3 review m1 | `internal/lora/bridge.go` |
+| B11 | Another village on the same channel key: its beacons are answered and its signed entries injected; one short beacon draws up to 8 entries back (a cheap way to drain a gateway's airtime). Relies on Meshtastic's channel key; rate-limit answers per requester | plan 3 review m2 | `internal/lora` |
+| B12 | 64 pending partial messages block new multi-fragment ones for 10 min; evict the oldest instead | plan 3 review m3 | `internal/lora/frame.go` |
+| B13 | A High direct message is level 9, which decision 0015 reserves for Alerts; cap High at 8 | plan 3 review m4 | `internal/prio` |
+| B14 | The duty check reads the meter that enforces the limit, so it can't fail; tally airtime per radio from the air's transmissions | plan 3 review m5 | `internal/sim/report.go` |
+| B15 | The simulator's flooding has no hop limit (Meshtastic's default is 3) and connectivity counts LoRa paths of any length: farm-like results are optimistic | plan 3 review m6 | `internal/sim` |
+| B16 | `sameWiFiGroup` rebuilds WiFi groups on every frame; `heard`/`seen` maps grow without bound; `snapGroups` is O(radios²) | plan 3 review m7, m8 | `internal/sim`, `internal/lora` |
+| B17 | Scenario `meshtastic` users aren't validated (count, names clashing with houses) | plan 3 review m8 | `internal/sim/scenario.go` |
+| B18 | Short IDs (4-byte prefixes) can be ground to collide; a tie makes compact vectors order by map and runs stop repeating | plan 3 review m9 | `internal/lora/frame.go` |
 
 # Known limits (by design, for now)
 
@@ -62,6 +72,7 @@ No Linear for batnet yet: this page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| Recovery stalled behind non-post entries; gateways echoed other groups' posts; public posts triggered catch-up beacons; recovered High posts dropped to 4; the simulated air merged identical frames and had instant carrier sense; power cuts didn't reboot gateways; two gateways answered every beacon together | plan 3 review fixes, 2026-10-15 (with a CSMA backoff after every frame heard) |
 | Posts couldn't cross between WiFi groups | the LoRa bridge, plan 3, 2026-10-15 |
 | Flooded heartbeats saturated a 40-house mesh; bang failed | [0021](/decisions/0021-one-hop-heartbeats.md), 2026-10-15 |
 | Repair was free in the simulator; checks could pass falsely; bad scenarios could crash the engine | plan 2 review fixes, 2026-10-15 |

@@ -61,7 +61,9 @@ type Bridge struct {
 	heard      map[ledger.Key]bool
 	waiting    map[string]int64 // key → time it may be queued (suppression delay)
 	waitEntry  map[string]*ledger.Entry
-	remoteAt   int64 // last time a batnet radio outside this group was heard; -1 never
+	waitKind   map[string]Kind // KindEntry, or KindRecovery for beacon answers
+	backoff    int64           // don't transmit before this: a random wait after the channel was busy (CSMA)
+	remoteAt   int64           // last time a batnet radio outside this group was heard; -1 never
 	nextBeacon int64
 	busyUntil  int64 // our own transmission in progress
 }
@@ -70,7 +72,7 @@ type Bridge struct {
 func NewBridge(cfg BridgeConfig) *Bridge {
 	b := &Bridge{cfg: cfg, Duty: NewDutyMeter(), self: ShortID(cfg.Self), rnd: rand.New(rand.NewSource(cfg.Seed)),
 		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]bool{}, waiting: map[string]int64{},
-		waitEntry: map[string]*ledger.Entry{}, remoteAt: -1}
+		waitEntry: map[string]*ledger.Entry{}, waitKind: map[string]Kind{}, remoteAt: -1}
 	b.nextBeacon = cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 	return b
 }
@@ -82,8 +84,10 @@ func (b *Bridge) Restart() {
 	b.Queue = Queue{}
 	b.waiting = map[string]int64{}
 	b.waitEntry = map[string]*ledger.Entry{}
+	b.waitKind = map[string]Kind{}
 	b.reasm = NewReassembler(reassemblyTTLUs, 64)
 	b.busyUntil = 0
+	b.backoff = 0
 	b.nextBeacon = b.cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 }
 
@@ -93,14 +97,31 @@ func (b *Bridge) remoteHeard() bool {
 	return b.remoteAt >= 0 && b.cfg.Now()-b.remoteAt <= remoteHeardUs
 }
 
-// Consider looks at an entry new to this node, from the WiFi mesh or written here.
+// relayable: every shared entry type crosses by radio (posts, accounts,
+// approvals, directory cards: spec §6); only LoRa bookkeeping stays home.
+// Sending them all also keeps vectors' gap-free counts moving, which recovery needs.
+func relayable(e *ledger.Entry) bool { return e.Type != ledger.TypeLoRaSent }
+
+// Consider looks at an entry new to this node, from the WiFi mesh or written
+// here. Only entries written inside this WiFi group go on air: one from
+// another group came over LoRa already (through another gateway, maybe).
 func (b *Bridge) Consider(e *ledger.Entry) {
-	if b.heard[e.Key] || (e.Type != ledger.TypeMsgPost && e.Type != ledger.TypeAlert) || !b.remoteHeard() {
+	if b.heard[e.Key] || !relayable(e) || !b.remoteHeard() {
 		return
 	}
+	if o := ShortID(e.Key.Origin); o != b.self && !b.cfg.InMyGroup(o) {
+		return
+	}
+	b.wait(e, KindEntry)
+}
+
+// wait schedules an entry to be queued after a delay that differs per entry
+// and gateway, so gateways holding the same entry don't all send it: the first
+// heard on air cancels the rest (decision 0022).
+func (b *Bridge) wait(e *ledger.Entry, kind Kind) bool {
 	k := keyString(e.Key)
 	if b.Queue.Has(k) || b.waiting[k] != 0 {
-		return
+		return false
 	}
 	h := fnv.New32a()
 	h.Write([]byte(k))
@@ -111,15 +132,26 @@ func (b *Bridge) Consider(e *ledger.Entry) {
 	}
 	b.waiting[k] = b.cfg.Now() + delay + 1
 	b.waitEntry[k] = e
+	b.waitKind[k] = kind
+	return true
 }
 
-func (b *Bridge) queueEntry(e *ledger.Entry, level prio.Level) {
+func (b *Bridge) queueEntry(e *ledger.Entry, kind Kind, level prio.Level) {
 	raw, _ := e.MarshalBinary()
-	frames, err := Split(KindEntry, level, b.self, raw)
+	frames, err := Split(kind, level, b.self, raw)
 	if err != nil {
 		return
 	}
-	b.Queue.Push(&Item{Key: keyString(e.Key), Kind: KindEntry, Base: level, Enqueued: b.cfg.Now(), Frames: frames})
+	b.Queue.Push(&Item{Key: keyString(e.Key), Kind: kind, Base: level, Enqueued: b.cfg.Now(), Frames: frames})
+}
+
+// resendLevel is a resend's level: one below its own, but High and Alert keep theirs (decision 0015).
+func resendLevel(e *ledger.Entry) prio.Level {
+	l := prio.Level(e.Prio)
+	if l >= prio.High || l == 0 {
+		return l
+	}
+	return l - 1
 }
 
 func (b *Bridge) queueBeacon() {
@@ -144,6 +176,9 @@ func (b *Bridge) Receive(frame []byte) {
 	if f.Sender == b.self {
 		return
 	}
+	// The channel just became free: contend with a random wait, so radios that
+	// were all waiting for this frame to end don't start together.
+	b.backoff = max(b.backoff, b.cfg.Now()+1+b.rnd.Int63n(lbtJitterUs))
 	if !b.cfg.InMyGroup(f.Sender) {
 		b.remoteAt = b.cfg.Now()
 	}
@@ -153,7 +188,7 @@ func (b *Bridge) Receive(frame []byte) {
 	}
 	b.Stats.Received++
 	switch f.Kind {
-	case KindEntry:
+	case KindEntry, KindRecovery:
 		var e ledger.Entry
 		if e.UnmarshalBinary(payload) != nil || e.Verify() != nil {
 			b.Stats.Bad++
@@ -164,11 +199,12 @@ func (b *Bridge) Receive(frame []byte) {
 		if b.Queue.Remove(k) || b.waiting[k] != 0 {
 			delete(b.waiting, k)
 			delete(b.waitEntry, k)
+			delete(b.waitKind, k)
 			b.Stats.Suppressed++
 		}
 		if b.cfg.Inject(&e) {
 			b.Stats.Injected++
-			if f.Prio == prio.Normal-1 { // a recovered post: there may be more, so ask again soon
+			if f.Kind == KindRecovery { // recovered: there may be more, so ask again soon
 				b.nextBeacon = min(b.nextBeacon, b.cfg.Now()+catchUpBeaconUs)
 			}
 		}
@@ -207,7 +243,7 @@ func (b *Bridge) answerBeacon(theirs map[uint32]uint64) {
 			continue
 		}
 		for _, e := range es {
-			if e.Type == ledger.TypeMsgPost || e.Type == ledger.TypeAlert {
+			if relayable(e) {
 				missing = append(missing, e)
 			}
 		}
@@ -217,8 +253,7 @@ func (b *Bridge) answerBeacon(theirs map[uint32]uint64) {
 		if i == maxRecoverEach {
 			break
 		}
-		if !b.Queue.Has(keyString(e.Key)) {
-			b.queueEntry(e, prio.Normal-1)
+		if b.wait(e, KindRecovery) {
 			b.Stats.Recovered++
 		}
 	}
@@ -235,10 +270,15 @@ func (b *Bridge) Tick() int64 {
 	for _, k := range due {
 		if at := b.waiting[k]; at <= now {
 			if e := b.waitEntry[k]; e != nil {
-				b.queueEntry(e, prio.Level(e.Prio))
+				if b.waitKind[k] == KindRecovery {
+					b.queueEntry(e, KindRecovery, resendLevel(e))
+				} else {
+					b.queueEntry(e, KindEntry, prio.Level(e.Prio))
+				}
 			}
 			delete(b.waiting, k)
 			delete(b.waitEntry, k)
+			delete(b.waitKind, k)
 		}
 	}
 	if now >= b.nextBeacon {
@@ -258,7 +298,11 @@ func (b *Bridge) Tick() int64 {
 		return min(next, b.busyUntil)
 	}
 	if busy := b.cfg.Radio.BusyUntil(); busy > now {
-		return min(next, busy+1+b.rnd.Int63n(lbtJitterUs)) // listen before talk, then a random wait so waiting radios don't all start together
+		b.backoff = busy + 1 + b.rnd.Int63n(lbtJitterUs) // listen before talk, then a random wait
+		return min(next, b.backoff)
+	}
+	if now < b.backoff {
+		return min(next, b.backoff)
 	}
 	frame := it.Frames[it.Next]
 	dur := AirtimeUs(len(frame), b.cfg.Preset)
@@ -272,7 +316,7 @@ func (b *Bridge) Tick() int64 {
 	it.Next++
 	if it.Next == len(it.Frames) {
 		b.Queue.Remove(it.Key)
-		if it.Kind == KindEntry {
+		if it.Kind != KindBeacon {
 			b.Stats.Sent++
 		}
 	}

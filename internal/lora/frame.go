@@ -14,8 +14,9 @@ import (
 type Kind uint8
 
 const (
-	KindEntry  Kind = 1 // a signed log entry
-	KindBeacon Kind = 2 // a gateway's compact version vector
+	KindEntry    Kind = 1 // a signed log entry
+	KindBeacon   Kind = 2 // a gateway's compact version vector
+	KindRecovery Kind = 3 // a signed log entry sent to answer a beacon
 )
 
 const (
@@ -71,7 +72,7 @@ func Parse(b []byte) (Frame, error) {
 	}
 	f := Frame{Kind: Kind(b[0] >> 4 & 3), Prio: prio.Level(b[0] & 15), Sender: binary.BigEndian.Uint32(b[1:5]),
 		MsgID: uint32(b[5])<<16 | uint32(b[6])<<8 | uint32(b[7]), Index: b[8], Count: b[9], Chunk: b[HeaderLen:]}
-	if f.Count == 0 || f.Index >= f.Count || f.Prio > prio.Alert || (f.Kind != KindEntry && f.Kind != KindBeacon) {
+	if f.Count == 0 || f.Index >= f.Count || f.Prio > prio.Alert || (f.Kind != KindEntry && f.Kind != KindBeacon && f.Kind != KindRecovery) {
 		return Frame{}, errFrame
 	}
 	return f, nil

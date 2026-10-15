@@ -66,6 +66,7 @@ func TestBusyUntil(t *testing.T) {
 	a, b := air.Add("a", 0, 0, nil), air.Add("b", 1000, 0, nil)
 	dur := lora.AirtimeUs(100, air.Preset)
 	a.Transmit(make([]byte, 100), dur)
+	s.RunUntil(100 * Ms) // past the carrier-sense delay
 	if b.BusyUntil() != dur {
 		t.Fatalf("b sees the channel busy until %d, want %d", b.BusyUntil(), dur)
 	}
@@ -91,5 +92,38 @@ func TestRebroadcastWaitsForBusyChannel(t *testing.T) {
 	s.RunUntil(30 * Second)
 	if heard != 1 {
 		t.Fatalf("b heard %d times; the relay must rebroadcast after the busy channel clears", heard)
+	}
+}
+
+// Review I4: two identical frames sent minutes apart are two packets, both heard.
+func TestIdenticalFramesAreSeparatePackets(t *testing.T) {
+	var s Scheduler
+	air := NewLoRaAir(&s, lora.Presets["LongFast"], 1)
+	air.BaseLoss, air.EdgeLoss = 0, 0
+	heard := 0
+	a := air.Add("a", 0, 0, nil)
+	air.Add("b", 1000, 0, func([]byte) { heard++ })
+	frame := []byte("the same beacon twice")
+	a.Transmit(frame, lora.AirtimeUs(len(frame), air.Preset))
+	s.At(15*Minute, func() { a.Transmit(frame, lora.AirtimeUs(len(frame), air.Preset)) })
+	s.RunUntil(20 * Minute)
+	if heard != 2 {
+		t.Fatalf("b heard %d of 2 identical transmissions", heard)
+	}
+}
+
+// Review I5: a radio needs a moment to notice another one has started.
+func TestCarrierSenseTakesTime(t *testing.T) {
+	var s Scheduler
+	air := NewLoRaAir(&s, lora.Presets["LongFast"], 1)
+	a, b := air.Add("a", 0, 0, nil), air.Add("b", 1000, 0, nil)
+	a.Transmit(make([]byte, 50), lora.AirtimeUs(50, air.Preset))
+	s.RunUntil(10 * Ms)
+	if b.BusyUntil() > s.Now() {
+		t.Fatal("b noticed a's transmission 10 ms after it began")
+	}
+	s.RunUntil(100 * Ms)
+	if b.BusyUntil() <= s.Now() {
+		t.Fatal("b still hears a free channel 100 ms into a's transmission")
 	}
 }

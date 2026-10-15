@@ -118,3 +118,51 @@ func TestPostCrossesByLoRa(t *testing.T) {
 		t.Fatal("the post did not reach the other house by LoRa")
 	}
 }
+
+// Review I6: a power cut reboots a gateway: its queue is gone and it beacons within a minute.
+func TestPowerCutRestartsGateway(t *testing.T) {
+	v, _ := NewVillage(5, testEpoch, lora.Presets["LongFast"])
+	v.AddHouse(HouseSpec{Name: "Miller", X: 0, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.AddHouse(HouseSpec{Name: "Fern", X: 2500, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.Start()
+	v.RunFor(20 * Minute)
+	n := v.Node("Miller")
+	beacons := n.Bridge.Stats.Beacons
+	v.SetPower("Miller", false)
+	v.RunFor(5 * Minute)
+	v.SetPower("Miller", true)
+	if n.Bridge.Queue.Len() != 0 {
+		t.Fatal("the queue survived a power cut")
+	}
+	v.RunFor(61 * Second)
+	if n.Bridge.Stats.Beacons == beacons {
+		t.Fatal("no beacon within a minute of power returning")
+	}
+}
+
+// Review follow-up: two gateways that both hold what a beacon lacks must not
+// both answer (on real airtime their answers collide and the backlog grows).
+func TestBeaconAnswersNotDuplicated(t *testing.T) {
+	v, _ := NewVillage(9, testEpoch, lora.Presets["LongFast"])
+	v.LoRa.BaseLoss, v.LoRa.EdgeLoss = 0, 0
+	v.AddHouse(HouseSpec{Name: "Miller", X: 0, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.AddHouse(HouseSpec{Name: "Fern", X: 200, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.AddHouse(HouseSpec{Name: "Haddad", X: 2500, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.SetPower("Haddad", false)
+	v.Start()
+	for i := 0; i < 6; i++ {
+		v.Post("Miller", "while Haddad was off", 5)
+	}
+	v.RunFor(2 * Minute)
+	v.SetPower("Haddad", true)
+	v.RunFor(20 * Minute)
+	sent := v.Node("Miller").Bridge.Stats.Sent + v.Node("Fern").Bridge.Stats.Sent
+	if sent > 8 {
+		t.Fatalf("Miller and Fern sent %d entries to recover 6", sent)
+	}
+	for _, p := range v.Posts {
+		if _, ok := p.Arrived["Haddad"]; !ok {
+			t.Fatal("Haddad did not recover every post")
+		}
+	}
+}

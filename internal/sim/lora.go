@@ -1,7 +1,6 @@
 package sim
 
 import (
-	"hash/fnv"
 	"math"
 	"math/rand"
 
@@ -21,7 +20,11 @@ type LoRaAir struct {
 	rnd    *rand.Rand
 	radios []*LoRaRadio
 	live   []transmission // recent and current packets, for collisions
+	nextID uint64         // each transmission is a new packet (Meshtastic's from + id)
 }
+
+// carrierSense is how long a radio takes to notice another has started.
+const carrierSense = 50 * Ms
 
 // LoRaStats counts packets since the start.
 type LoRaStats struct{ Packets, Delivered, Collided, Lost, Rebroadcasts int }
@@ -39,8 +42,8 @@ type LoRaRadio struct {
 	Duty    *lora.DutyMeter
 	air     *LoRaAir
 	onFrame func([]byte)
-	seen    map[uint32]bool // packets heard (for managed flooding)
-	pending map[uint32]bool // rebroadcasts waiting
+	seen    map[uint64]bool // packets heard (for managed flooding)
+	pending map[uint64]bool // rebroadcasts waiting
 }
 
 // NewLoRaAir returns an empty channel for one preset.
@@ -50,7 +53,7 @@ func NewLoRaAir(s *Scheduler, p lora.Preset, seed int64) *LoRaAir {
 
 // Add puts a radio at (x, y); onFrame receives what it hears (nil for none).
 func (a *LoRaAir) Add(name string, x, y float64, onFrame func([]byte)) *LoRaRadio {
-	r := &LoRaRadio{Name: name, X: x, Y: y, On: true, Duty: lora.NewDutyMeter(), air: a, onFrame: onFrame, seen: map[uint32]bool{}, pending: map[uint32]bool{}}
+	r := &LoRaRadio{Name: name, X: x, Y: y, On: true, Duty: lora.NewDutyMeter(), air: a, onFrame: onFrame, seen: map[uint64]bool{}, pending: map[uint64]bool{}}
 	a.radios = append(a.radios, r)
 	return r
 }
@@ -60,33 +63,32 @@ func (a *LoRaAir) Reach(p, q *LoRaRadio) bool {
 	return math.Hypot(p.X-q.X, p.Y-q.Y) <= a.Preset.RangeM
 }
 
-func packetID(frame []byte) uint32 {
-	h := fnv.New32a()
-	h.Write(frame)
-	return h.Sum32()
-}
-
 // Transmit starts sending a frame now (lora.Radio).
 func (r *LoRaRadio) Transmit(frame []byte, durUs int64) {
 	if !r.On {
 		return
 	}
-	r.seen[packetID(frame)] = true
-	r.air.send(r, append([]byte(nil), frame...), durUs)
+	r.air.nextID++
+	id := r.air.nextID
+	r.seen[id] = true
+	r.air.send(r, append([]byte(nil), frame...), durUs, id)
 }
 
 // BusyUntil is when the last packet this radio can hear ends (lora.Radio).
+// Another radio's packet is noticed only carrierSense after it starts.
 func (r *LoRaRadio) BusyUntil() int64 {
 	var until int64
+	now := r.air.sch.Now()
 	for _, t := range r.air.live {
-		if (t.from == r || r.air.Reach(t.from, r)) && t.end > until {
+		noticed := t.from == r || (r.air.Reach(t.from, r) && now-t.start >= carrierSense)
+		if noticed && t.end > until {
 			until = t.end
 		}
 	}
 	return until
 }
 
-func (a *LoRaAir) send(from *LoRaRadio, frame []byte, dur int64) {
+func (a *LoRaAir) send(from *LoRaRadio, frame []byte, dur int64, id uint64) {
 	now := a.sch.Now()
 	keep := a.live[:0]
 	for _, t := range a.live {
@@ -97,7 +99,6 @@ func (a *LoRaAir) send(from *LoRaRadio, frame []byte, dur int64) {
 	a.live = append(keep, transmission{from: from, start: now, end: now + dur})
 	a.Stats.Packets++
 	var heard []string
-	id := packetID(frame)
 	for _, r := range a.radios {
 		if r == from || !r.On || !a.Reach(from, r) {
 			continue
@@ -111,7 +112,7 @@ func (a *LoRaAir) send(from *LoRaRadio, frame []byte, dur int64) {
 	}
 }
 
-func (a *LoRaAir) arrive(from, r *LoRaRadio, frame []byte, id uint32, start, end int64, d float64) {
+func (a *LoRaAir) arrive(from, r *LoRaRadio, frame []byte, id uint64, start, end int64, d float64) {
 	if !r.On {
 		return
 	}
@@ -144,7 +145,7 @@ func (a *LoRaAir) arrive(from, r *LoRaRadio, frame []byte, id uint32, start, end
 // rebroadcast sends a heard packet on once (managed flooding): it stands down
 // if someone else rebroadcast it meanwhile, waits for a busy channel (a few
 // times), and never exceeds the radio's duty limit.
-func (a *LoRaAir) rebroadcast(r *LoRaRadio, frame []byte, id uint32, tries int) {
+func (a *LoRaAir) rebroadcast(r *LoRaRadio, frame []byte, id uint64, tries int) {
 	if !r.pending[id] || !r.On {
 		return
 	}
@@ -164,5 +165,5 @@ func (a *LoRaAir) rebroadcast(r *LoRaRadio, frame []byte, id uint32, tries int) 
 	}
 	r.Duty.Record(now, dur)
 	a.Stats.Rebroadcasts++
-	a.send(r, frame, dur)
+	a.send(r, frame, dur, id)
 }

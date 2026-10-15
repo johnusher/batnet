@@ -224,6 +224,7 @@ func (v *Village) SetPower(name string, on bool) error {
 	if n.LoRaRadio != nil {
 		n.LoRaRadio.On = on
 		if on {
+			n.Bridge.Restart() // a power cut is a reboot: in-memory queues are gone
 			v.wakeBridge(n)
 		}
 	}
