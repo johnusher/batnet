@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -152,7 +153,11 @@ func (s *Server) api(mux *http.ServeMux) {
 		if wait := s.lockout.Wait(key, now); wait > 0 {
 			return nil, &apiError{code: http.StatusTooManyRequests, msg: "Too many wrong PINs. Try again later.", wait: wait}
 		}
-		for _, a := range s.cfg.State.AccountsNamed(in.Name) {
+		named := s.cfg.State.AccountsNamed(in.Name)
+		sort.SliceStable(named, func(i, j int) bool { // this house's people first: names repeat across houses
+			return named[i].Home == s.cfg.Author.ID() && named[j].Home != s.cfg.Author.ID()
+		})
+		for _, a := range named {
 			if auth.CheckPIN(a.PinHash, in.Pin) {
 				s.lockout.Success(key)
 				s.setSession(w, a.ID)
@@ -168,6 +173,9 @@ func (s *Server) api(mux *http.ServeMux) {
 		}
 		http.SetCookie(w, &http.Cookie{Name: "batnet", Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.cfg.SecureCookie, SameSite: http.SameSiteStrictMode})
 		return map[string]bool{"ok": true}, nil
+	}))
+	mux.HandleFunc("GET /api/house", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		return map[string]string{"house": s.cfg.House}, nil
 	}))
 	mux.HandleFunc("GET /api/me", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		a, err := s.who(r)

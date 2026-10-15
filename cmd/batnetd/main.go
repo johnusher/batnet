@@ -10,7 +10,10 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"net"
+	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"time"
 
@@ -20,6 +23,8 @@ import (
 	"github.com/johnusher/batnet/internal/mock"
 	"github.com/johnusher/batnet/internal/seal"
 	"github.com/johnusher/batnet/internal/sim"
+	"github.com/johnusher/batnet/internal/state"
+	"github.com/johnusher/batnet/internal/web"
 )
 
 var houseNames = []string{"Miller", "Fern", "Okafor", "Novak", "Haddad", "Brandt", "Kowalski", "Moreau", "Lindqvist", "Santos"}
@@ -35,36 +40,74 @@ func main() {
 	loss := flag.Float64("loss", 0, "chance a broadcast misses each house (0-1)")
 	dur := flag.Duration("for", 15*time.Second, "how long the mock village runs")
 	simFiles := flag.Bool("sim", false, "run the scenario files given as arguments and judge them")
+	withWeb := flag.Bool("web", false, "with -mock: serve the batnet app for every house on 127.0.0.1:8001 and up")
 	flag.Parse()
 	if *simFiles {
 		os.Exit(runScenarios(flag.Args()))
 	}
 	if *houses < 2 {
-		fmt.Fprintln(os.Stderr, "usage: batnetd -mock N [-loss 0.3] [-for 20s]   (N >= 2)")
-		fmt.Fprintln(os.Stderr, "Real radios arrive in plan 4 of milestone 1.")
+		fmt.Fprintln(os.Stderr, "usage: batnetd -mock N [-loss 0.3] [-for 20s] [-web]   (N >= 2; -for 0 runs until Ctrl-C)")
+		fmt.Fprintln(os.Stderr, "       batnetd -sim scenarios/*.json")
+		fmt.Fprintln(os.Stderr, "Real radios arrive with plan 5 of milestone 1.")
 		os.Exit(2)
 	}
-	if err := runMock(*houses, *loss, *dur); err != nil {
+	if err := runMock(*houses, *loss, *dur, *withWeb); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func runMock(n int, loss float64, dur time.Duration) error {
+// node is one mock house.
+type node struct {
+	name   string
+	author *ledger.Author
+	sync   *meshsync.Syncer
+	store  *ledger.MemStore
+	web    *web.Server
+}
+
+// serveMockWeb bootstraps every house and serves its app on 127.0.0.1:8001 and up until ctx ends.
+func serveMockWeb(ctx context.Context, nodes []*node) error {
+	var servers []*http.Server
+	for i, nd := range nodes {
+		groups := []string(nil)
+		if i == 0 {
+			groups = []string{"Medical", "Food"} // groups are village-wide: create them once
+		}
+		if _, err := nd.web.Bootstrap("Admin", "123456", groups); err != nil { // placeholder PIN, mock only
+			return err
+		}
+		addr := fmt.Sprintf("127.0.0.1:%d", 8001+i)
+		ln, err := net.Listen("tcp", addr)
+		if err != nil {
+			return err
+		}
+		hs := &http.Server{Handler: nd.web.Handler(), ReadHeaderTimeout: 10 * time.Second}
+		servers = append(servers, hs)
+		go hs.Serve(ln)
+		fmt.Printf("  %-10s http://%s   (house admin: Admin / PIN 123456)\n", nd.name, addr)
+	}
+	fmt.Println("Each address is one house. Sign up at one, approve as Admin, post, and watch it arrive at the others. Ctrl-C stops.")
+	<-ctx.Done()
+	for _, hs := range servers {
+		hs.Close()
+	}
+	return nil
+}
+
+func runMock(n int, loss float64, dur time.Duration, withWeb bool) error {
 	key, err := seal.NewVillageKey()
 	if err != nil {
 		return err
 	}
 	m := mock.NewMesh(time.Now().UnixNano())
 	m.SetLoss(loss)
-	ctx, cancel := context.WithTimeout(context.Background(), dur)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
-	start := time.Now()
-	type node struct {
-		name   string
-		author *ledger.Author
-		sync   *meshsync.Syncer
-		store  *ledger.MemStore
+	if dur > 0 {
+		ctx, cancel = context.WithTimeout(ctx, dur)
+		defer cancel()
 	}
+	start := time.Now()
 	var nodes []*node
 	for i := 0; i < n; i++ {
 		name := houseNames[i%len(houseNames)]
@@ -89,15 +132,26 @@ func runMock(n int, loss float64, dur time.Duration) error {
 			Link: link, Store: nd.store, Clock: clock, Sealer: sealer,
 			Heartbeat: 500 * time.Millisecond,
 			OnEntry: func(e *ledger.Entry) {
+				if nd.web != nil {
+					nd.web.OnEntry(e)
+					return
+				}
 				lag := time.Since(time.UnixMilli(e.TS.Wall)).Round(time.Millisecond)
 				fmt.Printf("%6s  %-10s got  %s  (after %v)\n", time.Since(start).Round(100*time.Millisecond), name, e.Body, lag)
 			},
 		})
+		if withWeb {
+			nd.web = web.New(web.Config{House: name, Author: nd.author, State: state.New(),
+				Publish: func(e *ledger.Entry) { nd.sync.Publish(e) }})
+		}
 		if i > 0 {
 			m.Connect(nodes[i-1].name, name)
 		}
 		go nd.sync.Run(ctx)
 		nodes = append(nodes, nd)
+	}
+	if withWeb {
+		return serveMockWeb(ctx, nodes)
 	}
 	fmt.Printf("Mock village: %d houses in a line, %.0f%% broadcast loss, %v.\n", n, loss*100, dur)
 	tick := time.NewTicker(time.Second)

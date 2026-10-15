@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -313,5 +314,57 @@ func TestPostValidation(t *testing.T) {
 	}
 	if _, convs := anna.do("GET", "/api/conversations", nil); len(convs) != 0 {
 		t.Fatalf("a rejected post was stored: %v", convs)
+	}
+}
+
+// The landing screen needs the house name before anyone signs in.
+func TestHouseName(t *testing.T) {
+	h := newHouse(t, "Miller")
+	c := &client{t: t, h: h}
+	if code, out := c.do("GET", "/api/house", nil); code != 200 || out["house"] != "Miller" {
+		t.Fatalf("house: %d %v", code, out)
+	}
+}
+
+// The app must never insert server text as HTML.
+func TestAppEscapes(t *testing.T) {
+	b, err := appFS.ReadFile("app/app.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(b)
+	if strings.Contains(src, "innerHTML") || strings.Contains(src, "eval(") || strings.Contains(src, "new Function") {
+		t.Fatal("app.js uses innerHTML or evaluates code")
+	}
+	if !strings.Contains(src, "function esc(") {
+		t.Fatal("app.js lacks its escaping helper")
+	}
+	total := 0
+	fs.WalkDir(appFS, "app", func(p string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			info, _ := d.Info()
+			total += int(info.Size())
+		}
+		return nil
+	})
+	if total > 200<<10 {
+		t.Fatalf("the app is %d bytes, over 200 KB", total)
+	}
+}
+
+// Two houses' admins share a name and PIN: signing in at a house must pick that house's account.
+func TestLoginPrefersThisHouse(t *testing.T) {
+	miller, fern := newHouse(t, "Miller"), newHouse(t, "Fern")
+	link(miller, fern)
+	miller.srv.Bootstrap("Admin", "123456", nil)
+	fern.srv.Bootstrap("Admin", "123456", nil)
+	for _, h := range []struct {
+		h    *house
+		name string
+	}{{miller, "Miller"}, {fern, "Fern"}} { // one of the two sorts second, whatever the IDs
+		c := signedIn(t, h.h, "Admin", "123456")
+		if _, me := c.do("GET", "/api/me", nil); me["admin"] != true || me["house"] != h.name {
+			t.Fatalf("signed in at %s as %v", h.name, me)
+		}
 	}
 }
