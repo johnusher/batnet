@@ -105,6 +105,14 @@ power supply and case.
 | Long-range radio (RAK6421 + RAK13300, as above) | Hexaspot | `RAK-610012` + `RAK-105006` | €25 |
 | A [3D-printed case](#3d-printable-cases) | print your own, or ask a local makerspace | | €2 of plastic |
 
+**Optional extras, about €20–50:**
+
+| Part | Shop | Article number | About | Why |
+|---|---|---|---|---|
+| USB sound card + 8 Ω speaker | [Berrybase](https://www.berrybase.de/waveshare-usb-sound-card-stereo-codec-mikrofon-lautsprecheranschluss-abtastraten-8-48khz) | `WS-18833` + `125171` | €15 | The house speaker that announces messages |
+| Lit arcade button, 30 mm | [Berrybase](https://www.berrybase.de/detail/019234a4ff0e726490baff8fbad83dda) | `AB30L5-G` | €2 | Blinks for unread messages; press to hear them |
+| USB GPS receiver | [Berrybase](https://www.berrybase.de/adafruit-ultimate-gps-mit-usb-66-channel-w-10-hz-updates) | `ADA4279` | €30 | Gives the whole village the right time, and the house's position |
+
 **Don't buy these, they won't work:**
 * **WiFi sticks with an MT7921 chip,** such as the ALFA AWUS036AXM and AXML.
   They can't link houses together.

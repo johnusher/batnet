@@ -51,6 +51,22 @@ at Berrybase that day. Prices and stock change: re-check before publishing total
 | 868 MHz 5 dBi antenna, magnetic foot | Berrybase | WS-24412 | | 4.90 | optional, SMA |
 | TP-Link CPE210 outdoor link | reichelt | TPLINK CPE210 | CPE210 | 41.99 each | optional, buy in pairs, 1–3 km |
 
+# Extras: house speaker, button and GPS ([0018](/decisions/0018-notifications-and-house-speaker.md), [0019](/decisions/0019-location.md))
+
+| Part | Shop | Article no. | € | Notes |
+|---|---|---|---|---|
+| Waveshare USB sound card (with mic) | Berrybase | WS-18833 | 9.90 | driver-free USB audio, any Pi; speaker header |
+| 8 Ω 5 W speaker | Berrybase | 125171 | 5.50 | pairs with the sound card |
+| USB mini speaker (USB audio) | Berrybase | 125174 | 6.80 | simplest option; out of stock on 2026-10-15 |
+| Arcade button 30 mm, lit (5 V LED) | Berrybase | AB30L5-G | 2.10 | LED needs a transistor from GPIO |
+| BC547B transistor + ~1 kΩ resistor | Berrybase | BC547B | 0.17 | switches the 5 V LED from a GPIO |
+| Jumper wires female-female | Berrybase | DUPONT-FF | 1.60 | |
+| Adafruit Ultimate GPS with USB | Berrybase | ADA4279 | 29.90 | MTK3333, `/dev/ttyUSB0`, works with gpsd |
+| Navilock NL-701US (u-blox 7) | reichelt | NAVILOCK 60169 | 93.95 | `/dev/ttyACM0`; dear but certain |
+| DFRobot TEL0138 (u-blox 7) | RS | 247-3251 | ~15 | price not verified |
+
+Speaker kit about €20; GPS about €30. Pin notes: the button and LED fit on GPIO17/27 next to a RAK6421 in slot 1. An I2S amplifier (MAX98357A: GPIO18/19/21) clashes with RAK6421 slot 2 and with Waveshare and MeshAdv HATs, so prefer USB audio. A Meshstick (USB) has no pin clashes. On a Pi 5 a u-blox dongle may need `DEVICES=/dev/ttyACM0` and `GPSD_OPTIONS="-n -b"` in gpsd's config.
+
 # Do not buy
 
 * **MT7921AU sticks** (ALFA AWUS036AXM, AWUS036AXML): the mainline driver allows
