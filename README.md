@@ -546,6 +546,10 @@ you, which is why batnet's own scanner reports activity only
 | **Channel** | A conversation on the radio that only radios with the same key can read. batnet uses a private channel for its own messages and the open public one for *Neighbourhood (public)*. |
 | **EU868** | The radio band around 868 MHz that anyone in Europe may use without a licence. |
 | **Duty cycle** (airtime) | The share of each hour a radio may transmit in the EU868 band: 10% in the part batnet uses. When a busy radio reaches its limit, messages wait in a queue, which is why urgent ones go first. |
+| **dBi** | How much an antenna concentrates its signal in one direction, compared with an imaginary antenna that sends equally in every direction. More dBi doesn't mean more power: the antenna squeezes the same power into a flatter shape, so it reaches further across flat land but less up and down. The antenna that comes with the radio is about 2 dBi. |
+| **ERP** (effective radiated power) | How strong a radio's signal really is once the antenna's gain is added and the cable's losses are taken away. The legal limit in the part of the band batnet uses is 500 milliwatts ERP, so a bigger antenna can mean turning the radio's power down. |
+| **Fresnel zone** | The fat, cigar-shaped space around the straight line between two antennas that the signal fills as it travels. Trees or roofs inside it weaken the signal even if they don't block the straight line, which is why raising an antenna by a few metres helps so much. |
+| **Waterfall** | A picture of radio signals over time: frequency runs across, time runs down, and colour shows how strong each signal is. Radio hobbyists use it to watch which radios are on the air. |
 | **Speech-to-text** | Software that turns a spoken message into written words. It runs on the node, not on the internet. |
 | **Encryption** | Scrambling a message so that only someone with the right key can read it. |
 | **Heartbeat** | A short note that each node sends its direct neighbours every few seconds: "here's what I have". A node that has missed something notices and asks for it. |
