@@ -19,7 +19,9 @@ implementation follows the plans in `docs/plans/`.
 | `docs/specs/` | Design specs, one per milestone, written after the design is agreed. Milestone 1: `2026-10-15-m1-design.md` (approved) |
 | `docs/plans/` | Implementation plans, one per subsystem of a milestone |
 | `cmd/batnetd/` | The node daemon. Today: `-mock N` runs a pretend village |
-| `internal/` | Go packages: `hlc`, `ledger` (+ `sqlstore`), `seal`, `meshsync`, `mock` |
+| `internal/` | Go packages: `hlc`, `ledger` (+ `sqlstore`), `seal`, `meshsync`, `mock`, `sim` (virtual time, the WiFi world model, villages of real nodes, scenarios, reports, the page API) |
+| `scenarios/` | Village scenarios (JSON) run by `batnetd -sim`, CI and the simulator's real engine |
+| `cmd/batnetwasm/` | The real code for the simulator page (`GOOS=js GOARCH=wasm`) |
 | `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` |
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |

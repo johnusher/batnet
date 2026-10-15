@@ -42,7 +42,7 @@ These do **not exist yet**. Do not cite them as if they apply; once written, eac
 | checking-radio-rules | a feature transmits or scans: EU868 duty cycle and power, PMR446, listening law; records the rule in `knowledge/` | M1, M4 |
 | cross-building-for-pi | building and deploying batnetd to Zero W / Zero 2 / 3 / 4 / 5 | M1 |
 | provisioning-a-node | turning a fresh SD card into a house, relay or gateway, including the village key | M1 |
-| running-a-mock-village | testing sync, partitions and rejoin with several fake houses on one machine (`go run ./cmd/batnetd -mock N`, plan 1) | M1 |
+| running-a-mock-village | testing sync, partitions and rejoin with the real code in virtual time: `go run ./cmd/batnetd -sim scenarios/*.json`; scenario format in `internal/sim/scenario.go` | M1 |
 | debugging-the-mesh | nodes don't see each other, messages don't arrive, LoRa is silent: batctl, iw, meshtastic CLI, batnetd logs | M1 |
 | testing-on-phones | checking captive portal, certificate warning, microphone and WebRTC on real iOS/Android | M1 spike |
 | field-testing | planning and recording a range or deployment test without leaking locations | M1+ |

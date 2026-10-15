@@ -240,6 +240,12 @@ that runs entirely in your web browser.
 * **Change the village:** more houses, bigger households, fewer radios. You can
   also cut a house's power and watch what still gets through.
 
+**Two engines.** *Model* is a quick JavaScript model of the whole system.
+*Real batnet code* runs batnet's actual Go code for every house, compiled for
+the browser, through prepared scenarios such as *bang* (everyone hears a bang
+and posts at once) and *storm* (houses lose power and catch up). Today it covers
+the WiFi mesh; the radio, accounts and the app join as they are built.
+
 To run it offline:
 1. Click the green **Code** button at the top of this page, then
    **Download ZIP**.
@@ -272,6 +278,7 @@ cd batnet
 git config core.hooksPath .githooks          # secret scan + knowledge check on every commit
 go test ./...                                 # run the tests
 go run ./cmd/batnetd -mock 5 -loss 0.3        # a pretend village of 5 houses on this computer
+go run ./cmd/batnetd -sim scenarios/*.json    # village scenarios with the real code, judged pass/fail
 (cd tools/okflint && go run . ../../knowledge) # check the knowledge bundle by hand
 ```
 

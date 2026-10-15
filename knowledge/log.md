@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Update**: Plan 2 built: the real code runs in virtual time (`batnetd -sim`, CI, the simulator's real engine). [Findings](/research/village-sim-findings.md): flooded heartbeats saturate an 80-house mesh with no messages.
 * **Creation**: Decisions [0018 notifications and house speaker](/decisions/0018-notifications-and-house-speaker.md), [0019 location](/decisions/0019-location.md), [0020 photos](/decisions/0020-photos.md); milestones updated.
 * **Update**: Plan 1 of milestone 1 built: signed log, SQLite store, sealing, mesh sync with repair, and a mock village (`go run ./cmd/batnetd -mock 5`).
 * **Update**: The [milestone 1 spec](https://github.com/johnusher/batnet/blob/main/docs/specs/2026-10-15-m1-design.md) was approved; decisions 0007, 0008, 0012, 0013, 0015 and 0016 are now stable, and [0017](/decisions/0017-gateways-share-the-radio.md) supersedes 0007's single LoRa sender. Simulator findings gained priority and Meshtastic results. The [skill catalog](/skills/catalog.md) gained a tool that replaced a skill (`shoot.sh`) and three planned skills.

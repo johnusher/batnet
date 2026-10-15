@@ -47,3 +47,22 @@ page and come from [LoRa airtime](/research/lora-airtime-eu868.md) and
   heard about 40 public posts and relayed about 680 batnet packets.
 * About one message in six is a voice message (M2 preview); over LoRa it costs
   the same as its transcript.
+
+# Real code, modelled WiFi (2026-10-15)
+
+`batnetd -sim` runs batnet's own log and sync code for every house in virtual
+time over a Go model of the WiFi mesh (ranges per Pi and radio, batman-adv
+flooding, one channel per WiFi group at the 1 Mbit/s broadcast rate, loss
+growing with load). No LoRa yet.
+
+| Scenario | Result |
+|---|---|
+| street (3 houses, a power cut, a small burst) | pass; median delivery 2 ms |
+| storm (8 houses in a line, three power cuts) | pass; posts sent during a split arrive soon after it heals |
+| bang (40 houses, everyone near the school posts within 30 s) | pass; channel 100% busy, 48,000 frame copies lost to receivers, yet every post reached its WiFi group within 1.8 s through repair |
+
+**Finding: flooded heartbeats do not scale.** With no messages at all, the 5 s
+heartbeats (flooded to every node by batman-adv) keep the channel 5% busy at
+10 houses, 10% at 20, 41% at 40 and 100% at 80 (quiet scenarios, 5 min). Spec
+section 5 needs heartbeats that stay one hop (neighbours compare and repair
+hop by hop), or a longer interval that grows with the mesh. To decide.
