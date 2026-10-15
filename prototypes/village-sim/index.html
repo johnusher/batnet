@@ -239,6 +239,27 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .ptag.high { color: #c62f2f; }
 .alertbar { margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: #c62f2f; color: #fff; font-size: 14px; }
 .alertbar b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+/* settings and scan */
+.screen.large { font-size: 118%; }
+.screen.large .ap-p, .screen.large .bubble { font-size: 17px; }
+.setrow { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--app-line); width: 100%; text-align: left; background: none; border-left: 0; border-right: 0; border-top: 0; color: var(--app-fg); font-size: 15px; }
+.setrow .main { flex: 1; min-width: 0; }
+.setrow .sub { display: block; font-size: 12.5px; color: var(--app-sub); }
+.setrow .go { color: var(--app-sub); font-size: 18px; }
+.setrow .val { color: var(--app-sub); font-size: 14px; }
+.setrow svg { width: 20px; height: 20px; flex: none; color: var(--app-accent); }
+.scanrow { padding: 10px 16px; border-bottom: 1px solid var(--app-line); display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+.scanrow .band { font-weight: 700; font-size: 14.5px; }
+.scanrow .freq { font-family: var(--f-mono); font-size: 11.5px; color: var(--app-sub); }
+.scanrow .when { font-size: 12px; color: var(--app-sub); text-align: right; }
+.scanrow .what { grid-column: 1 / -1; font-size: 13px; color: var(--app-sub); }
+.scanrow .what b { color: var(--app-fg); font-weight: 650; }
+.spark { grid-column: 1 / -1; display: flex; align-items: flex-end; gap: 2px; height: 22px; }
+.spark i { flex: 1; background: var(--app-accent); border-radius: 1px; min-height: 1px; opacity: .8; }
+.spark.lora i { background: var(--lora); }
+.spark.mesh i { background: var(--mesh); }
+.spark.quiet i { background: var(--app-line); }
+.scanhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; font-size: 13px; color: var(--app-sub); border-bottom: 1px solid var(--app-line); }
 .compose { display: flex; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--app-line); align-items: center; }
 .compose input { flex: 1; min-width: 0; border-radius: 20px; }
 .iconbtn { border: 0; background: var(--app-chip); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--app-fg); flex: none; }
@@ -372,6 +393,7 @@ const ICON = {
   people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.6 3-5.5 6-5.5s5.4 1.9 6 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.6c2.6.2 4.4 1.9 5 5.4"/></svg>',
   play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
   radio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
+  gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.7 2.3c-.8.4-1.2 1-1.2 1.9V14M12 17.2v.3"/></svg>',
   admin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 20.5l18-8.5L3 3.5l2.5 8.5zM5.5 12H13"/></svg>',
@@ -883,8 +905,9 @@ function tabBar(me) {
   const h = homeHouse();
   const isAdmin = h.admin === me.id;
   const waiting = S.signups.filter((s) => s.houseId === h.id && s.state === 'waiting').length;
-  const tabs = [['chats', 'Chats', ICON.chats], ['people', 'People', ICON.people], ['radios', 'Radios', ICON.radio], isAdmin ? ['admin', 'Admin' + (waiting ? ' · ' + waiting : ''), ICON.admin] : ['help', 'Help', ICON.help]];
-  return `<nav class="ap-tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" ${app.tab === k ? 'aria-current="page"' : ''}>${i}<span>${l}</span></button>`).join('')}</nav>`;
+  const tabs = [['chats', 'Chats', ICON.chats], ['people', 'People', ICON.people], ['radios', 'Radios', ICON.radio], ['settings', 'Settings' + (isAdmin && waiting ? ' · ' + waiting : ''), ICON.gear]];
+  const inSettings = ['settings', 'admin', 'scan', 'help'].includes(app.tab);
+  return `<nav class="ap-tabs">${tabs.map(([k, l, i]) => `<button data-tab="${k}" ${app.tab === k || (k === 'settings' && inSettings) ? 'aria-current="page"' : ''}>${i}<span>${l}</span></button>`).join('')}</nav>`;
 }
 function netSummary(me) {
   const h = homeHouse(); const cl = clusterOf(h);
@@ -1009,11 +1032,85 @@ function screenRadios(me) {
     <div class="ap-section"><span>Walkie-talkie and ham bands</span></div><p class="ap-p" style="padding:4px 16px 16px">Needs a scanner radio at a house. Coming in milestone 4: shows activity only, never what people say.</p>
   </div>${tabBar(me)}`;
 }
+function screenSettings(me) {
+  const h = homeHouse(), isAdmin = h.admin === me.id;
+  const waiting = S.signups.filter((s) => s.houseId === h.id && s.state === 'waiting').length;
+  const row = (attrs, icon, title, sub, right) => `<button class="setrow" ${attrs}>${icon || ''}<span class="main">${title}${sub ? `<span class="sub">${sub}</span>` : ''}</span>${right === undefined ? '<span class="go">›</span>' : right}</button>`;
+  return `<div class="ap-head"><h2>Settings<span class="sub">${esc(me.name)} · ${esc(h.name)} House</span></h2></div>
+  <div class="ap-body">
+    <div class="ap-section"><span>You</span></div>
+    ${row('disabled', '', esc(me.name), 'Your name as others see it', '')}
+    ${row('disabled', '', 'Change PIN', '', '')}
+    ${row('data-act="signOut"', '', 'Sign out', 'Use this on a shared phone or screen', '')}
+    <div class="ap-section"><span>Display</span></div>
+    ${row('disabled', '', 'Language', '', '<span class="val">English</span>')}
+    ${row('data-act="textSize"', '', 'Large text', '', `<span class="val">${app.large ? 'On' : 'Off'}</span>`)}
+    <div class="ap-section"><span>Radio</span></div>
+    ${row('data-tab="scan"', ICON.radio, 'Scan the air', 'Who else is using radio nearby: walkie-talkies, Meshtastic, WiFi')}
+    ${row('data-tab="radios"', ICON.radio, 'Radios nearby', 'Meshtastic nodes this house can hear')}
+    ${isAdmin ? `<div class="ap-section"><span>House admin</span></div>${row('data-tab="admin"', ICON.admin, 'Admin', 'Join requests, alerts, add a house', waiting ? `<span class="badge">${waiting}</span>` : '')}` : ''}
+    <div class="ap-section"><span>Help</span></div>
+    ${row('data-tab="help"', ICON.help, 'How batnet works', '')}
+  </div>${tabBar(me)}`;
+}
+// Scan the air (M4 preview): an RTL-SDR on the house Pi sweeps common bands and reports activity only -
+// frequency, strength, time, burst pattern and a band label. It never decodes, records or plays content (decision 0009).
+const SCAN_BANDS = [
+  { band: 'PMR446 walkie-talkies', freq: '446.0–446.2 MHz', kind: 'voice', rate: 0.22, what: 'Short FM bursts, like people talking' },
+  { band: 'Freenet walkie-talkies (DE)', freq: '149.0 MHz', kind: 'voice', rate: 0.05, what: 'FM bursts' },
+  { band: 'CB radio', freq: '26.9–27.4 MHz', kind: 'voice', rate: 0.1, what: 'AM/FM voice-like bursts' },
+  { band: 'Ham 2 m', freq: '144–146 MHz', kind: 'voice', rate: 0.12, what: 'Repeater activity, voice-like' },
+  { band: 'Ham 70 cm', freq: '430–440 MHz', kind: 'digital', rate: 0.08, what: 'Digital voice bursts (DMR-like)' },
+  { band: 'Marine VHF', freq: '156–162 MHz', kind: 'voice', rate: 0.03, what: 'Occasional FM' },
+  { band: 'LoRa 868 · Meshtastic', freq: '869.525 MHz', kind: 'lora', rate: 0, what: '' },
+  { band: 'LoRa 868 · other', freq: '868.1–868.5 MHz', kind: 'lora', rate: 0.15, what: 'LoRaWAN sensors (chirps)' },
+  { band: 'Emergency services (TETRA)', freq: '380–395 MHz', kind: 'digital', rate: 0.4, what: 'Encrypted digital, steady' },
+];
+function scanSeries(seed, rate) {
+  // 30 one-minute bins of channel activity, deterministic per band and minute
+  const nowMin = Math.floor(S.now / 60000), out = [];
+  for (let k = 29; k >= 0; k--) {
+    let x = ((nowMin - k) * 2654435761 + seed * 40503 + (app.scanSeed || 0) * 97) >>> 0;
+    x = (x ^ (x >>> 13)) * 1274126177 >>> 0;
+    const u = (x % 1000) / 1000;
+    out.push(u < rate ? 0.2 + 0.8 * ((x >>> 10) % 100) / 100 : 0);
+  }
+  return out;
+}
+function screenScan(me) {
+  const h = homeHouse();
+  const hasSdr = h.pi === 'Pi 4' || h.pi === 'Pi 5';
+  const mesh = S.nodes.filter((n) => n.lora && n !== h && n.online && Math.hypot(n.x - h.x, n.y - h.y) < sim.preset().range);
+  const meshLora = S.airLog.filter((e) => e.t > S.now - 30 * 60000).length;
+  const rows = SCAN_BANDS.map((b, i) => {
+    let series, what = b.what, kind = b.kind;
+    if (b.band.includes('Meshtastic')) {
+      const per = Array(30).fill(0);
+      for (const e of S.airLog) { const k = 29 - Math.floor((S.now - e.t) / 60000); if (k >= 0 && k < 30) per[k] = Math.min(1, per[k] + 0.35); }
+      series = per; kind = 'mesh';
+      what = `<b>${mesh.length} radios</b> heard directly · ${meshLora} packets in 30 min (batnet and Meshtastic)`;
+    } else series = scanSeries(i + 1, b.rate);
+    const busy = series.filter((v) => v > 0).length;
+    const lastK = series.lastIndexOf(series.slice().reverse().find((v) => v > 0));
+    const when = busy ? (lastK === 29 ? 'now' : (29 - lastK) + ' min ago') : 'quiet';
+    if (!b.band.includes('Meshtastic')) what = busy ? `<b>${b.what}</b> · busy ${Math.round(busy / 30 * 100)}% of the last 30 min` : 'Nothing heard in 30 min';
+    return `<div class="scanrow"><span class="band">${b.band}</span><span class="when">${when}</span><span class="freq">${b.freq}</span><span></span><div class="spark ${busy ? kind : 'quiet'}" aria-hidden="true">${series.map((v) => `<i style="height:${Math.round(2 + v * 20)}px"></i>`).join('')}</div><span class="what">${what}</span></div>`;
+  }).join('');
+  const wifiNets = [`batnet mesh · ${S.houses.filter((x) => x.online && x.cluster === h.cluster).length} houses`, 'Open hotspot "batnet · ' + (S.houses.find((x) => x !== h && x.cluster === h.cluster) || h).name + '"', 'FRITZ!Box 7590 (private, weak)', 'Mesh network "Freifunk" (802.11s)'];
+  return `<div class="ap-head"><button class="ap-back" data-tab="settings" aria-label="Back">‹</button><h2>Scan the air<span class="sub">Activity only. Never what's said.</span></h2></div>
+  <div class="ap-body">
+    <div class="scanhead"><span>${hasSdr ? 'Receiver: RTL-SDR v4 on USB · last 30 minutes' : 'Needs a USB radio receiver (RTL-SDR v4, about €35) on a Pi 4 or 5. Showing a preview.'}</span><button class="readaloud" data-act="rescan">Sweep again</button></div>
+    ${rows}
+    <div class="ap-section"><span>WiFi in range</span></div>
+    ${wifiNets.map((w) => `<div class="setrow" style="cursor:default"><span class="main">${esc(w)}</span></div>`).join('')}
+    <p class="ap-p" style="padding:12px 16px 18px;font-size:13px">batnet only shows that a band is in use. It never records or plays what people say: listening to other people's radio is restricted in many countries, including Germany. Arrives with the scanner in milestone 4.</p>
+  </div>${tabBar(me)}`;
+}
 function screenAdmin(me) {
   const h = homeHouse();
   const reqs = S.signups.filter((s) => s.houseId === h.id && s.name);
   const rows = reqs.slice(-12).reverse().map((s) => `<div class="ap-row"><span class="av">${initials(s.name)}</span><span class="main"><span class="title"><span>${esc(s.name)}</span><time>${hhmm(s.t)}</time></span><span class="last">${s.state === 'waiting' ? 'Asked to join' : s.state === 'approved' ? 'Approved' : 'Declined'}</span></span>${s.state === 'waiting' ? `<span style="display:flex;gap:6px"><button class="iconbtn" data-deny="${s.id}" aria-label="Decline">✕</button><button class="iconbtn go" data-approve="${s.id}" aria-label="Approve">✓</button></span>` : ''}</div>`).join('');
-  return `<div class="ap-head"><h2>Admin<span class="sub">${esc(h.name)} House · ${h.people.length} accounts</span></h2></div>
+  return `<div class="ap-head"><button class="ap-back" data-tab="settings" aria-label="Back">‹</button><h2>Admin<span class="sub">${esc(h.name)} House · ${h.people.length} accounts</span></h2></div>
   <div class="ap-body"><div class="ap-section"><span>Join requests</span></div>${rows || '<p class="ap-p" style="padding:4px 16px">No requests yet.</p>'}
   <div class="ap-section"><span>Alert everyone</span></div>
   <div class="ap-pad" style="padding-top:4px"><p class="ap-p">For emergencies only. It goes ahead of everything else, over WiFi and the radio, and shows at the top of every phone.</p>
@@ -1058,8 +1155,11 @@ function renderPhone(force) {
   else if (app.tab === 'people') html = screenPeople(me);
   else if (app.tab === 'radios') html = screenRadios(me);
   else if (app.tab === 'admin') html = screenAdmin(me);
+  else if (app.tab === 'settings') html = screenSettings(me);
+  else if (app.tab === 'scan') html = screenScan(me);
   else if (app.tab === 'help') html = screenHelp(me) + tabBar(me);
   else html = screenChats(me);
+  scr.classList.toggle('large', !!app.large);
   scr.innerHTML = html;
   const nl = $('#msglist');
   if (nl && (atBottom || force)) nl.scrollTop = nl.scrollHeight;
@@ -1085,7 +1185,10 @@ $('#screen').addEventListener('click', (e) => {
     if (a === 'toSignup') app.screen = 'signup';
     if (a === 'toLogin') { const h = homeHouse(); setPersona(h.people[0]); return; }
     if (a === 'toHelp') app.screen = 'help';
-    if (a === 'toApp') { app.conv = null; app.tab = app.tab === 'help' ? 'chats' : app.tab; app.screen = 'app'; }
+    if (a === 'toApp') { app.conv = null; app.tab = app.tab === 'help' ? 'settings' : app.tab; app.screen = 'app'; }
+    if (a === 'signOut') { app.persona = { visitor: true, houseId: homeHouse().id }; app.screen = 'landing'; app.tab = 'chats'; fillPersonas(); }
+    if (a === 'textSize') app.large = !app.large;
+    if (a === 'rescan') app.scanSeed = (app.scanSeed || 0) + 1;
     if (a === 'toAdminView') { setPersona(homeHouse().admin); app.tab = 'admin'; renderPhone(true); return; }
     if (a === 'enterApproved') { const s = S.signups.find((x) => x.id === app.persona.signupId); const pid = homeHouse().people.find((id) => S.personById.get(id).name === s.name.split(' ')[0]); if (pid) { fillPersonas(); setPersona(pid); } return; }
     if (a === 'call' && me) { app.calling = app.conv.slice(3); }

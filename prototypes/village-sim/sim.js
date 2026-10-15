@@ -27,7 +27,8 @@
   const LORA_TEXT_MAX = 600;
 
   const SURNAMES = ['Miller', 'Fern', 'Okafor', 'Novak', 'Haddad', 'Brandt', 'Kowalski', 'Moreau', 'Lindqvist', 'Santos', 'Petrov', 'Weber', 'Osei', 'Tanaka', 'Rossi', 'Byrne', 'Hoffmann', 'Dubois', 'Varga', 'Nakamura', 'Costa', 'Jensen', 'Ahmed', 'Kaya', 'Schulz', 'Marino', 'Silva', 'Horvat', 'Keller', 'Ivanov', 'Murphy', 'Larsen', 'Bauer', 'Nowak', 'Popescu', 'Yilmaz', 'Garcia', 'Berg', 'Kuznets', 'Romano', 'Fischer', 'Mendes', 'Olsen', 'Wolf', 'Dimitrov', 'Abbasi', 'Walsh', 'Engel', 'Sato', 'Navarro', 'Holm', 'Richter', 'Lopez', 'Kerr', 'Vogel', 'Pires', 'Aalto', 'Barros', 'Stein', 'Quinn'];
-  const FIRST = ['Anna', 'Bob', 'Chidi', 'Dana', 'Elif', 'Farid', 'Greta', 'Hugo', 'Ines', 'Jonas', 'Kemi', 'Lena', 'Marek', 'Nora', 'Omar', 'Pia', 'Quentin', 'Rosa', 'Sami', 'Tess', 'Uwe', 'Vera', 'Wim', 'Xenia', 'Yusuf', 'Zoe', 'Ada', 'Ben', 'Clara', 'Dev', 'Emil', 'Fatima', 'Gus', 'Hana', 'Ivo', 'Jade', 'Karl', 'Lior', 'Mina', 'Nils', 'Olga', 'Pavel', 'Rania', 'Sven', 'Tara', 'Viktor', 'Wen', 'Yara', 'Zack', 'Maja', 'Theo', 'Lucia', 'Arne', 'Selin', 'Mateo', 'Iris', 'Kofi', 'Ruth', 'Leo', 'Amira'];
+  // the first ten from Hitchcock films, then Bond villains and British prime ministers, alternating
+  const FIRST = ['Norman Bates', 'Marion Crane', 'Scottie Ferguson', 'Madeleine Elster', 'Roger Thornhill', 'Eve Kendall', 'L.B. Jefferies', 'Lisa Fremont', 'Mrs Danvers', 'Melanie Daniels', 'Auric Goldfinger', 'Robert Walpole', 'Ernst Blofeld', 'William Pitt', 'Dr. No', 'Robert Peel', 'Rosa Klebb', 'Benjamin Disraeli', 'Emilio Largo', 'William Gladstone', 'Red Grant', 'Lord Salisbury', 'Scaramanga', 'Arthur Balfour', 'Oddjob', 'Herbert Asquith', 'Karl Stromberg', 'Lloyd George', 'Jaws', 'Stanley Baldwin', 'Hugo Drax', 'Ramsay MacDonald', 'Kamal Khan', 'Neville Chamberlain', 'Max Zorin', 'Winston Churchill', 'Franz Sanchez', 'Clement Attlee', 'Alec Trevelyan', 'Anthony Eden', 'Xenia Onatopp', 'Harold Macmillan', 'Elliot Carver', 'Harold Wilson', 'Elektra King', 'Edward Heath', 'Renard', 'James Callaghan', 'Gustav Graves', 'Margaret Thatcher', 'Le Chiffre', 'John Major', 'Dominic Greene', 'Tony Blair', 'Raoul Silva', 'Gordon Brown', 'Mr. Big', 'Theresa May', 'Lyutsifer Safin', 'Keir Starmer'];
   const GROUPS = [
     { id: 'g:medical', name: 'Medical' },
     { id: 'g:food', name: 'Food' },
@@ -279,7 +280,7 @@
       const text = m.text.length > LORA_TEXT_MAX ? m.text.slice(0, LORA_TEXT_MAX) : m.text;
       const truncated = m.text.length > LORA_TEXT_MAX;
       let bytes;
-      if (m.kind === 'everyone' || m.kind === 'public') bytes = 18 + text.length; // plain Meshtastic text "Anna·Miller: ..."
+      if (m.kind === 'everyone' || m.kind === 'public') bytes = 18 + text.length; // plain Meshtastic text "Norman Bates·Miller: ..."
       else bytes = 12 + Math.ceil(text.length * 0.65); // compact envelope + compressed text
       const frags = Math.ceil(bytes / FRAG_MAX);
       let dur = 0;
@@ -496,7 +497,7 @@
     // sign-up requests for the admins
     function signupLoop() {
       const h = pick(S.houses.filter((x) => x.online));
-      if (h) S.signups.push({ id: 's' + S.signups.length, houseId: h.id, name: pick(FIRST) + ' ' + pick(SURNAMES).charAt(0) + '.', t: S.now, state: 'waiting' });
+      if (h) S.signups.push({ id: 's' + S.signups.length, houseId: h.id, name: pick(FIRST), auto: true, t: S.now, state: 'waiting' });
       schedule(S.now + expo(1 / (40 * MIN)), signupLoop);
     }
 
@@ -587,7 +588,7 @@
       const s = S.signups.find((x) => x.id === signupId);
       if (!s || s.state !== 'waiting') return null;
       s.state = accept ? 'approved' : 'declined';
-      if (accept) return addPerson(nodeById.get(s.houseId), s.name.split(' ')[0]);
+      if (accept) return addPerson(nodeById.get(s.houseId), s.auto ? s.name : s.name.split(' ')[0]);
       return null;
     }
 
