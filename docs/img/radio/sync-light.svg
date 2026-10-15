@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="316" viewBox="0 0 900 316" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>Rising chirps shift up and falling chirps shift down when the receiver's window is late, which separates timing from crystal error</title>
+<rect width="100%" height="100%" rx="10" fill="#ffffff"/>
+<text x="450.0" y="30.0" font-size="17" fill="#1f2328" text-anchor="middle" font-weight="bold">Finding the start: rising and falling chirps shift opposite ways</text>
+<rect x="50.0" y="60.0" width="380.0" height="150.0" rx="6" fill="#f6f8fa" fill-opacity="1"/>
+<line x1="50.0" y1="210.0" x2="240.0" y2="60.0" stroke="#59636e" stroke-width="2.2"/>
+<line x1="240.0" y1="210.0" x2="430.0" y2="60.0" stroke="#59636e" stroke-width="2.2"/>
+<rect x="91.8" y="56" width="190.0" height="158" fill="none" stroke="#d9480f" stroke-width="1.6" stroke-dasharray="5 4" rx="3"/>
+<text x="186.8" y="232.0" font-size="11" fill="#d9480f" text-anchor="middle" font-weight="normal">the receiver's window, a little late</text>
+<text x="240.0" y="254.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="bold">Rising: a late window sees the chirp higher up</text>
+<text x="240.0" y="270.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="normal">→ the peak moves UP by the delay</text>
+<rect x="470.0" y="60.0" width="380.0" height="150.0" rx="6" fill="#f6f8fa" fill-opacity="1"/>
+<line x1="470.0" y1="60.0" x2="660.0" y2="210.0" stroke="#0969da" stroke-width="2.2"/>
+<line x1="660.0" y1="60.0" x2="850.0" y2="210.0" stroke="#0969da" stroke-width="2.2"/>
+<rect x="511.8" y="56" width="190.0" height="158" fill="none" stroke="#d9480f" stroke-width="1.6" stroke-dasharray="5 4" rx="3"/>
+<text x="606.8" y="232.0" font-size="11" fill="#d9480f" text-anchor="middle" font-weight="normal">the receiver's window, a little late</text>
+<text x="660.0" y="254.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="bold">Falling: a late window sees the chirp lower down</text>
+<text x="660.0" y="270.0" font-size="12" fill="#1f2328" text-anchor="middle" font-weight="normal">→ the peak moves DOWN by the delay</text>
+<text x="450.0" y="304.0" font-size="11" fill="#59636e" text-anchor="middle" font-weight="normal" font-style="italic">A crystal that is off moves both peaks UP. Rising gives delay + crystal; falling gives crystal − delay: two sums, two unknowns.</text>
+</svg>

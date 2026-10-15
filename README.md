@@ -489,6 +489,111 @@ limit gives each radio 360 s an hour. Every repeat costs airtime again.
 * Quarter wave at 869.5 MHz: 299.8 / 869.5 / 4 = 8.6 cm; cut the radiator a
   little shorter (about 8.2 cm) for end effect, then trim against a NanoVNA.
 
+#### How a receiver reads a chirp
+
+If the data is where a chirp starts, why not just send a beep at that
+frequency? Against plain noise a beep would do about as well. In fact, the
+receiver turns every chirp back into a beep before reading it. The slide is
+there for everything else that goes wrong on a real radio: interference,
+echoes and cheap crystals. Here's how.
+
+To keep the numbers simple, measure frequencies from the bottom of the
+channel, so it runs from 0 to 250 kHz. On LongFast a chirp climbs about
+**30.5 kHz every millisecond**, and the 2,048 possible starting points are
+**122 Hz apart**. The value 500 starts 500 × 122 Hz = **61 kHz** up.
+
+![The wanted chirp times a falling chirp gives a steady 61 kHz tone, and an FFT lights one detector; a steady interfering beep times the same falling chirp becomes a falling chirp that the FFT spreads over all detectors](docs/img/radio/dechirp-light.svg#gh-light-mode-only)
+![The wanted chirp times a falling chirp gives a steady 61 kHz tone, and an FFT lights one detector; a steady interfering beep times the same falling chirp becomes a falling chirp that the FFT spreads over all detectors](docs/img/radio/dechirp-dark.svg#gh-dark-mode-only)
+
+**Step 1: multiply by a falling chirp, and the slide disappears.** Multiplying
+two signals (what radio people call mixing) gives a tone at the difference
+between them. Musicians hear this when two notes slightly out of tune make a
+slow wobble. The receiver makes its own chirp that falls 30.5 kHz every
+millisecond, the exact opposite of the incoming one, and mixes the two:
+
+| Time | Incoming chirp | Receiver's falling chirp | What's left |
+|---|---|---|---|
+| 0 ms | 61 kHz | 0 kHz | **61 kHz** |
+| 2 ms | 122 kHz | −61 kHz | **61 kHz** |
+| 4 ms | 183 kHz | −122 kHz | **61 kHz** |
+| 6 ms | 244 kHz | −183 kHz | **61 kHz** |
+
+The slide cancels out. What's left is a **steady 61 kHz tone** for the whole
+symbol: the chirp has become a beep, and where it started is now its pitch.
+
+<sub>The wrap at the top doesn't break this. After about 6.2 ms the chirp
+jumps from 250 kHz back to 0, so the leftover tone jumps by exactly 250 kHz.
+The receiver takes exactly 250,000 samples a second, and at that rate a jump of
+exactly 250 kHz is invisible, like a wheel that turns one whole turn between
+film frames and seems to stand still.</sub>
+
+**Step 2: 2,048 narrow detectors, each listening to the whole symbol.**
+During one symbol the receiver takes 2,048 samples (250,000 a second ×
+8.192 ms). A Fourier transform (the fast version, the **FFT**) asks of those
+samples 2,048 questions at once: how much 0 Hz is there, how much 122 Hz, how
+much 244 Hz, and so on. It's like shouting a note into a piano with the
+sustain pedal down: only the string tuned to that note keeps ringing.
+Detector 500 lights up, and the value is 500.
+
+**Why it works below the noise.** In the right detector, all 2,048 samples
+of the tone line up and add: the tone grows 2,048 times. Noise is random, so
+its samples partly cancel and it grows only about √2,048 ≈ 45 times. The right
+detector stands out by a factor of 2,048 in power, about **33 dB**. A LongFast
+signal 17.5 dB *below* the noise (about the limit Semtech gives for spreading
+factor 11) stands about 15 dB *above* the noise in its own detector.
+
+**Why not watch one frequency and time when the chirp passes?** Each chirp
+crosses every frequency once, so in principle one detector and a stopwatch
+could decode it. But a detector parked on one frequency hears the chirp for
+only a moment, so it collects a sliver of its energy: fine for a loud signal,
+useless below the noise. And telling 2,048 values apart means timing the
+crossing to about 4 millionths of a second. To react that fast, a detector
+has to listen about 250 kHz wide, which is the whole channel. Step 1 avoids
+both problems by turning *when* into *what pitch*, so each detector can
+listen narrow and long.
+
+**The bonus: interference gets scattered.** A steady beep from another
+gadget goes through the same multiplication and comes out as a falling chirp
+(the bottom row above). A chirp isn't one pitch, so the FFT spreads its
+energy thinly over all 2,048 detectors: it raises each one a little and
+swamps none. The same step that gathers the wanted chirp into one detector
+scatters the interferer across all of them. Echoes are separated the same
+way: a late copy of the chirp has already slid on, so it lands in a
+neighbouring detector instead of cancelling the direct signal.
+
+**Finding the start.** The receiver has to line its 8.2 ms window up with the
+chirps, but it doesn't have to catch the start precisely first:
+
+* **A late window just looks like a different value.** On a chirp, *later*
+  and *higher* are the same thing. A window 10 samples late puts every peak
+  10 detectors up. Once the receiver knows the "10", it subtracts it.
+* **The preamble finds it without any timing.** The message starts with a
+  run of identical rising chirps carrying the value 0. Any 2,048-sample window
+  laid over a run of identical chirps holds exactly one full turn of the
+  sweep, wherever it starts. So the receiver cuts the air into windows blindly
+  and watches for several in a row that peak in the same detector: a message
+  is coming. If they peak in detector 10, its window is 10 samples late.
+* **The falling chirps separate timing from a cheap crystal.** A crystal that
+  is slightly off also shifts the peak, because a higher frequency looks like
+  a higher value. So "detector 10" could be lateness, crystal error, or both.
+  The two falling chirps in the start mark settle it: lateness moves their
+  peak *down* while crystal error still moves it *up*. Rising chirps measure
+  lateness + crystal, falling chirps measure crystal − lateness: two sums,
+  two unknowns.
+
+![Rising chirps seen through a late window peak higher; falling chirps seen through the same late window peak lower](docs/img/radio/sync-light.svg#gh-light-mode-only)
+![Rising chirps seen through a late window peak higher; falling chirps seen through the same late window peak lower](docs/img/radio/sync-dark.svg#gh-dark-mode-only)
+
+After that the receiver is within a fraction of a sample. What's left splits
+the peak between two neighbouring detectors and costs a few dB at worst; the
+chip trims it by comparing the two, and keeps tracking drift through a long
+message.
+
+**What it costs.** Run one by one, 2,048 detectors over 2,048 samples would
+take about 4 million multiplications per symbol. The FFT does it in about
+2,048 × 11 ≈ 22,500 steps, small enough for a cheap radio chip to manage every
+8 ms.
+
 **Listening.** An RTL-SDR tuned to 869.525 MHz shows Meshtastic traffic on a
 waterfall. Watching activity is fine. Some countries, Germany included,
 restrict recording or passing on the content of transmissions not meant for

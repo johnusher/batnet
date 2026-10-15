@@ -57,6 +57,7 @@ sources:
 * Preamble 16 symbols (LoRa's default is 8) and sync word `0x2b`.[^mesh-fw] So the preamble alone is ~165 ms.
 * Airtime by the LoRa formula (explicit header, CRC, no low-data-rate optimisation): 60 B ≈ 0.68 s, 100 B ≈ 1.0 s, 150 B ≈ 1.38 s. This supersedes the ~1.2 s for 150 B in [LoRa airtime](/research/lora-airtime-eu868.md), which left out the longer preamble.
 * Managed flooding: a node that hears a new packet waits a contention window scaled by SNR, low SNR (far away) shortest, and drops its repeat if it hears another node repeat first.[^mesh-fw] Hop limit 3 by default, 7 at most.[^mesh-lora]
+* Decoding: the receiver multiplies by a falling chirp (dechirp), turning each symbol into a steady tone whose bin is the value, then runs a 2^SF-point FFT over 2^SF samples at the bandwidth's sample rate. Processing gain 10·log10(2^SF): 33 dB at SF11. A time offset and a frequency offset both shift the bin; up-chirps give time + frequency, the sync's down-chirps give frequency − time, which separates them. Semtech's datasheets give a demodulation floor of about −17.5 dB SNR at SF11 (from memory, not opened here). Explained in the README's hobbyist section with `dechirp` and `sync` diagrams.
 * Sensitivity at 125 kHz runs from −123 dBm (SF7) to −137 dBm (SF12); each SF step halves the rate.[^ttn-sf]
 
 # Power, ERP and antennas

@@ -430,8 +430,117 @@ def waterfall(theme):
     s.save("waterfall", theme, "Illustrated waterfall of 867.8-870 MHz: LoRaWAN sensors, meters, an alarm and Meshtastic bursts sharing the band")
 
 
+def dechirp(theme):
+    """How a receiver reads a chirp: multiply by a falling chirp, then an FFT. Top: the wanted
+    chirp collapses into one detector. Bottom: a steady interfering beep is scattered."""
+    t = THEMES[theme]
+    s = SVG(900, 470, t)
+    s.text(450, 30, "How a receiver reads a chirp: multiply by a falling chirp, then sort by pitch", 17,
+           anchor="middle", weight="bold")
+    cols = (40, 260, 480, 700)
+    pw, ph = 170, 120
+    v = 61 / 250  # value 500 starts 61 kHz up the 250 kHz channel
+
+    def frame(x, y):
+        s.rect(x, y, pw, ph, "panel", rx=6)
+
+    def ln(x, y, a, b, c, d, col, w=2.2, dash=None):  # a,b,c,d in 0..1 panel units, b/d from the bottom
+        s.line(x + a * pw, y + ph - b * ph, x + c * pw, y + ph - d * ph, col, w, dash)
+
+    def rising(x, y, start, col):
+        xs = 1 - start
+        ln(x, y, 0, start, xs, 1, col)
+        ln(x, y, xs, 1, xs, 0, col, 0.8, "2 3")
+        ln(x, y, xs, 0, 1, start, col)
+
+    def falling(x, y, start, col):
+        ln(x, y, 0, start, start, 0, col)
+        if start < 1:
+            ln(x, y, start, 0, start, 1, col, 0.8, "2 3")
+            ln(x, y, start, 1, 1, start, col)
+
+    def bars(x, y, spike, floor, col, seed):
+        rnd = random.Random(seed)
+        n = 48
+        bw = pw / n
+        for i in range(n):
+            hgt = floor + rnd.uniform(0, 0.08)
+            if spike is not None and i == spike:
+                hgt = 0.92
+            s.rect(x + i * bw + 0.5, y + ph - hgt * ph, bw - 1, hgt * ph,
+                   "hot" if spike is not None and i == spike else col, opacity=0.9)
+
+    def ops(y):
+        for cx, sym in ((235, "×"), (455, "="), (675, "FFT")):
+            s.text(cx, y + ph / 2 + 6, sym, 20 if sym != "FFT" else 13, "fg", "middle", "bold")
+
+    rows = ((70, "The wanted chirp (value 500, starting at 61 kHz)"),
+            (270, "A steady beep from another gadget"))
+    for y, title in rows:
+        s.text(cols[0], y - 10, title, 13, "fg", weight="bold")
+        for x in cols:
+            frame(x, y)
+        ops(y)
+    # top row
+    y = 70
+    rising(cols[0], y, v, "hot")
+    falling(cols[1], y, 1.0, "wifi")
+    ln(cols[2], y, 0, v, 1, v, "hot", 3)
+    s.text(cols[2] + pw - 6, y + ph - v * ph - 8, "61 kHz, steady", 11, "hot", "end")
+    bars(cols[3], y, 12, 0.05, "faint", 1)
+    s.text(cols[3] + 12.5 * pw / 48 + 6, y + 16, "detector 500 lights up", 11, "hot")
+    labels = ("what arrives", "the receiver's own falling chirp", "the slide cancels: one beep", "2,048 detectors, one lit")
+    for x, lab in zip(cols, labels):
+        s.text(x + pw / 2, y + ph + 18, lab, 11, "muted", "middle")
+    # bottom row
+    y = 270
+    b = 180 / 250
+    ln(cols[0], y, 0, b, 1, b, "alarm", 3)
+    falling(cols[1], y, 1.0, "wifi")
+    falling(cols[2], y, b, "alarm")
+    bars(cols[3], y, None, 0.16, "alarm", 2)
+    labels = ("a beep at 180 kHz", "the same falling chirp", "the beep becomes a falling chirp", "spread thinly over all of them")
+    for x, lab in zip(cols, labels):
+        s.text(x + pw / 2, y + ph + 18, lab, 11, "muted", "middle")
+    s.text(450, 446, "Each panel: frequency up the side (0 to 250 kHz across the channel), time along the bottom (one 8.2 ms symbol).",
+           11, "muted", "middle", italic=True)
+    s.text(450, 462, "The FFT panels show detectors by pitch, drawn as 48 bars instead of 2,048.", 11, "muted", "middle", italic=True)
+    s.save("dechirp", theme, "A receiver multiplies the incoming chirp by a falling chirp to get a steady tone, then an FFT lights one detector; an interfering beep is spread over all detectors")
+
+
+def sync(theme):
+    """Finding the timing and the crystal error: rising chirps shift one way, falling chirps the other."""
+    t = THEMES[theme]
+    s = SVG(900, 316, t)
+    s.text(450, 30, "Finding the start: rising and falling chirps shift opposite ways", 17, anchor="middle", weight="bold")
+    pw, ph = 380, 150
+    for i, (x, kind, col) in enumerate(((50, "rising", "muted"), (470, "falling", "wifi"))):
+        y = 60
+        s.rect(x, y, pw, ph, "panel", rx=6)
+        # the true chirp, and the receiver's window drawn late by a quarter of a symbol
+        T = 0.22
+        for k in range(2):
+            x0 = x + k * pw / 2
+            if kind == "rising":
+                s.line(x0, y + ph, x0 + pw / 2, y, col, 2.2)
+            else:
+                s.line(x0, y, x0 + pw / 2, y + ph, col, 2.2)
+        wx = x + T * pw / 2
+        s.add(f'<rect x="{wx:.1f}" y="{y - 4}" width="{pw / 2:.1f}" height="{ph + 8}" fill="none" '
+              f'stroke="{t["hot"]}" stroke-width="1.6" stroke-dasharray="5 4" rx="3"/>')
+        s.text(wx + pw / 4, y + ph + 22, "the receiver's window, a little late", 11, "hot", "middle")
+        what = ("Rising: a late window sees the chirp higher up", "→ the peak moves UP by the delay")
+        if kind == "falling":
+            what = ("Falling: a late window sees the chirp lower down", "→ the peak moves DOWN by the delay")
+        s.text(x + pw / 2, y + ph + 44, what[0], 12, "fg", "middle", "bold")
+        s.text(x + pw / 2, y + ph + 60, what[1], 12, "fg", "middle")
+    s.text(450, 304, "A crystal that is off moves both peaks UP. Rising gives delay + crystal; falling gives crystal − delay: two sums, two unknowns.",
+           11, "muted", "middle", italic=True)
+    s.save("sync", theme, "Rising chirps shift up and falling chirps shift down when the receiver's window is late, which separates timing from crystal error")
+
+
 if __name__ == "__main__":
     for th in THEMES:
-        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall):
+        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync):
             draw(th)
     print("wrote", sorted(f for f in os.listdir(HERE) if f.endswith(".svg")))
