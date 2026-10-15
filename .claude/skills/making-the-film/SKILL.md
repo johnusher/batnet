@@ -21,9 +21,13 @@ video editor. Read `video/README.md` first.
    that matter (a bubble, the bang, the dust front).
 3. **Preview** in a browser with sound: `python3 video/render.py --preview`.
 4. **Final**: `python3 video/render.py` (1080p, 30 fps, Multilingual v2).
-5. **Publish**: the MP4 is a GitHub release asset, never a file in the repo:
-   `gh release upload film-v1 video/out/batnet.mp4 --clobber`, or a new tag for a
-   new cut (`film-v2`), and update the link in the README.
+5. **Publish**: the MP4 lives on the `film` branch of the repo (one file,
+   no history worth keeping: `git checkout film && cp video/out/batnet.mp4 . &&
+   git commit -am "cut N" && git push`), linked from the README as
+   `https://github.com/johnusher/batnet/raw/film/batnet.mp4`. Never on `main`.
+   A GitHub release (`gh release create film-vN video/out/batnet.mp4`) is the
+   better home once the `gh` token has "Contents: write" on the repo; the
+   fine-grained token of 2026-10-15 got HTTP 403 creating one.
 
 ## Rules
 
