@@ -121,16 +121,21 @@ func checkDelivered(v *Village, group map[string]int, within int64) CheckResult 
 				if example == "" {
 					example = fmt.Sprintf("%q from %s never reached %s", p.Text, p.House, n.Name)
 				}
-			case within > 0 && n.PoweredAll && at-p.Created > within:
-				late++
-				if example == "" {
-					example = fmt.Sprintf("%q from %s reached %s after %.1f s", p.Text, p.House, n.Name, float64(at-p.Created)/float64(Second))
+			case within > 0:
+				// count from when sender and receiver were connected, so a
+				// split that heals is judged on how fast the house catches up
+				from, ok := v.ConnectedFrom(p.House, n.Name, p.Created)
+				if ok && at-from > within {
+					late++
+					if example == "" {
+						example = fmt.Sprintf("%q from %s reached %s %.1f s after they were connected", p.Text, p.House, n.Name, float64(at-from)/float64(Second))
+					}
 				}
 			}
 		}
 	}
 	res := CheckResult{Kind: "delivered", Pass: missing == 0 && late == 0}
-	res.Detail = fmt.Sprintf("%d missing, %d late (limit %s)", missing, late, fmtDur(within))
+	res.Detail = fmt.Sprintf("%d missing, %d late (limit %s, counted from when sender and house were connected)", missing, late, fmtDur(within))
 	if example != "" {
 		res.Detail += "; e.g. " + example
 	}

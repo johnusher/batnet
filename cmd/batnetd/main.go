@@ -11,6 +11,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/johnusher/batnet/internal/hlc"
@@ -18,6 +19,7 @@ import (
 	"github.com/johnusher/batnet/internal/meshsync"
 	"github.com/johnusher/batnet/internal/mock"
 	"github.com/johnusher/batnet/internal/seal"
+	"github.com/johnusher/batnet/internal/sim"
 )
 
 var houseNames = []string{"Miller", "Fern", "Okafor", "Novak", "Haddad", "Brandt", "Kowalski", "Moreau", "Lindqvist", "Santos"}
@@ -32,7 +34,11 @@ func main() {
 	houses := flag.Int("mock", 0, "run a mock village with this many houses in a line")
 	loss := flag.Float64("loss", 0, "chance a broadcast misses each house (0-1)")
 	dur := flag.Duration("for", 15*time.Second, "how long the mock village runs")
+	simFiles := flag.Bool("sim", false, "run the scenario files given as arguments and judge them")
 	flag.Parse()
+	if *simFiles {
+		os.Exit(runScenarios(flag.Args()))
+	}
 	if *houses < 2 {
 		fmt.Fprintln(os.Stderr, "usage: batnetd -mock N [-loss 0.3] [-for 20s]   (N >= 2)")
 		fmt.Fprintln(os.Stderr, "Real radios arrive in plan 4 of milestone 1.")
@@ -115,4 +121,40 @@ func runMock(n int, loss float64, dur time.Duration) error {
 			nd.sync.Publish(e)
 		}
 	}
+}
+
+// runScenarios runs each scenario file and prints its report; 1 if any fails.
+func runScenarios(paths []string) int {
+	if len(paths) == 0 {
+		fmt.Fprintln(os.Stderr, "usage: batnetd -sim scenarios/bang.json [more.json ...]")
+		return 2
+	}
+	status := 0
+	for _, p := range paths {
+		if filepath.Base(p) == "index.json" {
+			continue // the simulator page's list of scenarios, not a scenario
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 2
+		}
+		sc, err := sim.LoadScenario(b)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", p, err)
+			return 2
+		}
+		t0 := time.Now()
+		r, _, err := sim.Run(sc)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", p, err)
+			return 2
+		}
+		fmt.Print(r)
+		fmt.Printf("      (%s simulated in %s)\n\n", time.Duration(sc.Duration)*time.Microsecond, time.Since(t0).Round(time.Millisecond))
+		if !r.Pass {
+			status = 1
+		}
+	}
+	return status
 }

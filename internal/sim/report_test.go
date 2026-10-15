@@ -42,3 +42,29 @@ func TestRunTwiceSameReport(t *testing.T) {
 		t.Fatalf("two runs differ:\n%s\n---\n%s", a, b)
 	}
 }
+
+// A post sent while the street was split counts from the moment sender and
+// receiver are connected again, not from when it was sent.
+func TestDeliveredCountsFromReconnection(t *testing.T) {
+	sc, err := LoadScenario([]byte(`{"name":"split","seed":1,"duration":"5m",
+	  "houses":[{"name":"A","x":0,"y":0,"pi":"Pi 4","wifi":"dongle"},
+	            {"name":"B","x":300,"y":0,"pi":"Pi 4","wifi":"dongle"},
+	            {"name":"C","x":600,"y":0,"pi":"Pi 4","wifi":"dongle"}],
+	  "events":[{"at":"10s","kind":"power","house":"B","on":false,"for":"2m"},
+	            {"at":"20s","kind":"post","house":"A","text":"during the split"}],
+	  "checks":[{"kind":"delivered","within":"30s"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, v, err := Run(sc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := v.Posts[0].Arrived["C"]
+	if at < 130*Second {
+		t.Fatalf("C got the post at %d µs, before B (the only path) was back", at)
+	}
+	if !r.Pass {
+		t.Fatalf("a post that arrived soon after the split healed was judged late:\n%s", r)
+	}
+}

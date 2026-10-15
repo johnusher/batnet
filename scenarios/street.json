@@ -1,0 +1,72 @@
+{
+  "name": "street",
+  "seed": 3,
+  "duration": "10m",
+  "start": "20:00",
+  "houses": [
+    {
+      "name": "Miller",
+      "x": 0,
+      "y": 0,
+      "pi": "Pi 4",
+      "wifi": "dongle",
+      "people": 3
+    },
+    {
+      "name": "Fern",
+      "x": 250,
+      "y": 0,
+      "pi": "Pi 4",
+      "wifi": "dongle",
+      "people": 2
+    },
+    {
+      "name": "Okafor",
+      "x": 500,
+      "y": 0,
+      "pi": "Pi 5",
+      "wifi": "dongle",
+      "people": 4
+    }
+  ],
+  "traffic": {
+    "perPersonPerHour": 6
+  },
+  "events": [
+    {
+      "at": "1m",
+      "kind": "post",
+      "house": "Fern",
+      "text": "Bread at the bakery",
+      "prio": 8
+    },
+    {
+      "at": "2m",
+      "kind": "power",
+      "house": "Okafor",
+      "on": false,
+      "for": "3m"
+    },
+    {
+      "at": "6m",
+      "kind": "burst",
+      "near": {
+        "x": 250,
+        "y": 0,
+        "r": 400
+      },
+      "within": "30s",
+      "text": "Did you hear that bang?"
+    }
+  ],
+  "checks": [
+    {
+      "kind": "converged"
+    },
+    {
+      "kind": "delivered",
+      "within": "2m"
+    }
+  ],
+  "about": "Three houses on a street with WiFi dongles: chatter, an urgent post, a power cut, and a bang that everyone answers."
+}

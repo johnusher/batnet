@@ -1,0 +1,17 @@
+{
+  "name": "bang",
+  "about": "40 houses in 4 hamlets. At 20:05 everyone within 700 m of the school hears a bang and posts within 30 seconds, on top of normal chatter.",
+  "seed": 11,
+  "duration": "20m",
+  "start": "20:00",
+  "generate": {"houses": 40, "hamlets": 4, "width": 1800, "height": 1200, "spread": 160, "dongleShare": 0.7, "maxPeople": 6},
+  "relays": [
+    {"name": "Relay north", "x": 900, "y": 350, "pi": "Zero 2 W", "wifi": "pole"},
+    {"name": "Relay south", "x": 900, "y": 850, "pi": "Zero 2 W", "wifi": "pole"}
+  ],
+  "traffic": {"perPersonPerHour": 3},
+  "events": [
+    {"at": "5m", "kind": "burst", "near": {"x": 900, "y": 600, "r": 700}, "within": "30s", "text": "Did you hear that bang?"}
+  ],
+  "checks": [{"kind": "converged"}, {"kind": "delivered", "within": "2m"}]
+}

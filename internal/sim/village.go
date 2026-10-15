@@ -65,6 +65,7 @@ type Village struct {
 
 	rnd    *rand.Rand
 	key    seal.VillageKey
+	groups []groupSnap // WiFi groups over time, recorded when they can change
 	byName map[string]*Node
 	byKey  map[ledger.Key]*Post
 }
@@ -135,6 +136,7 @@ func (v *Village) arrived(n *Node, e *ledger.Entry) {
 
 // Start schedules every node's heartbeat every 5 s, each with its own phase.
 func (v *Village) Start() {
+	v.snapGroups()
 	for _, n := range v.Nodes {
 		n := n
 		var beat func()
@@ -177,7 +179,44 @@ func (v *Village) SetPower(name string, on bool) error {
 		n.PoweredAll = false
 	}
 	n.Radio.On = on
+	v.snapGroups()
 	return nil
+}
+
+// groupSnap is which WiFi group each powered node was in from time T on.
+type groupSnap struct {
+	T     int64
+	Group map[string]int
+}
+
+func (v *Village) snapGroups() {
+	g := map[string]int{}
+	for i, grp := range v.Air.Groups() {
+		for _, n := range grp {
+			g[n.Name] = i
+		}
+	}
+	v.groups = append(v.groups, groupSnap{T: v.Sch.Now(), Group: g})
+}
+
+// ConnectedFrom is the first time at or after from when nodes a and b were in
+// the same WiFi group (both powered); false if they never were.
+func (v *Village) ConnectedFrom(a, b string, from int64) (int64, bool) {
+	for i, s := range v.groups {
+		end := int64(1 << 62)
+		if i+1 < len(v.groups) {
+			end = v.groups[i+1].T
+		}
+		if end <= from {
+			continue
+		}
+		ga, okA := s.Group[a]
+		gb, okB := s.Group[b]
+		if okA && okB && ga == gb {
+			return max(s.T, from), true
+		}
+	}
+	return 0, false
 }
 
 // RunFor advances virtual time by d.
