@@ -414,6 +414,7 @@ function drawMap() {
   // nodes
   ctx.font = '600 11px ' + css('--f-mono');
   ctx.textBaseline = 'middle';
+  const labels = [];
   for (const n of S.nodes) {
     const [x, y] = px(n);
     if (n.kind === 'mesh') {
@@ -430,10 +431,25 @@ function drawMap() {
       ctx.beginPath(); ctx.roundRect(x - s, y - s, 2 * s, 2 * s, 3); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
       if (!n.online) { ctx.strokeStyle = crit; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); }
       if (n.id === selectedId) { ctx.strokeStyle = ink; ctx.lineWidth = 1; ctx.beginPath(); ctx.roundRect(x - s - 5, y - s - 5, 2 * s + 10, 2 * s + 10, 5); ctx.stroke(); }
-      ctx.fillStyle = n.online ? ink : muted;
-      ctx.fillText(n.name, x + s + 6, y);
+      labels.push({ n, x, y, s });
     }
     if (n.lora) { ctx.beginPath(); ctx.arc(x + (n.kind === 'house' ? 9 : 6), y - (n.kind === 'house' ? 9 : 9), 4, 0, Math.PI * 2); ctx.fillStyle = n.online ? lora : muted; ctx.fill(); ctx.strokeStyle = panel; ctx.lineWidth = 2; ctx.stroke(); }
+  }
+  // house labels: right of the box, else left, below or above; skip a spot that overlaps a box or a placed label
+  const taken = labels.map(l => [l.x - l.s, l.y - l.s, l.x + l.s, l.y + l.s]);
+  const hits = (r) => taken.some(t => r[0] < t[2] && r[2] > t[0] && r[1] < t[3] && r[3] > t[1]);
+  ctx.lineJoin = 'round';
+  for (const l of labels) {
+    const w = ctx.measureText(l.n.name).width, h = 12, g = 5;
+    const spots = [
+      [l.x + l.s + g, l.y], [l.x - l.s - g - w, l.y],
+      [l.x - w / 2, l.y + l.s + g + h / 2], [l.x - w / 2, l.y - l.s - g - h / 2],
+    ];
+    const box = ([tx, ty]) => [tx - 2, ty - h / 2, tx + w + 2, ty + h / 2];
+    const at = spots.find(sp => !hits(box(sp))) || spots[0];
+    taken.push(box(at));
+    ctx.strokeStyle = panel; ctx.lineWidth = 3; ctx.strokeText(l.n.name, at[0], at[1]);
+    ctx.fillStyle = l.n.online ? ink : muted; ctx.fillText(l.n.name, at[0], at[1]);
   }
   // scale bar
   const step = niceStep();
