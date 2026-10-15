@@ -579,8 +579,9 @@ that runs entirely in your web browser.
 **Two engines.** *Model* is a quick JavaScript model of the whole system.
 *Real batnet code* runs batnet's actual Go code for every house, compiled for
 the browser, through prepared scenarios such as *bang* (everyone hears a bang
-and posts at once) and *storm* (houses lose power and catch up). Today it covers
-the WiFi mesh; the radio, accounts and the app join as they are built.
+and posts at once) and *storm* (houses lose power and catch up). It covers the
+WiFi mesh and the long-range radio (with Meshtastic users relaying); accounts
+and the app join as they are built.
 
 To run it offline:
 1. Click the green **Code** button at the top of this page, then

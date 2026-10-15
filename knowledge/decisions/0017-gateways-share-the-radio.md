@@ -17,6 +17,9 @@ gateways in the same group sat idle.
 
 # Decision
 
+The assignment rule below is superseded by [0022](0022-gateways-suppress-duplicates.md) (suppression).
+
+
 * An entry that must go over LoRa is assigned to one of the group's online
   gateways by hashing its key over the gateways seen in heartbeats.
 * Heartbeats carry each gateway's airtime used in the last hour; a gateway near

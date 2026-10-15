@@ -71,3 +71,32 @@ hop by hop), or a longer interval that grows with the mesh. To decide.
 heartbeats now go one hop. Heartbeats alone use 1% of the channel at 10, 20
 and 40 houses and 2% at 80; bang passes with median delivery 10 ms, worst 48 s,
 nothing lost, with repair paying for its airtime.
+
+# Real code, modelled WiFi and LoRa (2026-10-15, plan 3)
+
+The LoRa bridge (`internal/lora`) now runs in the simulator: priority queues,
+the 10% duty limit, fragments, gateways sharing the sending by suppression,
+beacons with recovery, and Meshtastic's managed flooding by every radio.
+
+| Scenario | Result |
+|---|---|
+| village (12 houses, 3 hamlets 1-2 km apart, 4 gateways, 2 Meshtastic users, a 10 min power cut) | pass: median delivery 3.5 s, slowest 5% 59 s; 368 LoRa packets, no collisions, busiest radio 40% of its hourly limit |
+| farms (8 LoRa-only farms up to 5 km apart) | **known failure**: 2,133 collisions at receivers (hidden terminals), 1 of 50 posts missing, 1 late (27 min) |
+| bang, storm, street (WiFi only) | pass, unchanged |
+
+What the scenarios forced, each with a test:
+
+* **Catch-up after an outage** was too slow (8 posts per 15 min beacon): a
+  gateway now beacons again 2 min after receiving recovered posts, and within a
+  minute of a restart.
+* **Radios waiting for a busy channel** started together and collided: a 0-2 s
+  random backoff; rebroadcasts now wait for the channel instead of being dropped;
+  rebroadcast delay depends on distance (far radios first, as Meshtastic's
+  contention window), so near radios usually stand down.
+* Compared with the JavaScript model's 12-house village (81% within 10 min),
+  the real code's village delivers everything within 15 min with fewer
+  gateways' airtime; the two models differ in layout and traffic, so this is a
+  sanity check, not a like-for-like comparison.
+* A signed entry is about 100 bytes before its text (32-byte origin, 64-byte
+  signature): a 100-character post takes two LoRa packets, about 2.5 s of
+  LongFast airtime - double the JavaScript model's estimate.
