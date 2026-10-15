@@ -21,27 +21,22 @@ video editor. Read `video/README.md` first.
    that matter (a bubble, the bang, the dust front).
 3. **Preview** in a browser with sound: `python3 video/render.py --preview`.
 4. **Final**: `python3 video/render.py` (1080p, 30 fps, Multilingual v2).
-5. **Publish**: the MP4 and the README's preview GIF (`out/preview.gif`, made
-   by the final render, or by `render.py --gif` alone) live on the `film`
-   branch of the repo (two files, no history worth keeping:
-   `git checkout film && cp video/out/batnet.mp4 video/out/preview.gif . &&
-   git commit -am "cut N" && git push && git checkout main`), linked from the
-   README as `https://github.com/johnusher/batnet/raw/film/batnet.mp4` and
-   `.../raw/film/preview.gif` (GitHub's README cannot embed a video from a
-   branch, so the GIF with its play button is the clickable preview).
-   Never on `main`.
-   **YouTube**: the film is on the owner's personal channel
-   (https://youtu.be/zk5At_n8p_c, uploaded by hand on 2026-10-15; the README
-   links it and the preview GIF opens it). `video/upload_youtube.py` can
-   upload and set title, description with chapters from the timeline, and
-   tags, but it needs a consent through the Google OAuth client in
+5. **Publish**: the film lives on YouTube only (the owner, 2026-10-15: no
+   large media in the repo, one branch). Upload the new cut by hand to the
+   owner's channel (or with `video/upload_youtube.py` once its OAuth consent
+   can reach that channel; see below), paste the description the script
+   prints (title, chapters from the timeline, tags), then put the new video
+   id in the README (the heading link, the thumbnail
+   `https://img.youtube.com/vi/<id>/maxresdefault.jpg`, and the link in
+   "The film") and in this file. `video/out/` is gitignored: the MP4 and the
+   preview GIF stay local. History note: cut 1 sat on a `film` branch
+   (deleted) and cut 2 briefly on `main`; both were taken out again.
+   `upload_youtube.py` needs a consent through the Google OAuth client in
    `~/.config/google/`, whose consent screen is Internal to the Workspace
-   account, not the personal channel; until that is changed, upload a new
-   cut by hand and paste the description the script prints
-   (`python3 -c "import sys; sys.path.insert(0,'video'); import upload_youtube as u; print(u.DESCRIPTION.replace('{chapters}', u.chapters()))"`).
-   A GitHub release (`gh release create film-vN video/out/batnet.mp4`) is the
-   better home once the `gh` token has "Contents: write" on the repo; the
-   fine-grained token of 2026-10-15 got HTTP 403 creating one.
+   account, not the personal channel; until that is changed, upload by hand
+   and print the description with
+   `python3 -c "import sys; sys.path.insert(0,'video'); import upload_youtube as u; print(u.DESCRIPTION.replace('{chapters}', u.chapters()))"`.
+   The current video: https://youtu.be/zk5At_n8p_c (cut 2, 2026-10-15).
 
 ## Rules
 

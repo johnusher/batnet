@@ -23,7 +23,7 @@ implementation follows the plans in `docs/plans/`.
 | `scenarios/` | Village scenarios (JSON) run by `batnetd -sim`, CI and the simulator's real engine |
 | `cmd/batnetwasm/` | The real code for the simulator page (`GOOS=js GOARCH=wasm`) |
 | `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` |
-| `video/` | The film as code: `script.json` (narration), `scenes.js` (canvas scenes), `render.py` (ElevenLabs voice, headless Chrome frames, ffmpeg). The MP4 lives on the `film` branch (a release once the token allows). Skill: `.claude/skills/making-the-film/` |
+| `video/` | The film as code: `script.json` (narration), `scenes.js` (canvas scenes), `render.py` (ElevenLabs voice, headless Chrome frames, ffmpeg). The film itself is on YouTube only (linked from the README); no media in the repo. Skill: `.claude/skills/making-the-film/` |
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |
