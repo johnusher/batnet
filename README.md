@@ -616,6 +616,7 @@ git config core.hooksPath .githooks          # secret scan + knowledge check on 
 go test ./...                                 # run the tests
 go run ./cmd/batnetd -mock 5 -loss 0.3        # a pretend village of 5 houses on this computer
 go run ./cmd/batnetd -sim scenarios/*.json    # village scenarios with the real code, judged pass/fail
+go run ./cmd/batnetd -mock 3 -web -for 0      # three houses, each serving the real app on 127.0.0.1:8001-8003
 (cd tools/okflint && go run . ../../knowledge) # check the knowledge bundle by hand
 ```
 

@@ -16,7 +16,8 @@ for batnet yet.
 - [x] Plan 1: core log, sync, mock village (2026-10-15)
 - [x] Plan 2: village runtime, scenarios, the real code in the simulator (2026-10-15)
 - [x] Plan 3: LoRa bridge and priority, in the simulator (2026-10-15)
-- [ ] **Plan 4: web app and accounts** - captive portal, PIN accounts and admin approval, chat and groups, priority picker, location per message, notification rules for the house speaker; the real app in the simulator's phone (next)
+- [x] Plan 4a: the house server - state from the log, PIN accounts and admin approval, captive portal, API and live events, a first real app; `batnetd -mock 3 -web` (2026-10-15)
+- [ ] **Plan 4b: the full app** - outbox (IndexedDB), bedside mode, speaker and notification settings, German, the mockup's screens; the real app inside the simulator's phone (next)
 - [ ] Plan 3b: meshtasticd client on real radios - waits for the two Meshsticks; includes everyone-channel posts as plain Meshtastic text (done-when check 3) and public-channel interop
 - [ ] Plan 5: Pi set-up, radios, kiosk, speaker - first boot, QR join, radio detection, batman-adv and hostapd, one-hop heartbeats on the mesh interface, cage + Chromium kiosk, speaker/button/LED, GPS time
 - [ ] Plan 6: image, installer, CI hardening - the batnet.zip, Imager scripts, signed releases, gitleaks in CI

@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Update**: Plan 4a built: the house server and a first real app (`batnetd -mock 3 -web`); known problems B19-B20.
 * **Creation**: [To do](/todo.md) list; plan 3 review fixes and nine deferred findings in [known problems](/known-problems.md).
 * **Update**: Plan 3 built: the LoRa bridge and priority run in the simulator ([findings](/research/village-sim-findings.md)); decision [0022](/decisions/0022-gateways-suppress-duplicates.md) supersedes 0017's assignment rule.
 * **Creation**: Research note [EU868 radio basics](/research/eu868-radio-basics.md), behind the README's new radio section (band, rules, antennas, range, history, with diagrams); LongFast airtime for 150 bytes corrected to ~1.4 s in [LoRa airtime](/research/lora-airtime-eu868.md); glossary gained ERP, dBi, chirp, Fresnel zone and waterfall.

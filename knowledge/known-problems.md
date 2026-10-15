@@ -37,10 +37,14 @@ No Linear for batnet yet: this page is the list.
 | B17 | Scenario `meshtastic` users aren't validated (count, names clashing with houses) | plan 3 review m8 | `internal/sim/scenario.go` |
 | B18 | Short IDs (4-byte prefixes) can be ground to collide; a tie makes compact vectors order by map and runs stop repeating | plan 3 review m9 | `internal/lora/frame.go` |
 
+| B19 | Sessions and PIN lockouts live in memory: a reboot signs everyone out, and a guesser can move to another house to reset the lockout | plan 4a | `internal/auth`, `internal/web` |
+| B20 | Two people with the same name and the same PIN at one house can't be told apart at sign-in | plan 4a | `internal/web/api.go` |
+
 # Known limits (by design, for now)
 
 | # | Limit | Why / when it changes |
 |---|---|---|
+| L10 | The app is a first version: no outbox, bedside mode, speaker settings, voice, photos or German yet | plan 4b |
 | L1 | A locked phone doesn't ring; batnet must be open (bedside mode) | browsers offline have no service worker or push ([0018](/decisions/0018-notifications-and-house-speaker.md)) |
 | L3 | The simulator's WiFi model is not measured: ranges, the loss curve (2% + load²) and frame overhead are guesses | bench and field tests |
 | L4 | In the simulator a WiFi channel is tracked per group; when groups split or merge the backlog resets, and loss ignores hop count | plan 2 review, minor |
