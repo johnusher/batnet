@@ -36,3 +36,6 @@ captures/
 .idea/
 .vscode/
 *.swp
+
+# the film: narration cache, frames and renders
+video/out/

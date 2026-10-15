@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>batnet film</title>
+<style>
+  html, body { margin: 0; background: #000; color: #ccc; font: 14px system-ui, sans-serif; }
+  canvas { display: block; }
+  #ui { position: fixed; left: 12px; bottom: 12px; display: flex; gap: 10px; align-items: center; background: rgba(0,0,0,.6); padding: 8px 12px; border-radius: 10px; }
+  #ui button { font: inherit; padding: 4px 10px; }
+  #ui[hidden] { display: none; }
+  #scenes a { color: #9cf; margin-right: 8px; cursor: pointer; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui" hidden>
+  <button id="play">Play</button>
+  <span id="clock">0.0 s</span>
+  <span id="scenes"></span>
+</div>
+<script src="scenes.js"></script>
+</body>
+</html>

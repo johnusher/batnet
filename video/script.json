@@ -1,0 +1,87 @@
+{
+  "_about": "The narration of the batnet film, one scene per entry. `text` is spoken (ElevenLabs); `caption` is what the subtitles show, in plain English; `pad` is the pause after it, in seconds; `min` is the scene's least length. Spellings like 'ze' and 'ven' are on purpose: the narrator has a thick German accent. Edit here, then `python3 video/render.py` (see video/README.md).",
+  "voice": {
+    "name": "Klaus (batnet narrator)",
+    "voice_id": "Jvf6TAXwMUVTSR20U0f9",
+    "model_id": "eleven_multilingual_v2",
+    "draft_model_id": "eleven_flash_v2_5",
+    "settings": {
+      "stability": 0.45,
+      "similarity_boost": 0.8,
+      "style": 0.35,
+      "use_speaker_boost": true
+    }
+  },
+  "scenes": [
+    {
+      "id": "title",
+      "min": 6,
+      "pad": 0.8,
+      "text": "batnet. Ven ze grid goes down, ze village keeps talking.",
+      "caption": "batnet. When the grid goes down, the village keeps talking."
+    },
+    {
+      "id": "berlin",
+      "min": 8,
+      "pad": 0.6,
+      "text": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: ze masts have batteries for exactly long enough to be useless. Zis is not a film. Zis happened.",
+      "caption": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: the masts have batteries for exactly long enough to be useless. This is not a film. This happened."
+    },
+    {
+      "id": "berlin2",
+      "min": 8,
+      "pad": 0.8,
+      "text": "Now imagine every third house has a small radio node. Ze lights are out, but ze street is talking: who has a generator, which pharmacy is open, who needs insulin.",
+      "caption": "Now imagine every third house has a small radio node. The lights are out, but the street is talking: who has a generator, which pharmacy is open, who needs insulin."
+    },
+    {
+      "id": "how",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Every house: one Raspberry Pi, ze size of a packet of cigarettes, on a power bank. It makes an open WiFi. Your phone joins, opens ze browser, and zere is a chat app. Like WhatsApp, but no internet, no account, no company. Houses link to each ozer over WiFi mesh, and over ze hills by LoRa radio: cheap, legal, a few kilometres on a good day. No Enigma machine required: ze village key is a QR code on ze admin's phone.",
+      "caption": "Every house: one Raspberry Pi, the size of a packet of cigarettes, on a power bank. It makes an open WiFi. Your phone joins, opens the browser, and there is a chat app. Like WhatsApp, but no internet, no account, no company. Houses link to each other over WiFi mesh, and over the hills by LoRa radio: cheap, legal, a few kilometres on a good day. No Enigma machine required: the village key is a QR code on the admin's phone."
+    },
+    {
+      "id": "glasto",
+      "min": 8,
+      "pad": 0.5,
+      "text": "Glastonbury. Two hundred thousand people, one hill, and a mobile network zat surrenders by Friday lunchtime. Pocket nodes on power banks, one per camp, linked by radio across ze fields.",
+      "caption": "Glastonbury. Two hundred thousand people, one hill, and a mobile network that surrenders by Friday lunchtime. Pocket nodes on power banks, one per camp, linked by radio across the fields."
+    },
+    {
+      "id": "lostchild",
+      "min": 5,
+      "pad": 0.6,
+      "text": "A child is lost near ze stage: ze alert reaches every camp in under a minute.",
+      "caption": "A child is lost near the stage: the alert reaches every camp in under a minute."
+    },
+    {
+      "id": "bang",
+      "min": 9,
+      "pad": 0.8,
+      "text": "Zen: a bang, somewhere by ze west field. Everyone reports it. Everyone sees ze reports, so nobody runs ze wrong way, and ze medics see exactly where to go.",
+      "caption": "Then: a bang, somewhere by the west field. Everyone reports it. Everyone sees the reports, so nobody runs the wrong way, and the medics see exactly where to go."
+    },
+    {
+      "id": "burningman",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Black Rock City. Four kilometres across, a city built for one week in ze Nevada desert, nothing between you and ze horizon but dust. Perfect for radio: eight nodes cover ze whole city. A whiteout comes in, and 'stay in camp' reaches everyone before ze dust does.",
+      "caption": "Black Rock City. Four kilometres across, a city built for one week in the Nevada desert, nothing between you and the horizon but dust. Perfect for radio: eight nodes cover the whole city. A whiteout comes in, and 'stay in camp' reaches everyone before the dust does."
+    },
+    {
+      "id": "proof",
+      "min": 8,
+      "pad": 0.6,
+      "text": "Ve do not guess. Ze real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered. Zen ve take it to ze field.",
+      "caption": "We do not guess. The real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered. Then we take it to the field."
+    },
+    {
+      "id": "close",
+      "min": 8,
+      "pad": 2.5,
+      "text": "batnet. Open source, cheap, and it works ven nothing else does. Ve haff vays of making you talk... to your neighbours.",
+      "caption": "batnet. Open source, cheap, and it works when nothing else does. We have ways of making you talk... to your neighbours."
+    }
+  ]
+}

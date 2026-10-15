@@ -17,7 +17,9 @@ it, record what goes wrong, write the skill, re-run. Mechanical rules go in tool
 
 # Shipped
 
-None yet.
+| Skill | Use when | Since |
+|---|---|---|
+| making-the-film | editing or re-rendering the two-minute film in `video/` (narration in `script.json`, scenes in `scenes.js`, `render.py` for voice, frames, sound and the MP4) or publishing a cut to the GitHub release; holds the credibility rules for what the film claims | 2026-10-15 |
 
 # Tried and not needed
 

@@ -666,6 +666,16 @@ Developers: the full list of technical terms is in
 
 ---
 
+## The film
+
+**[Watch the two-minute film](https://github.com/johnusher/batnet/releases/download/film-v1/batnet.mp4)**
+(MP4, 1080p): a Berlin blackout, how a house node works, Glastonbury with a
+lost child and a bang that everyone reports, a whiteout at Black Rock City,
+and the simulator that runs the real code. The narrator's German accent is
+part of the act. The film is made from code in [`video/`](video/), so it can be
+re-cut as batnet changes; every number in it comes from the repo or the
+public record.
+
 ## Try the simulator
 
 [![The batnet village simulator: a map of houses linked by WiFi and radio, beside a phone showing the batnet welcome page](docs/img/village-sim-light.png#gh-light-mode-only)](https://johnusher.github.io/batnet/)
