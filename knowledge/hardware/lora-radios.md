@@ -25,6 +25,7 @@ sources:
 * Meshtastic lists Pi Zero, Zero 2, 3, 4, 400 and 5 as tested; only SPI radios work; UART HATs and SX1302/SX1303 concentrators do not.[^mesh-linux]
 * Candidates: Waveshare SX126X (SPI version only)[^mesh-linux], RAK WisMesh Pi HAT RAK6421[^rak6421], Mesh PI Tiny (E22-900MM22S, Pi Zero size, up to 22 dBm)[^meshpi].
 * Pick the 868 MHz variant in the EU.
+* Update 2026-10-15: meshtasticd's hardware configs mark **RAK6421 + RAK13300 as `official`** and the Waveshare SPI LoRaWAN HAT as **deprecated** (CRC errors on longer messages). Waveshare's similarly named "SX1262 LoRa HAT" is the UART version and does not work. The Elecrow **Meshstick** (USB, CH341 to SPI SX1262) is supported and sold at Berrybase. Recommended: RAK6421 + RAK13300 (~€25) for a HAT, Meshstick (~€25) for USB. See the [EU shopping list](/hardware/shopping-list-eu.md).
 
 # USB boards (alternative)
 

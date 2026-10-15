@@ -196,6 +196,29 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .bubble .meta .lora { color: var(--lora); font-weight: 600; }
 .bubble .meta .wait { color: var(--warn); font-weight: 600; }
 .daysep { align-self: center; font-size: 12px; color: var(--app-sub); background: var(--app-chip); padding: 2px 10px; border-radius: 999px; margin: 4px 0; }
+/* voice messages (milestone 2 preview) */
+.voice { display: flex; align-items: center; gap: 8px; min-width: 190px; }
+.voice .play { width: 32px; height: 32px; border-radius: 50%; border: 0; background: var(--app-accent); color: var(--app-bg); display: grid; place-items: center; flex: none; }
+.voice .play svg { width: 14px; height: 14px; }
+.wave { display: flex; align-items: center; gap: 2px; height: 24px; flex: 1; }
+.wave i { display: block; width: 3px; border-radius: 2px; background: currentColor; opacity: .55; }
+.voice .dur { font-size: 12px; color: var(--app-sub); font-variant-numeric: tabular-nums; }
+.transcript { font-size: 14px; margin-top: 4px; color: var(--app-fg); }
+.transcript::before { content: '“'; } .transcript::after { content: '”'; }
+.radiotext { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--lora); font-weight: 600; margin-top: 4px; }
+.readaloud { border: 1px solid var(--app-line); background: var(--app-bg); color: var(--app-fg); border-radius: 14px; padding: 3px 10px; font-size: 12px; font-weight: 600; }
+.recbar { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--app-line); }
+.recdot { width: 12px; height: 12px; border-radius: 50%; background: #d23b3b; animation: blink 1s steps(2) infinite; flex: none; }
+@keyframes blink { 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .recdot { animation: none; } }
+.recbar .rt { font-variant-numeric: tabular-nums; font-weight: 700; }
+.recbar .hint { flex: 1; font-size: 13px; color: var(--app-sub); }
+.review { margin: 0 10px 8px; padding: 10px; border: 1px solid var(--app-line); border-radius: 14px; background: var(--app-chip); display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.review label { font-weight: 700; font-size: 12px; color: var(--app-sub); text-transform: uppercase; letter-spacing: .05em; }
+.review textarea { width: 100%; min-height: 54px; resize: vertical; border: 1px solid var(--app-line); border-radius: 10px; padding: 8px; font: inherit; font-size: 15px; background: var(--app-bg); color: var(--app-fg); }
+.review .who { color: var(--app-sub); }
+.review .row { display: flex; gap: 8px; }
+.review .row button { flex: 1; padding: 9px; font-size: 15px; }
 .compose { display: flex; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--app-line); align-items: center; }
 .compose input { flex: 1; min-width: 0; border-radius: 20px; }
 .iconbtn { border: 0; background: var(--app-chip); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--app-fg); flex: none; }
@@ -327,6 +350,7 @@ const store = { get(k, d) { try { const v = localStorage.getItem('bvs:' + k); re
 const ICON = {
   chats: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16v11H8l-4 4z"/></svg>',
   people: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.6 3-5.5 6-5.5s5.4 1.9 6 5.5"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.6c2.6.2 4.4 1.9 5 5.4"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>',
   radio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="2"/><path d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></svg>',
   help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.6 2.6 0 1 1 3.7 2.3c-.8.4-1.2 1-1.2 1.9V14M12 17.2v.3"/></svg>',
   admin: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>',
@@ -343,7 +367,7 @@ let selectedId = null;
 const pulses = [];
 const beams = []; // packet from one radio to each radio that heard it
 let lastFrame = performance.now();
-const app = { persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
+const app = { rec: null, persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
 
 function cfgFromForm() {
   return {
@@ -858,6 +882,51 @@ function screenChats(me) {
     return `<button class="ap-row" data-conv="${esc(c.key)}"><span class="av">${c.key === 'everyone' ? 'All' : c.key === 'public' ? ICON.radio : initials(nm)}</span><span class="main"><span class="title"><span>${esc(nm)}</span><time>${c.last ? hhmm(c.last.t) : ''}</time></span><span class="last">${esc(last)}</span></span>${c.unread ? `<span class="badge">${c.unread > 99 ? '99+' : c.unread}</span>` : ''}</button>`;
   }).join('')}</div>${tabBar(me)}`;
 }
+// ---- voice messages (milestone 2 preview) ----
+// The phone records; the house Pi cleans the audio and writes it out as text.
+// Over WiFi the recording travels as audio with its transcript; over the long-range radio only the text goes, and the far phone reads it aloud.
+const VOICE_PHRASES = ['Water point at the church is open again until six.', 'Can someone bring a torch to the school hall tonight?', 'We have spare bread, come by before ten.', 'Grandma is fine, she says thank you for the soup.', 'Road to the bridge is blocked, take the farm track.'];
+function waveBars(seed, n) { let x = seed * 9301 + 49297, out = ''; for (let i = 0; i < n; i++) { x = (x * 9301 + 49297) % 233280; out += `<i style="height:${4 + Math.round((x / 233280) * 18)}px"></i>`; } return `<span class="wave" aria-hidden="true">${out}</span>`; }
+function secs(n) { return '0:' + String(Math.round(n)).padStart(2, '0'); }
+function sayAloud(text) { try { const u = new SpeechSynthesisUtterance(text); speechSynthesis.cancel(); speechSynthesis.speak(u); } catch (e) {} }
+function voiceBubble(m, me) {
+  const d = m.deliv.get(me.houseId);
+  const asText = m.from !== me.id && d && d.path === 'lora';
+  const head = asText
+    ? `<div class="radiotext">${ICON.radio}<span>Voice message, sent as text over the radio</span></div>`
+    : `<div class="voice"><button class="play" data-say="${m.id}" aria-label="Play voice message">${ICON.play}</button>${waveBars(m.id, 26)}<span class="dur">${secs(m.voice.secs)}</span></div>`;
+  return `${head}<div class="transcript">${esc(m.text)}</div>${asText ? `<div style="margin-top:6px"><button class="readaloud" data-say="${m.id}">🔊 Read aloud</button></div>` : ''}`;
+}
+function recipientsSplit(me) {
+  // which houses in this conversation get the audio (WiFi) and which only the text (radio)
+  const k = app.conv, home = homeHouse();
+  let houses;
+  if (k.startsWith('dm:')) houses = [S.nodeById.get(S.personById.get(k.slice(3)).houseId)];
+  else if (k.startsWith('g:')) { const g = S.groups.find((x) => x.id === k); houses = [...new Set([...g.members].map((pid) => S.personById.get(pid).houseId))].map((id) => S.nodeById.get(id)); }
+  else houses = S.houses;
+  houses = houses.filter((h) => h !== home);
+  const wifi = houses.filter((h) => reachBetween(home, h) === 'call').length;
+  const radio = houses.filter((h) => reachBetween(home, h) === 'lora').length;
+  const none = houses.length - wifi - radio;
+  return { wifi, radio, none };
+}
+function composeArea(me, key) {
+  const r = app.rec;
+  if (r && !r.review) {
+    const t = (performance.now() - r.t0) / 1000;
+    return `<div class="recbar"><span class="recdot" aria-hidden="true"></span><span class="rt">${secs(Math.min(t, 59))}</span><span class="hint">Recording… noise is cleaned up on the house Pi</span><button class="iconbtn" data-act="recCancel" aria-label="Cancel">✕</button><button class="iconbtn go" data-act="recStop" aria-label="Stop recording">■</button></div>`;
+  }
+  if (r && r.review) {
+    const sp = recipientsSplit(me);
+    const who = [sp.wifi ? `${sp.wifi} house${sp.wifi === 1 ? '' : 's'} on WiFi hear your voice` : '', sp.radio ? `${sp.radio} house${sp.radio === 1 ? '' : 's'} on the radio get the text, read aloud` : '', sp.none ? `${sp.none} out of reach for now` : ''].filter(Boolean).join(' · ');
+    return `<div class="review"><div class="voice">${waveBars(7, 30)}<span class="dur">${secs(r.secs)}</span></div>
+      <label for="rv-text">What we heard. Fix any mistakes:</label>
+      <textarea id="rv-text">${esc(r.text)}</textarea>
+      <span class="who">${esc(who || 'Only your house')}</span>
+      <div class="row"><button class="ap-btn ghost" data-act="recDiscard">Discard</button><button class="ap-btn" data-act="recSend">Send</button></div></div>`;
+  }
+  return `<form class="compose" data-form="send"><button type="button" class="iconbtn" data-act="recStart" title="Record a voice message" aria-label="Record a voice message">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
+}
 function screenConv(me) {
   const key = app.conv;
   app.lastRead.set(me.id + key, S.now);
@@ -872,11 +941,11 @@ function screenConv(me) {
     if (callReason) banner = `<div class="banner ${r === 'lora' ? 'lora' : ''}">${esc(callReason)}</div>`;
   }
   if (key === 'public') banner = '<div class="banner lora">Public Meshtastic channel. Anyone with a Meshtastic radio can read this.</div>';
-  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''}">${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${esc(m.text)}<div class="meta"><span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
+  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''}">${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${m.voice ? voiceBubble(m, me) : esc(m.text)}<div class="meta"><span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
   return `<div class="ap-head"><button class="ap-back" data-act="toApp" aria-label="Back">‹</button><h2>${esc(convName(key))}<span class="sub">${esc(convSub(key, me))}</span></h2>${key.startsWith('dm:') ? `<button class="iconbtn" data-act="call" ${canCall ? '' : 'disabled'} title="${canCall ? 'Call over the WiFi mesh' : esc(callReason)}" aria-label="Call">${ICON.call}</button>` : ''}</div>
   ${banner}
   <div class="ap-body" id="msglist"><div class="msgs">${items || '<p class="ap-p" style="text-align:center;padding:24px 0">No messages yet. Say hello.</p>'}</div></div>
-  <form class="compose" data-form="send"><button type="button" class="iconbtn" disabled title="Voice messages arrive in milestone 2" aria-label="Voice message (coming in milestone 2)">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
+  ${composeArea(me, key)}`;
 }
 function screenPeople(me) {
   const home = homeHouse();
@@ -937,7 +1006,7 @@ function renderPhone(force) {
   $('#sb-time').textContent = hhmm(S.now);
   $('#sb-net').textContent = (h.online ? 'batnet · ' + h.name : 'No WiFi') + ' · no internet';
   const active = document.activeElement;
-  const typing = active && scr.contains(active) && active.tagName === 'INPUT';
+  const typing = active && scr.contains(active) && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
   if (typing && !force) return; // don't redraw under someone's fingers
   const list = $('#msglist');
   const atBottom = !list || list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
@@ -956,11 +1025,13 @@ function renderPhone(force) {
   if (nl && (atBottom || force)) nl.scrollTop = nl.scrollHeight;
 }
 $('#screen').addEventListener('click', (e) => {
+  const sayBtn = e.target.closest('[data-say]');
+  if (sayBtn) { const m = S.msgById.get(+sayBtn.dataset.say); if (m) sayAloud(m.text); return; }
   const t = e.target.closest('[data-act],[data-tab],[data-conv],[data-dm],[data-approve],[data-deny]');
   if (!t) return;
   const me = currentPerson();
   if (t.dataset.tab) { app.tab = t.dataset.tab; app.conv = null; }
-  else if (t.dataset.conv) { app.conv = t.dataset.conv; app.draft = ''; }
+  else if (t.dataset.conv) { app.conv = t.dataset.conv; app.draft = ''; app.rec = null; }
   else if (t.dataset.dm) { app.conv = 'dm:' + t.dataset.dm; app.draft = ''; }
   else if (t.dataset.approve || t.dataset.deny) { const p = sim.approve(t.dataset.approve || t.dataset.deny, !!t.dataset.approve); if (p) fillPersonas(); }
   else {
@@ -977,6 +1048,19 @@ $('#screen').addEventListener('click', (e) => {
     if (a === 'enterApproved') { const s = S.signups.find((x) => x.id === app.persona.signupId); const pid = homeHouse().people.find((id) => S.personById.get(id).name === s.name.split(' ')[0]); if (pid) { fillPersonas(); setPersona(pid); } return; }
     if (a === 'call' && me) { app.calling = app.conv.slice(3); }
     if (a === 'hangup') app.calling = null;
+    if (a === 'recStart') app.rec = { t0: performance.now() };
+    if (a === 'recCancel' || a === 'recDiscard') app.rec = null;
+    if (a === 'recStop') { const sec = Math.max(2, Math.min(59, (performance.now() - app.rec.t0) / 1000)); app.rec = { review: true, secs: sec, text: VOICE_PHRASES[Math.floor(Math.random() * VOICE_PHRASES.length)] }; }
+    if (a === 'recSend' && me) {
+      const text = ($('#rv-text').value || '').trim();
+      if (text) {
+        const k = app.conv;
+        const kind = k === 'everyone' ? 'everyone' : k === 'public' ? 'public' : k.startsWith('g:') ? 'group' : 'dm';
+        const m = sim.send(me.id, kind, kind === 'group' ? k : kind === 'dm' ? k.slice(3) : null, text);
+        if (m) m.voice = { secs: app.rec.secs };
+      }
+      app.rec = null;
+    }
   }
   renderPhone(true);
 });

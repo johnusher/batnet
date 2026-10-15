@@ -439,6 +439,9 @@
         } else if (rnd() < 0.2) send(p.id, 'public', null, makeText('public'));
         else send(p.id, 'everyone', null, makeText('everyone'));
       }
+      // about one message in six is spoken: a voice message whose transcript is what travels by radio
+      const last = S.msgs[S.msgs.length - 1];
+      if (last && last.from && last.t === S.now && !last.voice && last.kind !== 'public' && rnd() < 0.17) last.voice = { secs: 3 + Math.round(rnd() * 12) };
       const rate = (Math.max(online.length, 1) * Math.max(cfg.chat, 0.01)) / HOUR;
       schedule(S.now + expo(rate), trafficLoop);
     }

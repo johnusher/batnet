@@ -28,6 +28,14 @@ own (Zero, Zero 2, 3, 4, 5), and simple enough for others to set up.
   meshes, walkie-talkie and ham bands, any 868 MHz LoRa, anything that looks
   like human comms (activity only, never content).
 
+# Portable use
+
+The same kit travels (user, 2026-10-15): festivals such as Burning Man and
+Glastonbury where the mobile network collapses under the crowd, camping and
+hiking groups, community events. A camp or group carries a small node (a Pi Zero
+2 W, a LoRa HAT and a power bank in a 3D-printed case) instead of a house Pi.
+See [decision 0012](/decisions/0012-pocket-node.md).
+
 # How houses connect
 
 See [decision 0001](/decisions/0001-two-layer-network.md). Houses near each other

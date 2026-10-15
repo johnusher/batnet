@@ -13,3 +13,5 @@ Architecture decision records. `draft` = proposed, not yet agreed.
 * [0009 Scanner reports activity only](0009-scanner-activity-only.md) - frequency, strength, time and label, never content
 * [0010 Milestone order](0010-milestone-order.md) - text first, then voice messages, calls, scanner
 * [0011 MIT licence](0011-mit-licence.md) - the whole repository is MIT-licensed
+* [0012 Pocket node (draft)](0012-pocket-node.md) - Pi Zero 2 W + LoRa HAT + power bank for festivals, camps and hikes
+* [0013 One download to install (draft)](0013-one-download-installer.md) - one zip from a fixed link with Imager-based install scripts; one command for existing Pis
