@@ -80,6 +80,7 @@ select.field, input.field { border: 1px solid var(--rule); background: var(--pan
 .maplegend i { display: inline-block; vertical-align: middle; margin-right: 6px; }
 .lg-wifi { width: 18px; height: 0; border-top: 2px solid var(--wifi); }
 .lg-p2p { width: 18px; height: 0; border-top: 2px dashed var(--wifi); }
+.lg-lorareach { width: 18px; height: 0; border-top: 2px dotted var(--lora); }
 .lg-lora { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--lora); }
 .lg-house { width: 11px; height: 11px; border: 2px solid var(--ink); border-radius: 2px; }
 .lg-relay { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid var(--muted); }
@@ -223,6 +224,7 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
           <span><i class="lg-mesh"></i>Meshtastic user</span>
           <span><i class="lg-wifi"></i>WiFi mesh link</span>
           <span><i class="lg-p2p"></i>Point-to-point link</span>
+          <span><i class="lg-lorareach"></i>LoRa in range</span>
           <span><i class="lg-lora"></i>LoRa radio · rings = transmitting</span>
         </div>
       </div>
@@ -394,6 +396,18 @@ function drawMap() {
     const r = sel.wifi === 'builtin' ? PI[sel.pi].builtinRange : ({ dongle: 350, pole: 450, none: 0 })[sel.wifi];
     if (r) { const [x, y] = px(sel); ctx.beginPath(); ctx.arc(x, y, r * view.s, 0, Math.PI * 2); ctx.fillStyle = wifi + '14'; ctx.fill(); ctx.setLineDash([3, 4]); ctx.strokeStyle = wifi; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]); }
   }
+  // LoRa radios that hear each other directly: faint dots, stronger for the selected node.
+  // Meshtastic users are on the same air, so they show here too.
+  const radios = S.nodes.filter((n) => n.lora && n.online), R = sim.preset().range;
+  ctx.setLineDash([1, 4]); ctx.lineCap = 'round'; ctx.strokeStyle = lora; ctx.lineWidth = 1.5;
+  for (let i = 0; i < radios.length; i++) for (let j = i + 1; j < radios.length; j++) {
+    const a = radios[i], b = radios[j];
+    if (Math.hypot(a.x - b.x, a.y - b.y) > R) continue;
+    const hot = a.id === selectedId || b.id === selectedId;
+    const [x1, y1] = px(a), [x2, y2] = px(b);
+    ctx.globalAlpha = hot ? 0.9 : 0.3; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.lineCap = 'butt'; ctx.globalAlpha = 1;
   // links
   for (const l of S.links) {
     const [x1, y1] = px(l.a), [x2, y2] = px(l.b);
@@ -555,7 +569,7 @@ function renderInspector() {
   const el = $('#inspector');
   if (!n) { el.innerHTML = '<p class="eyebrow">Selected</p><p class="note">Click a house on the map.</p>'; return; }
   if (n.kind === 'mesh') {
-    el.innerHTML = `<p class="eyebrow">Selected</p><h3>${esc(n.name)}</h3><p class="meta">A neighbour's own Meshtastic radio, not part of batnet. It shows up in "Radios nearby" and posts on the public channel now and then.</p>`;
+    el.innerHTML = `<p class="eyebrow">Selected</p><h3>${esc(n.name)}</h3><p class="meta">A neighbour's own Meshtastic radio. It isn't running batnet, but it's on the same air: its posts on the public channel show up in batnet's "Neighbourhood (public)" group, and batnet's posts there show up on its phone. It also passes batnet's private messages along to radios it can reach, without being able to read them. Dotted lines show which radios it hears directly.</p>`;
     return;
   }
   const cl = clusterOf(n);
