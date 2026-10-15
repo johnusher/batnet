@@ -20,7 +20,7 @@ const T = {
     deniedText: (n, h) => 'Sorry, ' + n + ': ' + h + '\'s admin did not approve this account. Ask them in person.',
     signOut: 'Sign out', chats: 'Chats', people: 'People', settings: 'Settings', everyone: 'Everyone', noMessages: 'No messages yet',
     message: 'Message', normal: 'Normal', high: '❗ High', low: 'Low', attachLoc: 'Attach my location', send: 'Send', back: 'Back',
-    waitingToSend: 'waiting to send', failed: 'not sent', alertFrom: (n) => '⚠ Alert from ' + n, someone: 'Someone', theAdmin: 'the house admin',
+    waitingToSend: 'waiting to send', failed: 'not sent', sendAsNormal: 'Send as Normal', sendAgain: 'Send again', delete: 'Delete', alertFrom: (n) => '⚠ Alert from ' + n, someone: 'Someone', theAdmin: 'the house admin',
     houseGps: 'house GPS', phoneGps: 'phone GPS', noLocation: 'Couldn\'t get your location. Send without it, or try again outside.',
     noGeo: 'This browser has no location.', groups: 'Groups', join: 'Join', leave: 'Leave', everyoneIn: 'Everyone in the village', directMessage: 'Direct message',
     you: 'You', notifications: 'Notifications', speaker: 'Announce my messages on the house speaker', speakerSub: 'Says who a message is for and who sent it, never what it says',
@@ -50,7 +50,7 @@ const T = {
     deniedText: (n, h) => 'Tut uns leid, ' + n + ': Die Verwaltung von ' + h + ' hat dieses Konto nicht freigegeben. Frag sie persönlich.',
     signOut: 'Abmelden', chats: 'Chats', people: 'Leute', settings: 'Einstellungen', everyone: 'Alle', noMessages: 'Noch keine Nachrichten',
     message: 'Nachricht', normal: 'Normal', high: '❗ Wichtig', low: 'Niedrig', attachLoc: 'Meinen Standort anhängen', send: 'Senden', back: 'Zurück',
-    waitingToSend: 'wartet auf Versand', failed: 'nicht gesendet', alertFrom: (n) => '⚠ Alarm von ' + n, someone: 'Jemand', theAdmin: 'der Hausverwaltung',
+    waitingToSend: 'wartet auf Versand', failed: 'nicht gesendet', sendAsNormal: 'Als Normal senden', sendAgain: 'Erneut senden', delete: 'Löschen', alertFrom: (n) => '⚠ Alarm von ' + n, someone: 'Jemand', theAdmin: 'der Hausverwaltung',
     houseGps: 'Haus-GPS', phoneGps: 'Handy-GPS', noLocation: 'Standort nicht gefunden. Sende ohne, oder versuch es draußen noch einmal.',
     noGeo: 'Dieser Browser kennt keinen Standort.', groups: 'Gruppen', join: 'Beitreten', leave: 'Verlassen', everyoneIn: 'Alle im Dorf', directMessage: 'Direktnachricht',
     you: 'Du', notifications: 'Benachrichtigungen', speaker: 'Meine Nachrichten über den Hauslautsprecher ansagen', speakerSub: 'Sagt, für wen eine Nachricht ist und von wem, nie was drinsteht',
@@ -148,9 +148,9 @@ function initials(name) {
 }
 
 function newClientId() {
-  const b = new Uint8Array(12);
+  const b = new Uint8Array(6); // 8 characters: short on the radio, and only compared within one account
   crypto.getRandomValues(b);
-  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  return btoa(String.fromCharCode(...b)).replace(/\+/g, '-').replace(/\//g, '_');
 }
 
 // ---------- sound (only while the app is open: a locked phone can't ring) ----------
@@ -218,7 +218,10 @@ const outbox = {
     await this.tx('readwrite', (s) => s.delete(id));
     this.mem = this.mem.filter((x) => x.clientId !== id);
   },
+  // the outbox is per phone, and a phone can be shared: only its writer sees or sends an item
+  mine(item) { return !!state.me && item.account === state.me.account; },
   async add(item) {
+    item.account = state.me.account;
     item.made = Date.now();
     item.status = 'waiting';
     await this.put(item);
@@ -230,13 +233,14 @@ const outbox = {
     this.busy = true;
     try {
       for (const item of await this.all()) {
-        if (item.status === 'failed') continue;
+        if (item.status === 'failed' || !this.mine(item)) continue;
         try {
           await api('/api/post', { conv: item.conv, text: item.text, prio: item.prio, loc: item.loc, clientId: item.clientId });
           await this.remove(item.clientId);
         } catch (e) {
           if (e.status === 401) break; // signed out: keep it until the person signs in again
-          if (e.status === 429 || !e.status || e.status >= 500) break; // try later
+          if (!e.status || e.status >= 500) break; // out of range or the Pi is busy: try later
+          // refused (e.g. 429, the High limit): mark it with the reason and carry on with the rest
           item.status = 'failed';
           item.error = e.message;
           await this.put(item);
@@ -458,12 +462,20 @@ async function conversation() {
 async function refreshOutboxBubbles() {
   const list = document.querySelector('.msgs');
   if (!list) return;
+  const items = await outbox.all(); // read first, then redraw in one go: two refreshes at once mustn't draw twice
   for (const el of list.querySelectorAll('.outbox')) el.remove();
-  for (const item of await outbox.all()) {
-    if (item.conv !== state.conv) continue;
-    list.append(h('div', { class: 'bubble me outbox' + (item.status === 'failed' ? ' failed' : '') },
+  for (const item of items) {
+    if (item.conv !== state.conv || !outbox.mine(item)) continue;
+    const failed = item.status === 'failed';
+    list.append(h('div', { class: 'bubble me outbox' + (failed ? ' failed' : '') },
       h('div', {}, item.text),
-      h('div', { class: 'meta' }, item.status === 'failed' ? t('failed') + (item.error ? ' · ' + item.error : '') : t('waitingToSend'))));
+      h('div', { class: 'meta' }, failed ? t('failed') + (item.error ? ' · ' + item.error : '') : t('waitingToSend')),
+      failed ? h('div', { class: 'acts' },
+        h('button', { class: 'btn ghost', type: 'button', onclick: async () => {
+          item.status = 'waiting'; item.prio = item.prio === 'high' ? 'normal' : item.prio; delete item.error;
+          await outbox.put(item); refreshOutboxBubbles(); outbox.flush();
+        } }, item.prio === 'high' ? t('sendAsNormal') : t('sendAgain')),
+        h('button', { class: 'btn ghost', type: 'button', onclick: async () => { await outbox.remove(item.clientId); refreshOutboxBubbles(); } }, t('delete'))) : null));
   }
 }
 

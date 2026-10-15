@@ -466,7 +466,8 @@ func TestSettingsOwnOnly(t *testing.T) {
 func TestAppHasTheFullFeatures(t *testing.T) {
 	b, _ := appFS.ReadFile("app/app.js")
 	src := string(b)
-	for _, want := range []string{"indexedDB", "wakeLock", "de: {", "en: {", "clientId", "/api/settings", "'alert'"} {
+	for _, want := range []string{"indexedDB", "wakeLock", "de: {", "en: {", "clientId", "/api/settings", "'alert'",
+		"item.account = state.me.account", "!this.mine(item)", "sendAsNormal"} { // the outbox is per writer; a refused post doesn't block the rest
 		if !strings.Contains(src, want) {
 			t.Errorf("app.js lacks %q", want)
 		}

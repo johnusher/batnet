@@ -46,6 +46,7 @@ nav.tabs button[aria-current=page] { color: var(--accent); font-weight: 700; }
 .grow { flex: 1; }
 .bubble.outbox { opacity: .75; }
 .bubble.outbox.failed { box-shadow: inset 0 0 0 2px var(--high); opacity: 1; }
+.bubble .acts { display: flex; gap: 6px; margin-top: 6px; }
 .plain { border: 0; background: none; text-align: left; padding: 0; }
 body.large { font-size: 19px; }
 body.large .row .last, body.large .muted { font-size: 16px; }
