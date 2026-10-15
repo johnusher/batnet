@@ -7,6 +7,7 @@
   const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
   let ready = null, running = false, speed = 10, last = 0, state = null, selected = null, scenarios = [], scenarioJSON = null;
   const beams = [];
+  const rings = []; // LoRa packets: {from, heard, t0}
 
   function boot() {
     if (ready) return ready;
@@ -38,6 +39,8 @@
     state = JSON.parse(batnetSim.state());
     const now = performance.now();
     for (const f of state.frames || []) beams.push({ from: f.from, to: f.to, t0: now });
+    for (const p of (state.lora && state.lora.packets) || []) rings.push({ from: p.from, heard: p.heard || [], t0: now });
+    if (rings.length > 200) rings.splice(0, rings.length - 200);
     if (beams.length > 400) beams.splice(0, beams.length - 400);
     renderPanels();
   }
@@ -50,12 +53,15 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
     if (!state || !state.nodes) return;
-    const xs = state.nodes.map((n) => n.x), ys = state.nodes.map((n) => n.y);
+    const radios = (state.lora && state.lora.radios) || [];
+    const all = state.nodes.concat(radios.filter((r) => r.kind === 'meshtastic'));
+    const xs = all.map((n) => n.x), ys = all.map((n) => n.y);
     const minX = Math.min(...xs) - 60, maxX = Math.max(...xs) + 60, minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 60;
     const s = Math.min(W / (maxX - minX), H / (maxY - minY));
     const ox = (W - (maxX - minX) * s) / 2, oy = (H - (maxY - minY) * s) / 2;
     const px = (n) => [ox + (n.x - minX) * s, oy + (n.y - minY) * s];
-    const byName = new Map(state.nodes.map((n) => [n.name, n]));
+    const byName = new Map(all.map((n) => [n.name, n]));
+    const gateways = new Set(radios.filter((r) => r.kind === 'gateway').map((r) => r.name));
     ctx.lineWidth = 1.5; ctx.strokeStyle = css('--wifi'); ctx.globalAlpha = 0.45;
     for (const [a, b] of state.links || []) {
       const A = byName.get(a), B = byName.get(b);
@@ -79,6 +85,29 @@
       }
     }
     ctx.globalAlpha = 1;
+    // LoRa packets: an expanding ring at the sender, lines to the radios that heard it
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const g = rings[i], age = Math.max(0, (now - g.t0) / 1400);
+      if (age > 1) { rings.splice(i, 1); continue; }
+      const A = byName.get(g.from); if (!A) continue;
+      const [x1, y1] = px(A);
+      const col = gateways.has(g.from) ? css('--lora') : css('--mesh');
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.globalAlpha = 0.8 * (1 - age);
+      ctx.beginPath(); ctx.arc(x1, y1, 8 + age * 70, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1.2; ctx.setLineDash([2, 4]);
+      for (const h of g.heard) {
+        const B = byName.get(h); if (!B) continue;
+        const [x2, y2] = px(B);
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    ctx.globalAlpha = 1;
+    for (const r of radios) {
+      if (r.kind !== 'meshtastic') continue;
+      const [x, y] = px(r);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4); ctx.fillStyle = r.on ? css('--mesh') : css('--muted'); ctx.fillRect(-5, -5, 10, 10); ctx.restore();
+    }
     ctx.font = '600 11px ' + css('--f-mono'); ctx.textBaseline = 'middle';
     const labels = [];
     for (const n of state.nodes) {
@@ -94,6 +123,7 @@
       if (!n.on) ctx.setLineDash([3, 3]);
       ctx.beginPath(); ctx.roundRect(x - r, y - r, 2 * r, 2 * r, 3); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
       if (!n.on) { ctx.strokeStyle = css('--critical'); ctx.beginPath(); ctx.moveTo(x - 4, y - 4); ctx.lineTo(x + 4, y + 4); ctx.moveTo(x + 4, y - 4); ctx.lineTo(x - 4, y + 4); ctx.stroke(); }
+      if (gateways.has(n.name)) { ctx.beginPath(); ctx.arc(x + r, y - r, 4, 0, Math.PI * 2); ctx.fillStyle = n.on ? css('--lora') : css('--muted'); ctx.fill(); ctx.strokeStyle = css('--panel'); ctx.lineWidth = 2; ctx.stroke(); }
       labels.push({ n, x, y, r });
     }
     const taken = labels.map((l) => [l.x - l.r, l.y - l.r, l.x + l.r, l.y + l.r]);
@@ -126,7 +156,11 @@
     const ms = (v) => v >= 1000 ? (v / 1000).toFixed(1) + ' s' : Math.round(v) + ' ms';
     const tiles = [['Posts', st.posts, 'real signed entries'], ['Deliveries', st.deliveries, 'arrivals at other houses'],
       ['Delivery time', ms(st.p50), 'median · slowest 5% ' + ms(st.p95)], ['WiFi frames', st.frames, st.lost + ' lost to receivers'],
-      ['Busiest channel', Math.round(st.channel * 100) + '%', 'share of a second on air']];
+      ['Busiest WiFi channel', Math.round(st.channel * 100) + '%', 'share of a second on air']];
+    if (st.loraPackets) tiles.push(['LoRa packets', st.loraPackets, st.loraCollided + ' collided · ' + st.loraRebroadcasts + ' rebroadcasts'],
+      ['Busiest radio', Math.round(st.loraMaxDutyPct) + '%', 'of its 360 s an hour']);
+    const radios = (state.lora && state.lora.radios) || [];
+    $('#rv-radios').innerHTML = radios.length ? radios.map((r) => `<div class="bar"><span class="lbl">${esc(r.name)}${r.queue ? ' · ' + r.queue + ' waiting' : ''}</span><span class="track"><span class="fill ${r.kind === 'meshtastic' ? 'mesh' : ''}" style="width:${Math.min(100, r.dutyPct).toFixed(1)}%"></span></span><span class="val">${(r.dutyPct * 3.6).toFixed(0)} / 360 s</span></div>`).join('') : '<p class="note">No LoRa radios in this scenario.</p>';
     $('#rv-tiles').innerHTML = tiles.map(([k, v, s]) => `<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${s}</div></div>`).join('');
     const rep = JSON.parse(batnetSim.report());
     const done = state.now >= state.end;
