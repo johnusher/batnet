@@ -19,3 +19,6 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0015 Message priority](0015-message-priority.md) - High, Normal, Low (and admin Alert) mapped to 0-9 for the radio queue; High rate-limited
 * [0016 No-phone mode](0016-no-phone-mode.md) - screen and keyboard on a Pi 4/5: the same app full-screen as a shared terminal or notice board
 * [0017 Gateways share the radio](0017-gateways-share-the-radio.md) - entries spread over a WiFi group's gateways by key; supersedes 0007's single sender
+* [0018 Notifications and house speaker](0018-notifications-and-house-speaker.md) - ring in the open app, bedside mode, a speaker, button and LED on the house Pi; ntfy optional on Android
+* [0019 Location](0019-location.md) - off by default, per message, from the phone or the node's GPS; tracking and zones later
+* [0020 Photos](0020-photos.md) - metadata stripped, resampled above 500 KB, full over WiFi, blurred preview over LoRa (M2)

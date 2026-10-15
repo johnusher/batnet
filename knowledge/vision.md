@@ -54,11 +54,11 @@ deployment is a village, houses 150 m to 1 km apart.
 
 | | Scope |
 |---|---|
-| **M1** | House Pi, captive portal, accounts + admin approval, directory, groups + everyone channel, text chat, log sync over batman-adv, text over LoRa via meshtasticd, installer, "radios nearby" page (Meshtastic node list + WiFi scan) |
-| **M2** | Voice messages: speech-to-text on the house Pi, sent as text over LoRa, spoken by the phone |
+| **M1** | House Pi, captive portal, accounts + admin approval, directory, groups + everyone channel, text chat, log sync over batman-adv, text over LoRa via meshtasticd, installer, "radios nearby" page (Meshtastic node list + WiFi scan); house speaker, button and LED for notifications; location per message (phone or node GPS) |
+| **M2** | Voice messages: speech-to-text on the house Pi, sent as text over LoRa, spoken by the phone; photos; location tracking |
 | **M3** | Live audio calls between WiFi-linked houses (WebRTC + Pion) |
 | **M4** | Radio scanner: SDR sweep, human-comms detection, band-plan labels, village "on air" view, Meshtastic preset sweep |
-| Later | Video calls, sensor and camera nodes, solar/battery monitoring, announcer speaker |
+| Later | Video calls, sensor and camera nodes, solar/battery monitoring, location zones, offline street maps |
 
 Milestone 1 is specified in the [milestone 1 spec](https://github.com/johnusher/batnet/blob/main/docs/specs/2026-10-15-m1-design.md) (approved 2026-10-15).
 
