@@ -24,9 +24,9 @@ A **pocket node** is the `house` role on a Pi Zero 2 W:
 * a USB power bank powers it; a 3D-printed case holds Pi, HAT and antenna.
 
 It serves a handful of phones: the [village simulator](/research/village-sim-findings.md)
-assumes about 8 for a Zero 2 W. Speech-to-text for voice messages is too heavy
-for it; a voice message from a pocket node waits for M2 work on a lighter model
-or is sent as audio over WiFi only.
+assumes about 8 for a Zero 2 W. Speech-to-text on it is unmeasured: Moonshine Tiny
+(about 35–40 MB) may fit, slower than real time, which is acceptable for
+store-and-forward voice messages ([speech pipeline](/research/speech-pipeline.md)).
 
 # Open
 

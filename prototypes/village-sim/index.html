@@ -883,7 +883,7 @@ function screenChats(me) {
   }).join('')}</div>${tabBar(me)}`;
 }
 // ---- voice messages (milestone 2 preview) ----
-// The phone records; the house Pi cleans the audio and writes it out as text.
+// The phone records and trims silence; the house Pi writes the raw audio out as text (Moonshine) and cleans a copy for listening (decision 0014).
 // Over WiFi the recording travels as audio with its transcript; over the long-range radio only the text goes, and the far phone reads it aloud.
 const VOICE_PHRASES = ['Water point at the church is open again until six.', 'Can someone bring a torch to the school hall tonight?', 'We have spare bread, come by before ten.', 'Grandma is fine, she says thank you for the soup.', 'Road to the bridge is blocked, take the farm track.'];
 function waveBars(seed, n) { let x = seed * 9301 + 49297, out = ''; for (let i = 0; i < n; i++) { x = (x * 9301 + 49297) % 233280; out += `<i style="height:${4 + Math.round((x / 233280) * 18)}px"></i>`; } return `<span class="wave" aria-hidden="true">${out}</span>`; }
@@ -914,7 +914,7 @@ function composeArea(me, key) {
   const r = app.rec;
   if (r && !r.review) {
     const t = (performance.now() - r.t0) / 1000;
-    return `<div class="recbar"><span class="recdot" aria-hidden="true"></span><span class="rt">${secs(Math.min(t, 59))}</span><span class="hint">Recording… noise is cleaned up on the house Pi</span><button class="iconbtn" data-act="recCancel" aria-label="Cancel">✕</button><button class="iconbtn go" data-act="recStop" aria-label="Stop recording">■</button></div>`;
+    return `<div class="recbar"><span class="recdot" aria-hidden="true"></span><span class="rt">${secs(Math.min(t, 59))}</span><span class="hint">Recording… the house Pi writes it out as text</span><button class="iconbtn" data-act="recCancel" aria-label="Cancel">✕</button><button class="iconbtn go" data-act="recStop" aria-label="Stop recording">■</button></div>`;
   }
   if (r && r.review) {
     const sp = recipientsSplit(me);

@@ -7,6 +7,7 @@ sources, not yet confirmed on our hardware.
 * [LoRa airtime in EU868](lora-airtime-eu868.md) - how many batnet messages per hour a village can push over Meshtastic LongFast, and why text fits but voice does not
 * [Voice bitrates](voice-bitrates.md) - why speech-to-text-to-speech is the way to carry speech over LoRa, and why WiFi keeps real audio
 * [On-device speech](on-device-speech.md) - which Pi can run which speech models, from Moonshine and Whisper on the Pi 5 down to nothing on the Zero W
+* [Speech pipeline](speech-pipeline.md) - which voice-activity detector, denoiser, speech-to-text and text-to-speech model to run on a Pi 5, Pi 4, Zero 2 W and in the phone browser, with the measured numbers, who measured them, and licences
 * [Existing projects](existing-projects.md) - Meshtastic, MeshCore, Reticulum and Pi walkie-talkie projects - what each does and what batnet takes from them
 * [Browser limits offline](browser-limits-offline.md) - secure context for the microphone, no notifications without a service worker, and the limits of captive-portal pop-ups
 * [SDR scanning](sdr-scanning.md) - what a cheap RTL-SDR on a house Pi can detect and the legal line between activity and content

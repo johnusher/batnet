@@ -19,6 +19,8 @@ sources:
     title: Local voice-AI model database
 ---
 
+Superseded in detail by the [speech pipeline](/research/speech-pipeline.md) note (2026-10-15), which recommends Moonshine over Whisper.
+
 # By board (mostly vendor figures; nobody has published Zero 2 measurements)
 
 | Board | Speech-to-text | Text-to-speech | Notes |
