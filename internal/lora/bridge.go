@@ -1,0 +1,262 @@
+package lora
+
+import (
+	"bytes"
+	"fmt"
+	"hash/fnv"
+	"math/rand"
+	"sort"
+
+	"github.com/johnusher/batnet/internal/ledger"
+	"github.com/johnusher/batnet/internal/prio"
+)
+
+const (
+	beaconEveryUs   = 15 * 60_000_000
+	remoteHeardUs   = 30 * 60_000_000
+	suppressSpanUs  = 3_000_000
+	maxRecoverEach  = 8
+	reassemblyTTLUs = 10 * 60_000_000
+)
+
+// Radio is the bridge's view of the LoRa radio (meshtasticd on a Pi; the
+// simulated air in tests and the simulator).
+type Radio interface {
+	Transmit(frame []byte, durUs int64)
+	BusyUntil() int64
+}
+
+// BridgeConfig wires a bridge to its node.
+type BridgeConfig struct {
+	Self      ledger.NodeID
+	Preset    Preset
+	Store     ledger.Store
+	Inject    func(*ledger.Entry) bool
+	InMyGroup func(short uint32) bool
+	Radio     Radio
+	Now       func() int64
+	Seed      int64
+}
+
+// BridgeStats counts what a bridge did.
+type BridgeStats struct {
+	Sent, Received, Suppressed, Injected, Bad, Beacons, Recovered int
+	AirUs                                                         int64
+}
+
+// Bridge is one gateway's LoRa logic. It is driven by events and Tick; it
+// starts no goroutines.
+type Bridge struct {
+	Queue Queue
+	Duty  *DutyMeter
+	Stats BridgeStats
+
+	cfg        BridgeConfig
+	self       uint32
+	rnd        *rand.Rand
+	reasm      *Reassembler
+	heard      map[ledger.Key]bool
+	waiting    map[string]int64 // key → time it may be queued (suppression delay)
+	waitEntry  map[string]*ledger.Entry
+	remoteAt   int64 // last time a batnet radio outside this group was heard; -1 never
+	nextBeacon int64
+	busyUntil  int64 // our own transmission in progress
+}
+
+// NewBridge returns a bridge; its first beacon goes at a random point in the first 15 min.
+func NewBridge(cfg BridgeConfig) *Bridge {
+	b := &Bridge{cfg: cfg, Duty: NewDutyMeter(), self: ShortID(cfg.Self), rnd: rand.New(rand.NewSource(cfg.Seed)),
+		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]bool{}, waiting: map[string]int64{},
+		waitEntry: map[string]*ledger.Entry{}, remoteAt: -1}
+	b.nextBeacon = cfg.Now() + b.rnd.Int63n(beaconEveryUs)
+	return b
+}
+
+func keyString(k ledger.Key) string { return fmt.Sprintf("%x/%d", k.Origin[:], k.Seq) }
+
+func (b *Bridge) remoteHeard() bool {
+	return b.remoteAt >= 0 && b.cfg.Now()-b.remoteAt <= remoteHeardUs
+}
+
+// Consider looks at an entry new to this node, from the WiFi mesh or written here.
+func (b *Bridge) Consider(e *ledger.Entry) {
+	if b.heard[e.Key] || (e.Type != ledger.TypeMsgPost && e.Type != ledger.TypeAlert) || !b.remoteHeard() {
+		return
+	}
+	k := keyString(e.Key)
+	if b.Queue.Has(k) || b.waiting[k] != 0 {
+		return
+	}
+	h := fnv.New32a()
+	h.Write([]byte(k))
+	h.Write([]byte{byte(b.self >> 24), byte(b.self >> 16), byte(b.self >> 8), byte(b.self)})
+	delay := int64(h.Sum32()) % suppressSpanUs
+	if b.Duty.Used(b.cfg.Now()) > DutyLimitUs/2 {
+		delay += suppressSpanUs // a busy radio lets the others go first
+	}
+	b.waiting[k] = b.cfg.Now() + delay + 1
+	b.waitEntry[k] = e
+}
+
+func (b *Bridge) queueEntry(e *ledger.Entry, level prio.Level) {
+	raw, _ := e.MarshalBinary()
+	frames, err := Split(KindEntry, level, b.self, raw)
+	if err != nil {
+		return
+	}
+	b.Queue.Push(&Item{Key: keyString(e.Key), Kind: KindEntry, Base: level, Enqueued: b.cfg.Now(), Frames: frames})
+}
+
+func (b *Bridge) queueBeacon() {
+	v, err := b.cfg.Store.Vector()
+	if err != nil {
+		return
+	}
+	frames, err := Split(KindBeacon, prio.Beacon, b.self, AppendCompactVector(nil, v))
+	if err != nil {
+		return
+	}
+	b.Queue.Push(&Item{Key: fmt.Sprintf("beacon/%d", b.cfg.Now()), Kind: KindBeacon, Base: prio.Beacon, Enqueued: b.cfg.Now(), Frames: frames})
+}
+
+// Receive handles a frame heard on air.
+func (b *Bridge) Receive(frame []byte) {
+	f, err := Parse(frame)
+	if err != nil {
+		b.Stats.Bad++
+		return
+	}
+	if f.Sender == b.self {
+		return
+	}
+	if !b.cfg.InMyGroup(f.Sender) {
+		b.remoteAt = b.cfg.Now()
+	}
+	payload, done := b.reasm.Add(f, b.cfg.Now())
+	if !done {
+		return
+	}
+	b.Stats.Received++
+	switch f.Kind {
+	case KindEntry:
+		var e ledger.Entry
+		if e.UnmarshalBinary(payload) != nil || e.Verify() != nil {
+			b.Stats.Bad++
+			return
+		}
+		b.heard[e.Key] = true
+		k := keyString(e.Key)
+		if b.Queue.Remove(k) || b.waiting[k] != 0 {
+			delete(b.waiting, k)
+			delete(b.waitEntry, k)
+			b.Stats.Suppressed++
+		}
+		if b.cfg.Inject(&e) {
+			b.Stats.Injected++
+		}
+	case KindBeacon:
+		if b.cfg.InMyGroup(f.Sender) {
+			return
+		}
+		theirs, err := ParseCompactVector(payload)
+		if err != nil {
+			b.Stats.Bad++
+			return
+		}
+		b.answerBeacon(theirs)
+	}
+}
+
+// answerBeacon queues up to 8 entries the beacon's sender lacks, oldest first.
+func (b *Bridge) answerBeacon(theirs map[uint32]uint64) {
+	mine, err := b.cfg.Store.Vector()
+	if err != nil {
+		return
+	}
+	origins := make([]ledger.NodeID, 0, len(mine))
+	for o := range mine {
+		origins = append(origins, o)
+	}
+	sort.Slice(origins, func(i, j int) bool { return bytes.Compare(origins[i][:], origins[j][:]) < 0 })
+	var missing []*ledger.Entry
+	for _, o := range origins {
+		have := theirs[ShortID(o)]
+		if mine[o] <= have {
+			continue
+		}
+		es, err := b.cfg.Store.Range(ledger.Range{Origin: o, From: have + 1, To: mine[o]}, maxRecoverEach)
+		if err != nil {
+			continue
+		}
+		for _, e := range es {
+			if e.Type == ledger.TypeMsgPost || e.Type == ledger.TypeAlert {
+				missing = append(missing, e)
+			}
+		}
+	}
+	sort.SliceStable(missing, func(i, j int) bool { return missing[i].TS.Less(missing[j].TS) })
+	for i, e := range missing {
+		if i == maxRecoverEach {
+			break
+		}
+		if !b.Queue.Has(keyString(e.Key)) {
+			b.queueEntry(e, prio.Normal-1)
+			b.Stats.Recovered++
+		}
+	}
+}
+
+// Tick sends what may go on air now and returns when to call again.
+func (b *Bridge) Tick() int64 {
+	now := b.cfg.Now()
+	due := make([]string, 0, len(b.waiting))
+	for k := range b.waiting {
+		due = append(due, k)
+	}
+	sort.Strings(due) // map order is random; queue order must not be
+	for _, k := range due {
+		if at := b.waiting[k]; at <= now {
+			if e := b.waitEntry[k]; e != nil {
+				b.queueEntry(e, prio.Level(e.Prio))
+			}
+			delete(b.waiting, k)
+			delete(b.waitEntry, k)
+		}
+	}
+	if now >= b.nextBeacon {
+		b.queueBeacon()
+		b.Stats.Beacons++
+		b.nextBeacon = now + beaconEveryUs
+	}
+	next := b.nextBeacon
+	for _, at := range b.waiting {
+		next = min(next, at)
+	}
+	it := b.Queue.Peek(now)
+	if it == nil {
+		return next
+	}
+	if now < b.busyUntil {
+		return min(next, b.busyUntil)
+	}
+	if busy := b.cfg.Radio.BusyUntil(); busy > now {
+		return min(next, busy+int64(b.rnd.Intn(200_000))) // listen before talk, with a little jitter
+	}
+	frame := it.Frames[it.Next]
+	dur := AirtimeUs(len(frame), b.cfg.Preset)
+	if at := b.Duty.AllowedAt(now, dur); at > now {
+		return min(next, at)
+	}
+	b.cfg.Radio.Transmit(frame, dur)
+	b.Duty.Record(now, dur)
+	b.busyUntil = now + dur
+	b.Stats.AirUs += dur
+	it.Next++
+	if it.Next == len(it.Frames) {
+		b.Queue.Remove(it.Key)
+		if it.Kind == KindEntry {
+			b.Stats.Sent++
+		}
+	}
+	return min(next, b.busyUntil)
+}
