@@ -89,6 +89,20 @@ type partial struct {
 	first  int64
 	chunks [][]byte
 	have   int
+	nudged bool // a beacon was already pulled forward for this one
+}
+
+// Stalled reports whether a partial message has waited longer than age
+// without completing, once per partial: its sender's frames were lost, so a
+// beacon soon would ask for the rest.
+func (r *Reassembler) Stalled(nowUs, ageUs int64) bool {
+	stalled := false
+	for _, p := range r.pending {
+		if !p.nudged && p.have < len(p.chunks) && nowUs-p.first >= ageUs {
+			p.nudged, stalled = true, true
+		}
+	}
+	return stalled
 }
 
 // NewReassembler keeps partial messages for ttlUs, at most maxPending at once.
@@ -110,7 +124,7 @@ func (r *Reassembler) Add(f Frame, nowUs int64) ([]byte, bool) {
 	p := r.pending[k]
 	if p == nil {
 		if len(r.pending) >= r.maxPending {
-			return nil, false
+			r.evictOldest() // a new message counts for more than the stalest partial one (B12)
 		}
 		p = &partial{first: nowUs, chunks: make([][]byte, f.Count)}
 		r.pending[k] = p
@@ -132,6 +146,21 @@ func (r *Reassembler) Add(f Frame, nowUs int64) ([]byte, bool) {
 		return nil, false
 	}
 	return out, true
+}
+
+// evictOldest drops the partial message that started longest ago.
+func (r *Reassembler) evictOldest() {
+	var oldest [2]uint32
+	var at int64
+	found := false
+	for k, p := range r.pending {
+		if !found || p.first < at || (p.first == at && (k[0] < oldest[0] || (k[0] == oldest[0] && k[1] < oldest[1]))) {
+			oldest, at, found = k, p.first, true
+		}
+	}
+	if found {
+		delete(r.pending, oldest)
+	}
 }
 
 // ShortID is a node's 4-byte short form, used on air.

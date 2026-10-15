@@ -21,6 +21,7 @@ const (
 	suppressSpanUs  = 3_000_000
 	maxRecoverEach  = 8
 	reassemblyTTLUs = 10 * 60_000_000
+	stalledUs       = 60_000_000 // a partial message older than this lost frames on air: beacon soon
 	// holdFactor: how long to wait for the rest of an entry another gateway
 	// started, in fragment times. A busy channel stretches a sender's fragments
 	// apart; 6 gave the fewest missing and late posts on farms over six seeds.
@@ -63,8 +64,8 @@ type Bridge struct {
 	self       uint32
 	rnd        *rand.Rand
 	reasm      *Reassembler
-	heard      map[ledger.Key]bool
-	waiting    map[string]int64 // key → time it may be queued (suppression delay)
+	heard      map[ledger.Key]int64 // entries heard on air lately, with when: not to be sent again (bounded, B16)
+	waiting    map[string]int64     // key → time it may be queued (suppression delay)
 	waitEntry  map[string]*ledger.Entry
 	waitKind   map[string]Kind      // KindEntry, or KindRecovery for beacon answers
 	held       map[string]heldEntry // another gateway started sending these: wait for the rest
@@ -86,7 +87,7 @@ type heldEntry struct {
 // NewBridge returns a bridge; its first beacon goes at a random point in the first 15 min.
 func NewBridge(cfg BridgeConfig) *Bridge {
 	b := &Bridge{cfg: cfg, Duty: NewDutyMeter(), self: ShortID(cfg.Self), rnd: rand.New(rand.NewSource(cfg.Seed)),
-		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]bool{}, waiting: map[string]int64{},
+		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]int64{}, waiting: map[string]int64{},
 		waitEntry: map[string]*ledger.Entry{}, waitKind: map[string]Kind{}, held: map[string]heldEntry{}, remoteAt: -1}
 	b.nextBeacon = cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 	return b
@@ -122,7 +123,7 @@ func relayable(e *ledger.Entry) bool { return e.Type != ledger.TypeLoRaSent }
 // here. Only entries written inside this WiFi group go on air: one from
 // another group came over LoRa already (through another gateway, maybe).
 func (b *Bridge) Consider(e *ledger.Entry) {
-	if b.heard[e.Key] || !relayable(e) || !b.remoteHeard() {
+	if at, ok := b.heard[e.Key]; (ok && b.cfg.Now()-at <= heardTTLUs) || !relayable(e) || !b.remoteHeard() {
 		return
 	}
 	if o := ShortID(e.Key.Origin); o != b.self && !b.cfg.InMyGroup(o) {
@@ -198,14 +199,15 @@ func (b *Bridge) Receive(frame []byte) {
 	if f.Kind != KindBeacon {
 		b.holdByMsgID(f.MsgID, int(f.Count)) // someone is already sending this entry: don't start it too
 	}
-	if !b.cfg.InMyGroup(f.Sender) {
-		b.remoteAt = b.cfg.Now()
-	}
 	payload, done := b.reasm.Add(f, b.cfg.Now())
 	if !done {
 		return
 	}
 	b.Stats.Received++
+	// The 30-min gate for sending over LoRa opens only on a frame whose payload
+	// checks out (a signed entry or a well-formed beacon) from a radio outside
+	// this WiFi group: a valid-looking header with garbage behind it is noise (B10).
+	remote := !b.cfg.InMyGroup(f.Sender)
 	switch f.Kind {
 	case KindEntry, KindRecovery:
 		var e ledger.Entry
@@ -213,7 +215,10 @@ func (b *Bridge) Receive(frame []byte) {
 			b.Stats.Bad++
 			return
 		}
-		b.heard[e.Key] = true
+		if remote {
+			b.remoteAt = b.cfg.Now()
+		}
+		b.noteHeard(e.Key)
 		k := keyString(e.Key)
 		if b.Queue.Remove(k) || b.waiting[k] != 0 || b.held[k].e != nil {
 			delete(b.waiting, k)
@@ -229,23 +234,56 @@ func (b *Bridge) Receive(frame []byte) {
 			}
 		}
 	case KindBeacon:
-		if b.cfg.InMyGroup(f.Sender) {
-			return
-		}
 		theirs, err := ParseCompactVector(payload)
 		if err != nil {
 			b.Stats.Bad++
 			return
 		}
+		if !remote {
+			return
+		}
+		b.remoteAt = b.cfg.Now()
 		b.answerBeacon(theirs)
 	}
 }
 
+// heardTTLUs is how long an entry heard on air is remembered as heard. It
+// only has to outlive the moment it is injected and reaches Consider; an hour
+// leaves room for the same entry arriving late over the mesh.
+const heardTTLUs = 60 * 60_000_000
+
+// noteHeard records an entry heard on air, dropping stale notes once the
+// table is large, so it never grows with the life of the gateway (B16).
+func (b *Bridge) noteHeard(k ledger.Key) {
+	now := b.cfg.Now()
+	if len(b.heard) >= 4096 {
+		for key, at := range b.heard {
+			if now-at > heardTTLUs {
+				delete(b.heard, key)
+			}
+		}
+	}
+	b.heard[k] = now
+}
+
 // answerBeacon queues up to 8 entries the beacon's sender lacks, oldest first.
+// A beacon also shows what its sender has that this gateway lacks: then this
+// gateway's own next beacon comes soon, so the gap is asked for in minutes,
+// not at the next quarter-hour (decision 0024).
 func (b *Bridge) answerBeacon(theirs map[uint32]uint64) {
 	mine, err := b.cfg.Store.Vector()
 	if err != nil {
 		return
+	}
+	short := make(map[uint32]uint64, len(mine))
+	for o, n := range mine {
+		short[ShortID(o)] = max(short[ShortID(o)], n)
+	}
+	for id, n := range theirs {
+		if n > short[id] {
+			b.nextBeacon = min(b.nextBeacon, b.cfg.Now()+catchUpBeaconUs)
+			break
+		}
 	}
 	origins := make([]ledger.NodeID, 0, len(mine))
 	for o := range mine {
@@ -311,6 +349,9 @@ func (b *Bridge) Tick() int64 {
 			delete(b.held, k) // the other sender stopped: back in line
 			b.wait(h.e, h.kind)
 		}
+	}
+	if b.reasm.Stalled(now, stalledUs) { // part of a message was lost on air: ask for it soon, not next quarter-hour
+		b.nextBeacon = min(b.nextBeacon, now+catchUpBeaconUs)
 	}
 	if now >= b.nextBeacon {
 		b.queueBeacon()

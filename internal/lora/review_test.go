@@ -58,6 +58,88 @@ func TestCatchUpOnlyForRecovery(t *testing.T) {
 	}
 }
 
+// B10: a frame with a valid header and garbage behind it doesn't open the
+// 30-min gate for sending over LoRa; a verified entry from another group does.
+func TestGateOpensOnlyOnVerifiedFrames(t *testing.T) {
+	air, gws := newGateways(t, 1, 2)
+	garbage, _ := Split(KindEntry, prio.Normal, ShortID(gws[1].author.ID()), []byte("not an entry at all"))
+	gws[0].b.Receive(garbage[0])
+	if gws[0].b.remoteHeard() {
+		t.Fatal("garbage with a valid header opened the gate")
+	}
+	beaconish, _ := Split(KindBeacon, prio.Beacon, ShortID(gws[1].author.ID()), []byte{255, 255, 255})
+	gws[0].b.Receive(beaconish[0])
+	if gws[0].b.remoteHeard() {
+		t.Fatal("a malformed beacon opened the gate")
+	}
+	e, _ := gws[1].author.Append(ledger.TypeMsgPost, 5, map[string]string{"text": "real"})
+	frames, _ := Split(KindEntry, prio.Normal, ShortID(gws[1].author.ID()), mustMarshal(e))
+	for _, f := range frames {
+		gws[0].b.Receive(f)
+	}
+	if !gws[0].b.remoteHeard() {
+		t.Fatal("a verified entry from another group did not open the gate")
+	}
+	_ = air
+}
+
+// Decision 0024: a gateway left holding part of a message (the rest collided
+// on air) beacons within a couple of minutes, once, instead of waiting for
+// its next quarter-hour beacon.
+func TestStalledPartialPullsTheBeaconForward(t *testing.T) {
+	air, gws := newGateways(t, 1, 2)
+	run(air, gws, 16*60_000_000)
+	long := ""
+	for len(long) < 2*MaxFrame {
+		long += "The bridge on the north road is closed; use the ford by the mill. "
+	}
+	e, _ := gws[1].author.Append(ledger.TypeMsgPost, 5, map[string]string{"audience": "everyone", "text": long})
+	frames, _ := Split(KindEntry, prio.Normal, ShortID(gws[1].author.ID()), mustMarshal(e))
+	if len(frames) < 2 {
+		t.Fatal("the test needs an entry of several fragments")
+	}
+	gws[0].b.Receive(frames[0]) // the rest never arrives
+	before := gws[0].b.Stats.Beacons
+	run(air, gws, 4*60_000_000)
+	if gws[0].b.Stats.Beacons != before+1 {
+		t.Fatalf("%d beacons in 4 min after a stalled message, want 1", gws[0].b.Stats.Beacons-before)
+	}
+	if got, _ := gws[0].store.Get(e.Key); got == nil {
+		t.Fatal("the beacon's answer did not bring the rest of the message")
+	}
+	r := NewReassembler(reassemblyTTLUs, 4)
+	f, _ := Parse(frames[0])
+	r.Add(f, 0)
+	if r.Stalled(30_000_000, stalledUs) {
+		t.Fatal("a partial message counted as stalled before its time")
+	}
+	if !r.Stalled(stalledUs, stalledUs) || r.Stalled(2*stalledUs, stalledUs) {
+		t.Fatal("a stalled partial message must count once, not again")
+	}
+}
+
+// B12: when the reassembler is full, the stalest partial message makes room
+// for a new one, instead of the new one being refused for ten minutes.
+func TestReassemblerEvictsTheOldestPartial(t *testing.T) {
+	r := NewReassembler(60_000_000, 4)
+	for i := uint32(1); i <= 4; i++ {
+		fr, _ := Split(KindEntry, prio.Normal, i, make([]byte, 2*maxChunk))
+		f, _ := Parse(fr[0])
+		r.Add(f, int64(i)*1_000_000) // sender 1 started first
+	}
+	fresh, _ := Split(KindEntry, prio.Normal, 9, []byte("a new two-part message that must get through, long enough to need a second fragment because it goes past the chunk size of a single frame, which is one hundred and ninety bytes, so a bit more text here"))
+	if len(fresh) < 2 {
+		t.Fatal("the test needs a fragmented payload")
+	}
+	for _, fr := range fresh {
+		f, _ := Parse(fr)
+		if _, done := r.Add(f, 5_000_000); done {
+			return // rebuilt: room was made
+		}
+	}
+	t.Fatal("a new message was refused while the table was full of stale partials")
+}
+
 // Review I3: a recovered High post keeps High; a recovered Normal one drops one level.
 func TestRecoveredKeepsPriority(t *testing.T) {
 	cases := []struct{ in, want prio.Level }{{prio.Alert, prio.Alert}, {prio.High, prio.High}, {prio.Normal, prio.Normal - 1}, {prio.Low, prio.Low - 1}, {0, 0}}
