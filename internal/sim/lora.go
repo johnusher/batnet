@@ -135,19 +135,34 @@ func (a *LoRaAir) arrive(from, r *LoRaRadio, frame []byte, id uint32, start, end
 		r.onFrame(frame)
 	}
 	r.pending[id] = true
-	delay := 200*Ms + a.rnd.Int63n(1000*Ms)
-	a.sch.After(delay, func() {
-		if !r.pending[id] || !r.On {
-			return
+	// Meshtastic's contention window: the farther the radio (weaker signal), the
+	// sooner it rebroadcasts; near radios usually hear that and stand down.
+	delay := 200*Ms + int64((1-math.Min(1, d/a.Preset.RangeM))*2000)*Ms + a.rnd.Int63n(300*Ms)
+	a.sch.After(delay, func() { a.rebroadcast(r, frame, id, 0) })
+}
+
+// rebroadcast sends a heard packet on once (managed flooding): it stands down
+// if someone else rebroadcast it meanwhile, waits for a busy channel (a few
+// times), and never exceeds the radio's duty limit.
+func (a *LoRaAir) rebroadcast(r *LoRaRadio, frame []byte, id uint32, tries int) {
+	if !r.pending[id] || !r.On {
+		return
+	}
+	dur := lora.AirtimeUs(len(frame), a.Preset)
+	now := a.sch.Now()
+	if busy := r.BusyUntil(); busy > now {
+		if tries < 5 {
+			a.sch.At(busy+1+a.rnd.Int63n(2*Second), func() { a.rebroadcast(r, frame, id, tries+1) })
+		} else {
+			delete(r.pending, id)
 		}
-		delete(r.pending, id)
-		dur := lora.AirtimeUs(len(frame), a.Preset)
-		now := a.sch.Now()
-		if r.Duty.AllowedAt(now, dur) > now || r.BusyUntil() > now {
-			return
-		}
-		r.Duty.Record(now, dur)
-		a.Stats.Rebroadcasts++
-		a.send(r, frame, dur)
-	})
+		return
+	}
+	delete(r.pending, id)
+	if r.Duty.AllowedAt(now, dur) > now {
+		return
+	}
+	r.Duty.Record(now, dur)
+	a.Stats.Rebroadcasts++
+	a.send(r, frame, dur)
 }

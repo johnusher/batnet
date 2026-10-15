@@ -1,0 +1,112 @@
+{
+  "name": "farms",
+  "about": "8 farms 1.5-2.5 km apart, each with its own Pi and LoRa radio, no WiFi links between them: everything goes by radio, with one hill-top Meshtastic relay.",
+  "expect": "fail",
+  "because": "LoRa-only farms up to 5 km apart: farms that can't hear each other collide (about 2,100 collisions at receivers in 90 min); 1 of 50 posts is missing and 1 takes 27 min instead of 20. Ideas: rebroadcast hop limits, beacons that ask for specific gaps, a second radio on a faster preset (decision 0008). Model numbers, not field data.",
+  "seed": 13,
+  "duration": "90m",
+  "start": "07:00",
+  "preset": "LongFast",
+  "houses": [
+    {
+      "name": "Miller",
+      "x": 0,
+      "y": 0,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Fern",
+      "x": 2100,
+      "y": 300,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Okafor",
+      "x": 4000,
+      "y": 0,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Novak",
+      "x": 1000,
+      "y": 2000,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Haddad",
+      "x": 3000,
+      "y": 2100,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Brandt",
+      "x": 5000,
+      "y": 2000,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Kowalski",
+      "x": 2000,
+      "y": 4000,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    },
+    {
+      "name": "Moreau",
+      "x": 4200,
+      "y": 4100,
+      "pi": "Pi 4",
+      "wifi": "builtin",
+      "lora": true,
+      "people": 2
+    }
+  ],
+  "meshtastic": [
+    {
+      "name": "Hilltop",
+      "x": 2500,
+      "y": 2000
+    }
+  ],
+  "traffic": {
+    "perPersonPerHour": 2
+  },
+  "events": [
+    {
+      "at": "30m",
+      "kind": "post",
+      "house": "Miller",
+      "text": "Cow loose on the north road",
+      "prio": 8
+    }
+  ],
+  "checks": [
+    {
+      "kind": "delivered",
+      "within": "20m"
+    },
+    {
+      "kind": "duty"
+    }
+  ]
+}

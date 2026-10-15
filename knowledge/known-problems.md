@@ -24,12 +24,14 @@ No Linear for batnet yet: this page is the list.
 | B6 | `ParseVector` reserves memory for the claimed count before checking the bytes are there | plan 1 review | `ledger/vector.go` |
 | B7 | Repair goroutines aren't waited for when `Run` returns; closing the store can race in-flight writes (real-time path only) | plan 1 review | `meshsync` |
 
+| B8 | LoRa-only farms (`scenarios/farms.json`, marked known failure): farms that can't hear each other collide; 1 of 50 posts missing, 1 late (27 min against 20) | plan 3 scenarios | `internal/lora`, `internal/sim/lora.go` |
+| B9 | A gateway's LoRa duty meter is kept across a restart in the simulator; batnetd must store it, or a reboot could exceed the 10% limit | plan 3 | `internal/lora` |
+
 # Known limits (by design, for now)
 
 | # | Limit | Why / when it changes |
 |---|---|---|
 | L1 | A locked phone doesn't ring; batnet must be open (bedside mode) | browsers offline have no service worker or push ([0018](/decisions/0018-notifications-and-house-speaker.md)) |
-| L2 | Posts can't cross between WiFi groups yet | LoRa bridge, plan 3 |
 | L3 | The simulator's WiFi model is not measured: ranges, the loss curve (2% + load²) and frame overhead are guesses | bench and field tests |
 | L4 | In the simulator a WiFi channel is tracked per group; when groups split or merge the backlog resets, and loss ignores hop count | plan 2 review, minor |
 | L5 | The model engine (JavaScript) and the real engine (Go) differ until LoRa, accounts and the app join the real one | plans 3-5 |
@@ -58,6 +60,7 @@ No Linear for batnet yet: this page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| Posts couldn't cross between WiFi groups | the LoRa bridge, plan 3, 2026-10-15 |
 | Flooded heartbeats saturated a 40-house mesh; bang failed | [0021](/decisions/0021-one-hop-heartbeats.md), 2026-10-15 |
 | Repair was free in the simulator; checks could pass falsely; bad scenarios could crash the engine | plan 2 review fixes, 2026-10-15 |
 | Clock ordering after restart, author seq reuse, unbounded range requests, spoofed heartbeats | plan 1 review fixes, 2026-10-15 |

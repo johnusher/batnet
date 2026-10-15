@@ -70,3 +70,26 @@ func TestBusyUntil(t *testing.T) {
 		t.Fatalf("b sees the channel busy until %d, want %d", b.BusyUntil(), dur)
 	}
 }
+
+// A rebroadcast that finds the channel busy waits for it, instead of being dropped.
+func TestRebroadcastWaitsForBusyChannel(t *testing.T) {
+	var s Scheduler
+	air := NewLoRaAir(&s, lora.Presets["LongFast"], 2)
+	air.BaseLoss, air.EdgeLoss = 0, 0
+	heard := 0
+	a := air.Add("a", 0, 0, nil)
+	air.Add("relay", 2800, 0, nil)
+	air.Add("b", 5600, 0, func(f []byte) {
+		if len(f) == 60 { // a's packet, not the noise
+			heard++
+		}
+	})
+	noisy := air.Add("noisy", 2800, 2000, nil) // heard by the relay, not by a or b: keeps the relay's channel busy
+	a.Transmit(make([]byte, 60), lora.AirtimeUs(60, air.Preset))
+	dur := lora.AirtimeUs(60, air.Preset)
+	s.At(dur, func() { noisy.Transmit(make([]byte, 190), lora.AirtimeUs(190, air.Preset)) }) // ~1.9 s, longer than the relay's 0.2-1.2 s delay
+	s.RunUntil(30 * Second)
+	if heard != 1 {
+		t.Fatalf("b heard %d times; the relay must rebroadcast after the busy channel clears", heard)
+	}
+}

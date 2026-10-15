@@ -84,7 +84,8 @@ func TestConvergedSeesPastGaps(t *testing.T) {
 	b := v.Node("B")
 	b.Store.Put(e1)
 	b.Store.Put(e3)                       // B: 1 and 3; A: 1, 2, 3
-	x.Radio.On, b.Radio.On = false, false // no repair: judge as is
+	x.Radio.On, b.Radio.On = false, false // no repair while time passes
+	v.RunFor(5 * Minute)                  // past the in-flight window
 	v.Air.nodes[0].On, v.Air.nodes[1].On = true, true
 	if r := Judge(sc, v); r.Pass {
 		t.Fatal("converged passed although B lacks entry 2")
@@ -132,5 +133,36 @@ func TestExpectFail(t *testing.T) {
 	}
 	if _, err := LoadScenario([]byte(base + `,"expect":"maybe"}`)); err == nil {
 		t.Fatal("expect must be pass or fail")
+	}
+}
+
+func TestDutyCheck(t *testing.T) {
+	sc, err := LoadScenario([]byte(`{"name":"duty","seed":2,"duration":"70m",
+	  "houses":[{"name":"A","x":0,"y":0,"pi":"Pi 4","wifi":"dongle","lora":true,"people":30},
+	            {"name":"B","x":2500,"y":0,"pi":"Pi 4","wifi":"dongle","lora":true,"people":1}],
+	  "traffic":{"perPersonPerHour":40},
+	  "checks":[{"kind":"duty"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, _, _ := Run(sc)
+	if !r.Pass || r.LoRaMaxDutyPct > 100 || r.LoRaPackets == 0 {
+		t.Fatalf("duty: %+v", r)
+	}
+	if r.LoRaMaxDutyPct < 90 {
+		t.Fatalf("1,200 posts an hour should push A's radio near its limit, got %.0f%%", r.LoRaMaxDutyPct)
+	}
+}
+
+// Posts from the last moments are still on their way: converged must not judge them.
+func TestConvergedIgnoresInFlight(t *testing.T) {
+	sc, _ := LoadScenario([]byte(`{"name":"inflight","seed":1,"duration":"1m",
+	  "houses":[{"name":"A","x":0,"y":0,"pi":"Pi 4","wifi":"dongle"},{"name":"B","x":100,"y":0,"pi":"Pi 4","wifi":"dongle"}],
+	  "checks":[{"kind":"converged"}]}`))
+	v, _ := sc.Build()
+	v.RunFor(int64(sc.Duration) - 1)
+	v.Post("A", "one moment before the end", 5)
+	if r := Judge(sc, v); !r.Pass {
+		t.Fatalf("a post made a moment before the end failed converged:\n%s", r)
 	}
 }

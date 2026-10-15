@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/johnusher/batnet/internal/lora"
 )
 
 // Duration is virtual time in µs, written in JSON like "90s" or "5m".
@@ -33,19 +35,21 @@ func (d Duration) MarshalJSON() ([]byte, error) {
 
 // Scenario is a village, what its people do, and what must hold.
 type Scenario struct {
-	Name     string      `json:"name"`
-	About    string      `json:"about"`
-	Expect   string      `json:"expect"`  // "pass" (default) or "fail": a known problem, see Because
-	Because  string      `json:"because"` // why a scenario is expected to fail
-	Seed     int64       `json:"seed"`
-	Duration Duration    `json:"duration"`
-	Start    string      `json:"start"`
-	Houses   []HouseSpec `json:"houses"`
-	Relays   []RelaySpec `json:"relays"`
-	Generate *Generate   `json:"generate"`
-	Traffic  Traffic     `json:"traffic"`
-	Events   []Event     `json:"events"`
-	Checks   []Check     `json:"checks"`
+	Name       string           `json:"name"`
+	About      string           `json:"about"`
+	Expect     string           `json:"expect"`  // "pass" (default) or "fail": a known problem, see Because
+	Because    string           `json:"because"` // why a scenario is expected to fail
+	Seed       int64            `json:"seed"`
+	Duration   Duration         `json:"duration"`
+	Start      string           `json:"start"`
+	Preset     string           `json:"preset"` // LoRa modem preset, default LongFast
+	Meshtastic []MeshtasticUser `json:"meshtastic"`
+	Houses     []HouseSpec      `json:"houses"`
+	Relays     []RelaySpec      `json:"relays"`
+	Generate   *Generate        `json:"generate"`
+	Traffic    Traffic          `json:"traffic"`
+	Events     []Event          `json:"events"`
+	Checks     []Check          `json:"checks"`
 }
 
 // Generate places houses in hamlets, like the JavaScript model.
@@ -57,6 +61,13 @@ type Generate struct {
 	Spread      float64 `json:"spread"`
 	DongleShare float64 `json:"dongleShare"`
 	MaxPeople   int     `json:"maxPeople"`
+}
+
+// MeshtasticUser is someone's own Meshtastic radio: it relays LoRa packets.
+type MeshtasticUser struct {
+	Name string  `json:"name"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
 }
 
 // Traffic is background chatter: everyone posts at this rate, at random.
@@ -112,7 +123,7 @@ func LoadScenario(b []byte) (*Scenario, error) {
 		return nil, fmt.Errorf("scenario %q: no houses and no generator", sc.Name)
 	}
 	for _, c := range sc.Checks {
-		if c.Kind != "converged" && c.Kind != "delivered" {
+		if c.Kind != "converged" && c.Kind != "delivered" && c.Kind != "duty" {
 			return nil, fmt.Errorf("scenario %q: unknown check %q", sc.Name, c.Kind)
 		}
 	}
@@ -128,6 +139,9 @@ const (
 )
 
 func (sc *Scenario) validate() error {
+	if _, ok := lora.Presets[sc.preset()]; !ok {
+		return fmt.Errorf("unknown LoRa preset %q", sc.Preset)
+	}
 	if sc.Expect != "" && sc.Expect != "pass" && sc.Expect != "fail" {
 		return fmt.Errorf("expect must be \"pass\" or \"fail\"")
 	}
@@ -164,6 +178,13 @@ func (sc *Scenario) validate() error {
 		}
 	}
 	return nil
+}
+
+func (sc *Scenario) preset() string {
+	if sc.Preset == "" {
+		return "LongFast"
+	}
+	return sc.Preset
 }
 
 // epochMs turns Start ("20:00") into a wall clock on a fixed day.
@@ -209,7 +230,7 @@ func (sc *Scenario) houses() []HouseSpec {
 
 // Build makes the village and schedules traffic and events; nothing has run yet.
 func (sc *Scenario) Build() (*Village, error) {
-	v, err := NewVillage(sc.Seed, sc.epochMs())
+	v, err := NewVillage(sc.Seed, sc.epochMs(), lora.Presets[sc.preset()])
 	if err != nil {
 		return nil, err
 	}
@@ -225,6 +246,9 @@ func (sc *Scenario) Build() (*Village, error) {
 		if _, err := v.AddRelay(r); err != nil {
 			return nil, err
 		}
+	}
+	for _, m := range sc.Meshtastic {
+		v.AddMeshtastic(m.Name, m.X, m.Y)
 	}
 	for i, e := range sc.Events {
 		if err := sc.schedule(v, e); err != nil {

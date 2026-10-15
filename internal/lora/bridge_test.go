@@ -201,3 +201,36 @@ func TestBeaconRecovers(t *testing.T) {
 }
 
 func mustMarshal(e *ledger.Entry) []byte { b, _ := e.MarshalBinary(); return b }
+
+// After receiving recovered posts, a gateway beacons again soon, so a long
+// backlog catches up in minutes, not hours.
+func TestCatchUpIsFast(t *testing.T) {
+	air, gws := newGateways(t, 1, 2)
+	var es []*ledger.Entry
+	for i := 0; i < 30; i++ { // written while nobody was listening
+		e, _ := gws[0].author.Append(ledger.TypeMsgPost, 5, map[string]string{"text": "missed"})
+		es = append(es, e)
+	}
+	run(air, gws, 35*60_000_000)
+	got := 0
+	for _, e := range es {
+		if x, _ := gws[1].store.Get(e.Key); x != nil {
+			got++
+		}
+	}
+	if got != len(es) {
+		t.Fatalf("%d of %d missed posts recovered in 35 min", got, len(es))
+	}
+}
+
+// A gateway that restarts (a power cut) beacons within a minute.
+func TestRestartBeaconsSoon(t *testing.T) {
+	air, gws := newGateways(t, 1, 2)
+	run(air, gws, 20*60_000_000)
+	before := gws[0].b.Stats.Beacons
+	gws[0].b.Restart()
+	run(air, gws, 61_000_000)
+	if gws[0].b.Stats.Beacons == before {
+		t.Fatal("no beacon within a minute of a restart")
+	}
+}

@@ -3,13 +3,15 @@ package sim
 import (
 	"reflect"
 	"testing"
+
+	"github.com/johnusher/batnet/internal/lora"
 )
 
 const testEpoch = 1_790_000_000_000
 
 func smallVillage(t *testing.T, seed int64) *Village {
 	t.Helper()
-	v, err := NewVillage(seed, testEpoch)
+	v, err := NewVillage(seed, testEpoch, lora.Presets["LongFast"])
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,5 +97,24 @@ func TestErrors(t *testing.T) {
 	}
 	if err := v.SetPower("Nobody", false); err == nil {
 		t.Error("power change for an unknown node accepted")
+	}
+}
+
+func TestPostCrossesByLoRa(t *testing.T) {
+	v, err := NewVillage(3, testEpoch, lora.Presets["LongFast"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.AddHouse(HouseSpec{Name: "Miller", X: 0, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2})
+	v.AddHouse(HouseSpec{Name: "Fern", X: 2500, Y: 0, Pi: "Pi 4", WiFi: "dongle", LoRa: true, People: 2}) // far apart: no WiFi link
+	v.Start()
+	v.RunFor(16 * Minute) // beacons tell each gateway the other group exists
+	p, err := v.Post("Miller", "Bread at the bakery", 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v.RunFor(2 * Minute)
+	if _, ok := p.Arrived["Fern"]; !ok {
+		t.Fatal("the post did not reach the other house by LoRa")
 	}
 }

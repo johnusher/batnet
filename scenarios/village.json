@@ -1,0 +1,29 @@
+{
+  "name": "village",
+  "about": "12 houses in 3 hamlets 1-2 km apart: WiFi inside each hamlet, LoRa between them, two Meshtastic neighbours. Normal chatter with some High posts.",
+  "seed": 7,
+  "duration": "60m",
+  "start": "18:00",
+  "preset": "LongFast",
+  "houses": [
+    {"name": "Miller", "x": 100, "y": 100, "pi": "Pi 4", "wifi": "dongle", "lora": true, "people": 4},
+    {"name": "Fern", "x": 300, "y": 120, "pi": "Pi 5", "wifi": "dongle", "people": 3},
+    {"name": "Okafor", "x": 200, "y": 300, "pi": "Pi 4", "wifi": "dongle", "people": 5},
+    {"name": "Novak", "x": 380, "y": 280, "pi": "Pi 3", "wifi": "dongle", "lora": true, "people": 2},
+    {"name": "Haddad", "x": 1500, "y": 200, "pi": "Pi 4", "wifi": "dongle", "lora": true, "people": 4},
+    {"name": "Brandt", "x": 1700, "y": 150, "pi": "Pi 4", "wifi": "dongle", "people": 3},
+    {"name": "Kowalski", "x": 1600, "y": 380, "pi": "Pi 5", "wifi": "dongle", "people": 2},
+    {"name": "Moreau", "x": 1800, "y": 330, "pi": "Pi 4", "wifi": "builtin", "people": 3},
+    {"name": "Lindqvist", "x": 900, "y": 1500, "pi": "Pi 4", "wifi": "dongle", "lora": true, "people": 5},
+    {"name": "Santos", "x": 1100, "y": 1450, "pi": "Pi 4", "wifi": "dongle", "people": 2},
+    {"name": "Petrov", "x": 1000, "y": 1650, "pi": "Zero 2 W", "wifi": "builtin", "people": 1},
+    {"name": "Weber", "x": 1150, "y": 1700, "pi": "Pi 4", "wifi": "dongle", "people": 4}
+  ],
+  "meshtastic": [{"name": "Hiker", "x": 700, "y": 700}, {"name": "Shepherd", "x": 1400, "y": 900}],
+  "traffic": {"perPersonPerHour": 3},
+  "events": [
+    {"at": "20m", "kind": "post", "house": "Okafor", "text": "Insulin needed, fridge down", "prio": 8},
+    {"at": "35m", "kind": "power", "house": "Haddad", "on": false, "for": "10m"}
+  ],
+  "checks": [{"kind": "converged"}, {"kind": "delivered", "within": "15m"}, {"kind": "duty"}]
+}

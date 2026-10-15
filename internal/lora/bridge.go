@@ -13,6 +13,9 @@ import (
 
 const (
 	beaconEveryUs   = 15 * 60_000_000
+	firstBeaconUs   = 60_000_000     // after a start or restart, beacon within a minute
+	catchUpBeaconUs = 2 * 60_000_000 // after receiving recovered posts, beacon again soon
+	lbtJitterUs     = 2_000_000      // random wait after a busy channel clears
 	remoteHeardUs   = 30 * 60_000_000
 	suppressSpanUs  = 3_000_000
 	maxRecoverEach  = 8
@@ -68,8 +71,20 @@ func NewBridge(cfg BridgeConfig) *Bridge {
 	b := &Bridge{cfg: cfg, Duty: NewDutyMeter(), self: ShortID(cfg.Self), rnd: rand.New(rand.NewSource(cfg.Seed)),
 		reasm: NewReassembler(reassemblyTTLUs, 64), heard: map[ledger.Key]bool{}, waiting: map[string]int64{},
 		waitEntry: map[string]*ledger.Entry{}, remoteAt: -1}
-	b.nextBeacon = cfg.Now() + b.rnd.Int63n(beaconEveryUs)
+	b.nextBeacon = cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 	return b
+}
+
+// Restart is what a reboot does: the queue, pending sends and partial
+// fragments are gone (they lived in memory); a beacon goes out within a minute
+// so the backlog is recovered. The duty meter is kept (batnetd stores it).
+func (b *Bridge) Restart() {
+	b.Queue = Queue{}
+	b.waiting = map[string]int64{}
+	b.waitEntry = map[string]*ledger.Entry{}
+	b.reasm = NewReassembler(reassemblyTTLUs, 64)
+	b.busyUntil = 0
+	b.nextBeacon = b.cfg.Now() + b.rnd.Int63n(firstBeaconUs)
 }
 
 func keyString(k ledger.Key) string { return fmt.Sprintf("%x/%d", k.Origin[:], k.Seq) }
@@ -153,6 +168,9 @@ func (b *Bridge) Receive(frame []byte) {
 		}
 		if b.cfg.Inject(&e) {
 			b.Stats.Injected++
+			if f.Prio == prio.Normal-1 { // a recovered post: there may be more, so ask again soon
+				b.nextBeacon = min(b.nextBeacon, b.cfg.Now()+catchUpBeaconUs)
+			}
 		}
 	case KindBeacon:
 		if b.cfg.InMyGroup(f.Sender) {
@@ -240,7 +258,7 @@ func (b *Bridge) Tick() int64 {
 		return min(next, b.busyUntil)
 	}
 	if busy := b.cfg.Radio.BusyUntil(); busy > now {
-		return min(next, busy+int64(b.rnd.Intn(200_000))) // listen before talk, with a little jitter
+		return min(next, busy+1+b.rnd.Int63n(lbtJitterUs)) // listen before talk, then a random wait so waiting radios don't all start together
 	}
 	frame := it.Frames[it.Next]
 	dur := AirtimeUs(len(frame), b.cfg.Preset)

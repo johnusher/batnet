@@ -4,13 +4,23 @@ import (
 	"encoding/json"
 	"errors"
 	"time"
+
+	"github.com/johnusher/batnet/internal/lora"
 )
 
 // API is what the simulator page calls through WebAssembly.
 type API struct {
-	sc     *Scenario
-	v      *Village
-	frames []frameJSON
+	sc      *Scenario
+	v       *Village
+	frames  []frameJSON
+	packets []packetJSON
+}
+
+type packetJSON struct {
+	From  string   `json:"from"`
+	At    int64    `json:"at"`
+	Dur   int64    `json:"dur"`
+	Heard []string `json:"heard"`
 }
 
 type frameJSON struct {
@@ -29,7 +39,12 @@ func (a *API) Load(scenarioJSON []byte) error {
 	if err != nil {
 		return err
 	}
-	a.sc, a.v, a.frames = sc, v, nil
+	a.sc, a.v, a.frames, a.packets = sc, v, nil, nil
+	v.LoRa.OnTransmit = func(from string, at, dur int64, heard []string) {
+		if len(a.packets) < 300 {
+			a.packets = append(a.packets, packetJSON{From: from, At: at, Dur: dur, Heard: heard})
+		}
+	}
 	v.Air.OnBroadcast = func(from string, to []string, at int64) {
 		if len(a.frames) < 300 {
 			a.frames = append(a.frames, frameJSON{From: from, To: to, At: at})
@@ -81,7 +96,30 @@ func (a *API) State() []byte {
 		Frames []frameJSON `json:"frames"`
 		Posts  []any       `json:"posts"`
 		Stats  any         `json:"stats"`
+		LoRa   any         `json:"lora"`
 	}{Now: v.Sch.Now(), End: int64(a.sc.Duration), Frames: a.frames}
+	type radioJSON struct {
+		Name    string  `json:"name"`
+		Kind    string  `json:"kind"`
+		X       float64 `json:"x"`
+		Y       float64 `json:"y"`
+		On      bool    `json:"on"`
+		DutyPct float64 `json:"dutyPct"`
+		Queue   int     `json:"queue"`
+	}
+	var radios []radioJSON
+	for _, n := range v.Nodes {
+		if n.LoRaRadio != nil {
+			radios = append(radios, radioJSON{Name: n.Name, Kind: "gateway", X: n.LoRaRadio.X, Y: n.LoRaRadio.Y, On: n.LoRaRadio.On,
+				DutyPct: float64(n.LoRaRadio.Duty.Used(v.Sch.Now())) * 100 / float64(lora.DutyLimitUs), Queue: n.Bridge.Queue.Len()})
+		}
+	}
+	for _, r := range v.Meshtastic {
+		radios = append(radios, radioJSON{Name: r.Name, Kind: "meshtastic", X: r.X, Y: r.Y, On: r.On,
+			DutyPct: float64(r.Duty.Used(v.Sch.Now())) * 100 / float64(lora.DutyLimitUs)})
+	}
+	st.LoRa = map[string]any{"packets": a.packets, "radios": radios}
+	a.packets = nil
 	st.Clock = time.UnixMilli(v.EpochMs + v.Sch.Now()/Ms).UTC().Format("15:04:05")
 	for _, n := range v.Nodes {
 		all, _ := n.Store.All()
@@ -108,7 +146,8 @@ func (a *API) State() []byte {
 	}
 	r := Judge(a.sc, v)
 	st.Stats = map[string]any{"posts": r.Posts, "deliveries": r.Deliveries, "p50": r.LatencyP50Ms, "p95": r.LatencyP95Ms,
-		"frames": r.Frames, "lost": r.FramesLost, "channel": r.MaxChannelUse}
+		"frames": r.Frames, "lost": r.FramesLost, "channel": r.MaxChannelUse,
+		"loraPackets": r.LoRaPackets, "loraCollided": r.LoRaCollided, "loraRebroadcasts": r.LoRaRebroadcasts, "loraMaxDutyPct": r.LoRaMaxDutyPct}
 	a.frames = nil
 	b, _ := json.Marshal(st)
 	return b

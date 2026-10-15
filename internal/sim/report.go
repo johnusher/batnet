@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/johnusher/batnet/internal/lora"
 )
 
 // CheckResult is one check's verdict.
@@ -16,15 +18,17 @@ type CheckResult struct {
 
 // Report summarises a run.
 type Report struct {
-	Scenario                                 string
-	Seed                                     int64
-	Houses, Relays, Posts, Deliveries        int
-	LatencyP50Ms, LatencyP95Ms, LatencyMaxMs float64
-	Frames, FramesLost                       int
-	MaxChannelUse                            float64
-	Checks                                   []CheckResult
-	Pass                                     bool
-	Expect, Because                          string
+	Scenario                                    string
+	Seed                                        int64
+	Houses, Relays, Posts, Deliveries           int
+	LatencyP50Ms, LatencyP95Ms, LatencyMaxMs    float64
+	Frames, FramesLost                          int
+	LoRaPackets, LoRaCollided, LoRaRebroadcasts int
+	LoRaMaxDutyPct                              float64
+	MaxChannelUse                               float64
+	Checks                                      []CheckResult
+	Pass                                        bool
+	Expect, Because                             string
 }
 
 // OK is whether the run matches its expectation: it passes, or it fails and
@@ -45,7 +49,9 @@ func Run(sc *Scenario) (*Report, *Village, error) {
 // Judge measures a finished (or paused) village against the scenario's checks.
 func Judge(sc *Scenario, v *Village) *Report {
 	r := &Report{Scenario: sc.Name, Seed: sc.Seed, Posts: len(v.Posts), Frames: v.Air.Stats.Frames,
-		FramesLost: v.Air.Stats.Lost, MaxChannelUse: v.Air.Stats.MaxUtil, Pass: true, Expect: sc.Expect, Because: sc.Because}
+		FramesLost: v.Air.Stats.Lost, MaxChannelUse: v.Air.Stats.MaxUtil, Pass: true, Expect: sc.Expect, Because: sc.Because,
+		LoRaPackets: v.LoRa.Stats.Packets, LoRaCollided: v.LoRa.Stats.Collided, LoRaRebroadcasts: v.LoRa.Stats.Rebroadcasts,
+		LoRaMaxDutyPct: float64(v.MaxDutyUs) * 100 / float64(lora.DutyLimitUs)}
 	for _, n := range v.Nodes {
 		if n.Kind == "house" {
 			r.Houses++
@@ -81,6 +87,9 @@ func Judge(sc *Scenario, v *Village) *Report {
 			res = checkConverged(v, group)
 		case "delivered":
 			res = checkDelivered(v, int64(c.Within))
+		case "duty":
+			res = CheckResult{Kind: "duty", Pass: v.MaxDutyUs <= lora.DutyLimitUs,
+				Detail: fmt.Sprintf("busiest radio used %.0f%% of its 360 s in an hour", float64(v.MaxDutyUs)*100/float64(lora.DutyLimitUs))}
 		}
 		r.Checks = append(r.Checks, res)
 		r.Pass = r.Pass && res.Pass
@@ -88,11 +97,19 @@ func Judge(sc *Scenario, v *Village) *Report {
 	return r
 }
 
-// keysHash summarises every entry a node holds (not just its gap-free prefix).
-func keysHash(n *Node) [32]byte {
+// inFlightMs: entries younger than this at the end are still spreading, and
+// converged doesn't judge them.
+const inFlightMs = 2 * 60 * 1000
+
+// keysHash summarises every entry a node holds (not just its gap-free prefix)
+// that was written before cutoff (wall ms).
+func keysHash(n *Node, cutoff int64) [32]byte {
 	all, _ := n.Store.All()
 	keys := make([]string, 0, len(all))
 	for _, e := range all {
+		if e.TS.Wall > cutoff {
+			continue
+		}
 		keys = append(keys, fmt.Sprintf("%x/%d", e.Key.Origin[:], e.Key.Seq))
 	}
 	sort.Strings(keys)
@@ -106,7 +123,7 @@ func checkConverged(v *Village, group map[string]int) CheckResult {
 		if !ok {
 			continue // no power at the end
 		}
-		h := keysHash(n)
+		h := keysHash(n, v.EpochMs+v.Sch.Now()/Ms-inFlightMs)
 		if first, seen := hashes[g]; !seen {
 			hashes[g] = h
 		} else if first != h {
@@ -200,6 +217,9 @@ func (r *Report) String() string {
 	fmt.Fprintf(&b, "%s  %s (seed %d): %d houses, %d relays, %d posts, %d deliveries\n", verdict, r.Scenario, r.Seed, r.Houses, r.Relays, r.Posts, r.Deliveries)
 	fmt.Fprintf(&b, "      delivery time: median %.0f ms, slowest 5%% %.0f ms, worst %.0f ms\n", r.LatencyP50Ms, r.LatencyP95Ms, r.LatencyMaxMs)
 	fmt.Fprintf(&b, "      WiFi frames: %d, lost to receivers: %d, busiest channel %.0f%%\n", r.Frames, r.FramesLost, r.MaxChannelUse*100)
+	if r.LoRaPackets > 0 {
+		fmt.Fprintf(&b, "      LoRa packets: %d, collided at receivers: %d, rebroadcasts: %d, busiest radio %.0f%% of its hourly limit\n", r.LoRaPackets, r.LoRaCollided, r.LoRaRebroadcasts, r.LoRaMaxDutyPct)
+	}
 	if r.Expect == "fail" {
 		fmt.Fprintf(&b, "      known problem: %s\n", r.Because)
 	}
