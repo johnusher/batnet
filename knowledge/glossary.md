@@ -18,6 +18,8 @@ generated: { by: claude-code/claude-opus-5-5, at: 2026-10-14T18:10:00Z }
 | Duty cycle | Share of time a device may transmit; 1% or 10% in EU868 sub-bands |
 | LongFast | Meshtastic's default modem preset (SF11, 250 kHz in the EU) |
 | meshtasticd | Meshtastic running natively on Linux, driving an SPI LoRa HAT |
+| MeshCore | A LoRa messenger for the same boards as Meshtastic, with distinct companion, repeater and room-server roles; see [existing projects](/research/existing-projects.md) |
+| Reticulum | An encrypted, transport-agnostic network stack (LoRa, WiFi, serial, IP) with LXMF messaging; a possible future interop target |
 | PSK | Pre-shared key; a Meshtastic channel's encryption key |
 | Village key | batnet's one shared secret per village; seals node traffic and derives the private channel PSK |
 | House / relay / gateway | batnet node roles: hotspot + app / mesh only / LoRa bridge |

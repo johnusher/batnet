@@ -64,6 +64,66 @@ street, a village, a festival camp or a group on a hike. New to words like
   long-range radio messenger. People with a Meshtastic radio see batnet's
   public posts and can reply, and their radios help carry batnet's messages
   further, without being able to read the private ones.
+  [How batnet differs from Meshtastic](#how-batnet-differs-from-meshtastic-and-the-others).
+
+## How batnet differs from Meshtastic and the others
+
+batnet is not a rival to [Meshtastic](https://meshtastic.org/). Its long-range
+radio runs Meshtastic, and batnet nodes and Meshtastic radios share the same
+air. What batnet adds is everything around the radio, for a street or a
+village rather than for one person with a gadget.
+
+* **Nobody needs a radio or an app.** With Meshtastic, MeshCore or Reticulum,
+  each person carries a small radio paired to an app on their phone. With
+  batnet, one node per house or camp serves everyone's phone over open WiFi,
+  in the browser. Nothing to buy per person, nothing to install.
+* **Calls, voice and photos between nearby houses, not just text.** Houses
+  within WiFi reach are linked by a WiFi mesh that carries anything the
+  internet would. Meshtastic and MeshCore carry text only, at about a
+  thousand bits a second. batnet uses the radio only for the houses that WiFi
+  can't reach.
+* **A community with a door.** People have accounts, someone in each house
+  approves newcomers, and there's a directory of who is where and groups such
+  as *Medical*. Meshtastic and MeshCore have channels: anyone who has the
+  channel's key is in, and there's no directory and no approval.
+* **Nothing is lost while a node is off.** Every batnet node keeps the whole
+  history and fills in what it missed when it reconnects. A Meshtastic radio
+  that was off misses what was sent. MeshCore's "room servers" and
+  Reticulum's "propagation nodes" keep messages for people who were offline,
+  but they are extra boxes someone has to set up. In batnet every node does it.
+* **Spoken messages cross the radio as text.** Say it, the node turns it into
+  text, and the far end reads it aloud. (Planned for milestone 2.)
+* **It works with no phone at all.** A screen and keyboard on the node make it
+  a household computer or a notice board in a village hall.
+* **It shows who else is on the air.** A scan page lists Meshtastic radios,
+  WiFi meshes and walkie-talkies nearby, by activity only, never content.
+  (Planned for milestone 4.)
+
+**The others, in a sentence each**
+
+* **[Meshtastic](https://meshtastic.org/)** is the most popular long-range
+  radio messenger, with by far the largest community. Every radio repeats what
+  it hears, so a mesh builds itself.
+  [How its messages hop](#how-messages-hop-meshtastic).
+* **[MeshCore](https://meshcore.co.uk/)** is a newer messenger for the same
+  radios. Instead of every radio repeating, a few *repeaters* placed on hills
+  and roofs carry the traffic. That keeps the air quieter in a big mesh, but
+  someone has to plan and site the repeaters.
+* **[Reticulum](https://reticulum.network/)** is a network of its own, built
+  on encryption, that runs over LoRa, WiFi, serial cables and the internet.
+  Apps such as Sideband and MeshChat send messages and files over it. It is
+  the most capable of the three and the most technical to set up. batnet may
+  talk to it one day.
+* **Phone-to-phone apps** such as [Briar](https://briarproject.org/) and
+  [Bridgefy](https://bridgefy.me/) pass messages from phone to phone over
+  Bluetooth or WiFi. Nothing to buy, but the reach is tens of metres, and
+  everyone has to install the same app.
+
+**Where batnet is weaker.** It's not finished: Meshtastic and MeshCore you
+can buy and use today. Their radios run for days on a tiny battery, while a
+batnet node is a small computer that needs a power bank or the mains. And a
+batnet village needs someone to set up a node per house, where Meshtastic
+needs only a radio per person.
 
 ## Ways to take part
 
@@ -650,6 +710,8 @@ you, which is why batnet's own scanner reports activity only
 | **batman-adv** | The free software that links nodes into a WiFi mesh. It's built into Linux. |
 | **LoRa** | Short for *long range*: a radio that sends small amounts of data over 1–3 km or more using very little power. It's too slow for sound or pictures, so batnet uses it only for text. |
 | **Meshtastic** | A popular free messenger for LoRa radios. batnet's radio runs Meshtastic, so batnet works with other people's Meshtastic radios. |
+| **MeshCore** | Another free messenger for the same LoRa radios, which routes messages through planned repeaters instead of every radio repeating. [How batnet differs](#how-batnet-differs-from-meshtastic-and-the-others). |
+| **Reticulum** | A network of its own, built on encryption, that runs over LoRa, WiFi, cables and the internet. Apps such as Sideband send messages over it. |
 | **Channel** | A conversation on the radio that only radios with the same key can read. batnet uses a private channel for its own messages and the open public one for *Neighbourhood (public)*. |
 | **EU868** | The radio band around 868 MHz that anyone in Europe may use without a licence. |
 | **Duty cycle** (airtime) | The share of each hour a radio may transmit in the EU868 band: 10% in the part batnet uses. When a busy radio reaches its limit, messages wait in a queue, which is why urgent ones go first. |
