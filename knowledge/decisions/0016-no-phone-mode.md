@@ -13,6 +13,10 @@ Not everyone has a phone, and some places want one shared screen: a household
 without smartphones, an older neighbour, a village hall, a first-aid point. The
 user asked for a mode that works with an HDMI screen and a keyboard on the Pi.
 
+It also covers a Pi whose WiFi can't serve phones: a Pi with one WiFi radio
+spent on the batman-adv mesh (no dongle), or a weak built-in radio. Such a Pi
+is still a full member of the village through its own screen (user, 2026-10-15).
+
 # Decision (proposed)
 
 * **Pi 4/5 with a screen at boot:** start a full-screen browser (Chromium under
@@ -28,6 +32,12 @@ user asked for a mode that works with an HDMI screen and a keyboard on the Pi.
     window.
 * **Pi Zero 2 W / Pi 3** (too little memory for a browser): a text terminal app
   in Go on the HDMI console (tty1), text messages only. Later than M1.
+* **One-radio Pis:** when set-up finds a single WiFi radio, it offers "mesh
+  plus screen" (radio on the mesh, people use the screen) as well as "hotspot
+  only". This makes the small-Pi terminal app more useful, since Zero and Pi 3
+  boards usually have one radio.
+* **Wired laptop:** a laptop plugged into a Pi 4/5's Ethernet port gets an
+  address and the same app, with no WiFi involved.
 * Nothing starts when no screen is attached; the kiosk costs no power then.
 
 # Consequences
