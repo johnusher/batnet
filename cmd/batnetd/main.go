@@ -27,7 +27,7 @@ import (
 	"github.com/johnusher/batnet/internal/web"
 )
 
-var houseNames = []string{"Miller", "Fern", "Okafor", "Novak", "Haddad", "Brandt", "Kowalski", "Moreau", "Lindqvist", "Santos"}
+var houseNames = []string{"Usher", "Shemie", "Dittrich", "Green", "Willett", "Seigner", "Chasserot", "Bates", "Crane", "Ferguson", "Elster", "Thornhill", "Kendall", "Jefferies", "Fremont", "Danvers", "Daniels", "Goldfinger", "Walpole", "Blofeld", "Pitt", "Klebb", "Peel", "Largo", "Disraeli", "Scaramanga", "Gladstone", "Stromberg", "Salisbury", "Drax", "Balfour", "Khan", "Asquith", "Zorin", "Baldwin", "Sanchez", "MacDonald", "Trevelyan", "Chamberlain", "Onatopp", "Churchill", "Carver", "Attlee", "King", "Eden", "Graves", "Macmillan", "Silva", "Wilson", "Safin", "Heath", "Grant", "Callaghan", "Thatcher", "Major", "Blair", "Brown", "May", "Starmer", "Sunak"}
 
 type post struct {
 	Audience string `json:"audience"`

@@ -12,7 +12,7 @@
     {"name": "Willett", "x": 800, "y": 0, "pi": "Pi 4", "wifi": "dongle", "people": 4},
     {"name": "Seigner", "x": 1000, "y": 30, "pi": "Pi 4", "wifi": "dongle", "people": 3},
     {"name": "Chasserot", "x": 1200, "y": 0, "pi": "Pi 5", "wifi": "dongle", "people": 2},
-    {"name": "Moreau", "x": 1400, "y": 50, "pi": "Pi 4", "wifi": "dongle", "people": 3}
+    {"name": "Fremont", "x": 1400, "y": 50, "pi": "Pi 4", "wifi": "dongle", "people": 3}
   ],
   "traffic": {"perPersonPerHour": 4},
   "events": [

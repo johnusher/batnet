@@ -101,7 +101,7 @@ type Check struct {
 	Within Duration `json:"within"`
 }
 
-var houseNames = []string{"Usher", "Shemie", "Dittrich", "Green", "Willett", "Seigner", "Chasserot", "Miller", "Fern", "Okafor", "Novak", "Haddad", "Brandt", "Kowalski", "Moreau", "Lindqvist", "Santos", "Petrov", "Weber", "Osei", "Tanaka", "Rossi", "Byrne", "Hoffmann", "Dubois", "Varga", "Nakamura"}
+var houseNames = []string{"Usher", "Shemie", "Dittrich", "Green", "Willett", "Seigner", "Chasserot", "Bates", "Crane", "Ferguson", "Elster", "Thornhill", "Kendall", "Jefferies", "Fremont", "Danvers", "Daniels", "Goldfinger", "Walpole", "Blofeld", "Pitt", "Klebb", "Peel", "Largo", "Disraeli", "Scaramanga", "Gladstone", "Stromberg", "Salisbury", "Drax", "Balfour", "Khan", "Asquith", "Zorin", "Baldwin", "Sanchez", "MacDonald", "Trevelyan", "Chamberlain", "Onatopp", "Churchill", "Carver", "Attlee", "King", "Eden", "Graves", "Macmillan", "Silva", "Wilson", "Safin", "Heath", "Grant", "Callaghan", "Thatcher", "Major", "Blair", "Brown", "May", "Starmer", "Sunak"}
 
 var chatter = []string{"Water point open until 18:00", "Anyone have spare batteries?", "Road to the bridge is blocked", "Community kitchen at the school from 12:00", "Generator at the fire station charges phones 9-11", "Please boil tap water"}
 
