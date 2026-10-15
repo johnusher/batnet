@@ -4,7 +4,7 @@ title: To do
 description: What comes next for milestone 1, in order - plans, bench tests, decisions waiting, and the known problems to fix first.
 tags: [todo, roadmap, milestone-1]
 status: stable
-generated: { by: claude-code/claude-opus-5-5, at: 2026-10-15T08:15:14Z }
+generated: { by: claude-code/claude-fable-5-1, at: 2026-10-15T13:45:00Z }
 ---
 
 Tick items off here (move them to Done with the date). Bugs and limits live in
@@ -32,12 +32,20 @@ for batnet yet.
 
 # Known problems to fix first
 
-- [ ] B21-B25 sign-in hardening: exact argon2 parameters, lockout by account, constant-time sign-in, JSON-only, a stricter CSP
-- [ ] B13 cap High at 8 (High DMs reach 9, reserved for Alerts)
-- [ ] B10 open the LoRa gate only after a verified frame
-- [ ] B14 a duty check that can fail (tally airtime from the air)
-- [ ] B15 a 3-hop limit in the simulator's flooding and connectivity
-- [ ] B12 evict the oldest partial message instead of refusing new ones
+- [ ] B19 sessions and lockouts in SQLite, so a reboot keeps people signed in
+- [ ] B16 `sameWiFiGroup` and `snapGroups` without rebuilding the groups per frame
+- [ ] B15 connectivity in the simulator limited to 3 LoRa hops, as the flooding is
+- [ ] B33 a gateway that lost every frame of a post, with no beacon heard since, still waits a quarter-hour (an entry's seq that leaves a gap could nudge too; costs beacons)
+
+# Features to consider (from the 2026-10-15 review)
+
+- [ ] Unread counts and the last-read mark kept on the phone (IndexedDB), so they survive a reload; `msg.read` entries per house later (spec §4)
+- [ ] "Delivered to N of M houses" under a bubble, from the heartbeats' vectors (spec §8: "✓ 3/7 houses")
+- [ ] The People tab's reach chips: "Call + text", "Text via LoRa", "Out of reach", from WiFi groups and the LoRa gate (spec §8)
+- [ ] Admin health warnings: "Your WiFi group has no radio", "Radio near its airtime limit" (the bridge's duty meter and the gate know), "Hasn't heard from <house> for 2 hours"
+- [ ] A Low-priority batch over LoRa: several Low posts in one envelope when a radio is near its limit (decision 0015; the simulator's festival case has airtime to spare for it)
+- [ ] A scenario check for the admin's High limit and for ageing (a Low post waiting 40 min sends as Normal+2)
+- [ ] Change PIN and admin PIN reset (spec §8; the log has `account.update`)
 
 # Decisions waiting
 
@@ -46,4 +54,5 @@ for batnet yet.
 
 # Done
 
+- 2026-10-15 (review): B21-B25 sign-in hardening; B13, B10, B14, B12, B15 (flooding), B17, B26-B31, B2-B4 fixed; decision [0024](/decisions/0024-ask-soon-for-what-was-lost.md) makes farms pass and a festival of pocket nodes pass
 - 2026-10-15: one-hop heartbeats (0021); MIT licence (0011); GitHub Pages with the real engine

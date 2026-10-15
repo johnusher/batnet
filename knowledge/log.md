@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Update**: Project review. Decision [0024](/decisions/0024-ask-soon-for-what-was-lost.md) (a gateway beacons within two minutes when it holds part of a message or hears a beacon ahead of its log): the LoRa-only farms pass and lose the known-failure mark; a new festival scenario (six pocket nodes, LoRa only) passes. [Findings](/research/village-sim-findings.md) gained the trace of a lost post, the measurements, Meshtastic's contention window in the model (L13) and the delivered check that counts only connected time. [Known problems](/known-problems.md): B2-B4, B10, B12-B15 (flooding), B17, B21-B31 resolved; B32, B33 added; [to do](/todo.md) gained a features list from the review.
 * **Update**: Plan 4b built: the full app (outbox, bedside mode, speaker and notification settings, German, help, admin alerts) and the real app in the simulator's phone, talking to each house's real server in WebAssembly; B1 and L10 resolved, L11 added. Review fixes: the outbox per writer, refused posts don't block it, message ids stay off the radio, decision [0023](/decisions/0023-hold-on-a-first-fragment.md) (hold, don't cancel, on a first fragment); B27-B31 and L12 added.
 * **Update**: Plan 4a built: the house server and a first real app (`batnetd -mock 3 -web`); known problems B19-B20.
 * **Creation**: [To do](/todo.md) list; plan 3 review fixes and nine deferred findings in [known problems](/known-problems.md).

@@ -4,7 +4,7 @@ title: What the village simulator shows
 description: Findings from the in-browser village model (prototypes/village-sim) - LoRa duty limits at busy gateways, WiFi groups with no LoRa radio, and recovery traffic.
 tags: [simulation, lora, capacity, sync, prototype]
 status: draft
-generated: { by: claude-code/claude-opus-5-5, at: 2026-10-14T19:05:00Z }
+generated: { by: claude-code/claude-fable-5-1, at: 2026-10-15T13:45:00Z }
 stale_after: 2027-04-14T00:00:00Z
 ---
 
@@ -100,3 +100,51 @@ What the scenarios forced, each with a test:
 * A signed entry is about 100 bytes before its text (32-byte origin, 64-byte
   signature): a 100-character post takes two LoRa packets, about 2.5 s of
   LongFast airtime - double the JavaScript model's estimate.
+
+# Review of 2026-10-15: what loses posts over LoRa, and the fix
+
+Run with the real code over seven seeds of each LoRa scenario (the CI seed
+and seeds 1-6; `batnetd -sim` on copies of the file with another seed).
+
+**Where the lates came from.** Tracing one late post in the village (seed 7)
+showed a two-fragment post whose first fragment collided at every receiver;
+the receivers held the second fragment for ten minutes and then dropped it,
+and the post came back only with the next quarter-hour beacon. On the
+LoRa-only farms (hidden terminals) this happened to a post every few minutes.
+
+**Three changes, measured one at a time:**
+
+| Change | farms, 6 seeds (missing / late) | festival, 7 seeds | village, 7 seeds |
+|---|---|---|---|
+| before | 2 / 26 | – | 36 missing (seed 1), 24 late |
+| Meshtastic's 3-hop limit on rebroadcasts (B15) | 3 / 23 | – | same |
+| + a partial message nudges the beacon ([0024](/decisions/0024-ask-soon-for-what-was-lost.md), first half) | 0 / 3 | 6 / 10 | same |
+| + Meshtastic's contention window in the model (below) | 0 / 1 | 6 / 5 | 36 missing, 10 late |
+| + a beacon ahead of my log nudges my beacon (0024, second half) | 0 / 1 | 0 / 0 | 0 missing, 6 late (all in seed 2) |
+
+**The contention window.** The model's rebroadcast delay was a fixed 0.2-2.2 s
+by distance plus 0.3 s of jitter, which put six pocket nodes within 300 ms of
+each other and made them collide. Meshtastic's firmware waits a random number
+of slots (about 70 ms each on LongFast) from a window of 4 slots for a weak
+signal to 128 for a strong one, so the farthest radio usually goes first and
+the near ones stand down. The model does that now, with distance standing in
+for SNR (L13). It cut the festival's collisions from 2,040 to 695 per 45 min.
+
+**The delivered check counts connected time.** A post's clock used to run
+from the first moment a house was connected to a holder, through a holder's
+power cut. It now counts only time connected (the holders dark for the rest
+of the run still count on the clock, so a sender that goes dark can't hide a
+lost post). That is what spec §13 means by "messages wait and arrive on
+return"; it took the village's power-cut lates from 7 to 0 on the CI seed.
+
+**Festival** (new scenario): six Pi Zero 2 W pocket nodes on a field 600 m
+across, 33 people, 4 posts per person per hour, a lost-child High post and a
+burst as the headline act ends. All by LoRa, every radio hearing every other.
+Passes on seven seeds: median delivery 7 s, busiest radio 55% of its hourly
+limit, 955 collisions at receivers in 45 min (the close radios still collide
+inside the carrier-sense time).
+
+**What remains** (B32, B33): village seed 2 after its gateway's 10 min power
+cut (6 late: the backlog, catch-up beacons every 2 min and the others'
+recoveries share one busy channel), and a post whose every frame was lost at
+a receiver that hears no beacon afterwards.
