@@ -1,5 +1,5 @@
 {
-  "_about": "The narration of the batnet film, one scene per entry. `text` is spoken (ElevenLabs); `caption` is what the subtitles show, in plain English; `pad` is the pause after it, in seconds; `min` is the scene's least length. Spellings like 'ze' and 'ven' are on purpose: the narrator has a thick German accent. Edit here, then `python3 video/render.py` (see video/README.md).",
+  "_about": "The narration of the batnet film, one scene per entry. `text` is spoken (ElevenLabs); `caption` is what the subtitles show, in plain English; `pad` is the pause after it, in seconds; `min` is the scene's least length. Spellings like 'ze', 'ven', 'willage', 'ewery' and 'unt' are on purpose: the narrator has a thick German accent. The 'Allo 'Allo! and Dad's Army lines are on purpose too. Scenes in scenes.js key their moments to phrases of `text` (cue()), so a phrase quoted there must stay in the text. Edit here, then `python3 video/render.py` (see video/README.md).",
   "voice": {
     "name": "Klaus (batnet narrator)",
     "voice_id": "Jvf6TAXwMUVTSR20U0f9",
@@ -17,71 +17,85 @@
       "id": "title",
       "min": 6,
       "pad": 0.8,
-      "text": "batnet. Ven ze grid goes down, ze village keeps talking.",
+      "text": "batnet. Ven ze grid goes down, ze willage keeps talking.",
       "caption": "batnet. When the grid goes down, the village keeps talking."
     },
     {
       "id": "berlin",
       "min": 8,
       "pad": 0.6,
-      "text": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: ze masts have batteries for exactly long enough to be useless. Zis is not a film. Zis happened.",
-      "caption": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: the masts have batteries for exactly long enough to be useless. This is not a film. This happened."
+      "text": "Berlin, Yanuary last year. One fire in a cable tunnel, unt fifty sousand homes go dark for sree days. No light, no heating, unt after a few hours no mobile netvork: ze masts haff batteries for exactly long enough to be useless. Put zat light out! Ah. Nobody needs to say it. Zis is not a film. Zis happened.",
+      "caption": "Berlin, January last year. One fire in a cable tunnel, and fifty thousand homes go dark for three days. No light, no heating, and after a few hours no mobile network: the masts have batteries for exactly long enough to be useless. Put that light out! Ah. Nobody needs to say it. This is not a film. This happened."
     },
     {
       "id": "berlin2",
       "min": 8,
       "pad": 0.8,
-      "text": "Now imagine every third house has a small radio node. Ze lights are out, but ze street is talking: who has a generator, which pharmacy is open, who needs insulin.",
-      "caption": "Now imagine every third house has a small radio node. The lights are out, but the street is talking: who has a generator, which pharmacy is open, who needs insulin."
+      "text": "Now imagine ewery sird house has a small radio node. Ze lights are out, but ze street is talking: who has a generator, vhich pharmacy is open, who needs insulin. Ze messages hop from house to house, like gossip, but faster.",
+      "caption": "Now imagine every third house has a small radio node. The lights are out, but the street is talking: who has a generator, which pharmacy is open, who needs insulin. The messages hop from house to house, like gossip, but faster."
     },
     {
       "id": "how",
       "min": 10,
       "pad": 0.8,
-      "text": "Every house: one Raspberry Pi, ze size of a packet of cigarettes, on a power bank. It makes an open WiFi. Your phone joins, opens ze browser, and zere is a chat app. Like WhatsApp, but no internet, no account, no company. Houses link to each ozer over WiFi mesh, and over ze hills by LoRa radio: cheap, legal, a few kilometres on a good day. No Enigma machine required: ze village key is a QR code on ze admin's phone.",
-      "caption": "Every house: one Raspberry Pi, the size of a packet of cigarettes, on a power bank. It makes an open WiFi. Your phone joins, opens the browser, and there is a chat app. Like WhatsApp, but no internet, no account, no company. Houses link to each other over WiFi mesh, and over the hills by LoRa radio: cheap, legal, a few kilometres on a good day. No Enigma machine required: the village key is a QR code on the admin's phone."
+      "text": "Ewery house: one Raspberry Pi, ze size of a packet of cigarettes, on a power bank. It makes an open Vee-Fee. Your own phone joins, iPhone or Android, opens ze browser, unt zere is a chat app. Nossing to install. Like VatsApp, but no internet, no account, no company. Who are you? Don't tell him, Pike! Only your neighbour approves you. Houses link to each ozer over Vee-Fee mesh, unt over ze hills by LoRa radio. Listen wery carefully, I shall say zis only vunce: ze willage key is a QR code on ze admin's phone.",
+      "caption": "Every house: one Raspberry Pi, the size of a packet of cigarettes, on a power bank. It makes an open WiFi. Your own phone joins, iPhone or Android, opens the browser, and there is a chat app. Nothing to install. Like WhatsApp, but no internet, no account, no company. Who are you? Don't tell him, Pike! Only your neighbour approves you. Houses link to each other over WiFi mesh, and over the hills by LoRa radio. Listen very carefully, I shall say this only once: the village key is a QR code on the admin's phone."
+    },
+    {
+      "id": "radio",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Vhy two radios? Vee-Fee is fast: it carries calls, voice messages unt photos, but only a few hundred metres. LoRa is slow, about one sousand bits a second, but it goes one to sree kilometres on less power zan your phone, no licence needed. A short text is half a second on air. Voice? Impossible. So ze house turns your voice into text in a quarter of a second, sends ze text, unt ze ozer end reads it aloud. Ze radio can hide under ze bed, like in ze café. No flashing knobs.",
+      "caption": "Why two radios? WiFi is fast: it carries calls, voice messages and photos, but only a few hundred metres. LoRa is slow, about one thousand bits a second, but it goes one to three kilometres on less power than your phone, no licence needed. A short text is half a second on air. Voice? Impossible. So the house turns your voice into text in a quarter of a second, sends the text, and the other end reads it aloud. The radio can hide under the bed, like in the café. No flashing knobs."
+    },
+    {
+      "id": "cost",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Vhat does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio module: twenty-five. Zat is it. Under fifty euros for a radio station in your pocket, on ze power bank you already own, for a day unt a half. A house node, vith Vee-Fee for ze vhole street unt sixty phones: about one hundred unt fifty. Ja, estimates: ve haff not measured zem yet. Ve are not stupid boys.",
+      "caption": "What does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio module: twenty-five. That is it. Under fifty euros for a radio station in your pocket, on the power bank you already own, for a day and a half. A house node, with WiFi for the whole street and sixty phones: about one hundred and fifty. Yes, estimates: we have not measured them yet. We are not stupid boys."
     },
     {
       "id": "glasto",
       "min": 8,
       "pad": 0.5,
-      "text": "Glastonbury. Two hundred thousand people, one hill, and a mobile network zat surrenders by Friday lunchtime. Pocket nodes on power banks, one per camp, linked by radio across ze fields.",
-      "caption": "Glastonbury. Two hundred thousand people, one hill, and a mobile network that surrenders by Friday lunchtime. Pocket nodes on power banks, one per camp, linked by radio across the fields."
+      "text": "Glastonbury. Two hundred sousand people, one hill, unt a mobile netvork zat surrenders by Friday lunchtime. Ve're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across ze fields. Each one passes ze message to ze next: sree hops, unt ze vhole farm is covered.",
+      "caption": "Glastonbury. Two hundred thousand people, one hill, and a mobile network that surrenders by Friday lunchtime. We're doomed! Doomed! No. Pocket nodes on power banks, one per camp, linked by radio across the fields. Each one passes the message to the next: three hops, and the whole farm is covered."
     },
     {
       "id": "lostchild",
       "min": 5,
       "pad": 0.6,
-      "text": "A child is lost near ze stage: ze alert reaches every camp in under a minute.",
-      "caption": "A child is lost near the stage: the alert reaches every camp in under a minute."
+      "text": "A child is lost near ze stage. Ze message is marked High: it jumps ze queue on ze radio, unt reaches ewery camp in under a minute. Ja, ewery camp.",
+      "caption": "A child is lost near the stage. The message is marked High: it jumps the queue on the radio, and reaches every camp in under a minute. Yes, every camp."
     },
     {
       "id": "bang",
       "min": 9,
       "pad": 0.8,
-      "text": "Zen: a bang, somewhere by ze west field. Everyone reports it. Everyone sees ze reports, so nobody runs ze wrong way, and ze medics see exactly where to go.",
-      "caption": "Then: a bang, somewhere by the west field. Everyone reports it. Everyone sees the reports, so nobody runs the wrong way, and the medics see exactly where to go."
+      "text": "Zen: a bang, somevhere by ze vest field. Don't panic! Don't panic! Nobody panics: ewerybody reports it, ewerybody sees ze reports, so nobody runs ze vrong vay, unt ze medics see exactly vhere to go. Each report costs half a second of airtime; ze rules allow six minutes an hour. Plenty.",
+      "caption": "Then: a bang, somewhere by the west field. Don't panic! Don't panic! Nobody panics: everybody reports it, everybody sees the reports, so nobody runs the wrong way, and the medics see exactly where to go. Each report costs half a second of airtime; the rules allow six minutes an hour. Plenty."
     },
     {
       "id": "burningman",
       "min": 10,
       "pad": 0.8,
-      "text": "Black Rock City. Four kilometres across, a city built for one week in ze Nevada desert, nothing between you and ze horizon but dust. Perfect for radio: eight nodes cover ze whole city. A whiteout comes in, and 'stay in camp' reaches everyone before ze dust does.",
-      "caption": "Black Rock City. Four kilometres across, a city built for one week in the Nevada desert, nothing between you and the horizon but dust. Perfect for radio: eight nodes cover the whole city. A whiteout comes in, and 'stay in camp' reaches everyone before the dust does."
+      "text": "Black Rock City. Four kilometres across, a city built for one veek in ze Newada desert, nossing betveen you unt ze horizon but dust. Perfect for radio: flat, dry, no trees, so eight nodes cover ze vhole city. A vhiteout comes in, unt 'stay in camp' reaches ewerybody before ze dust does. Going out in it? Do you sink zat's vise, sir? No. Stay in camp.",
+      "caption": "Black Rock City. Four kilometres across, a city built for one week in the Nevada desert, nothing between you and the horizon but dust. Perfect for radio: flat, dry, no trees, so eight nodes cover the whole city. A whiteout comes in, and 'stay in camp' reaches everybody before the dust does. Going out in it? Do you think that's wise, sir? No. Stay in camp."
     },
     {
       "id": "proof",
       "min": 8,
       "pad": 0.6,
-      "text": "Ve do not guess. Ze real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered. Zen ve take it to ze field.",
-      "caption": "We do not guess. The real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered. Then we take it to the field."
+      "text": "Ve do not guess. Ve are wery sorough. Ze real code runs in a simulator: forty houses, a bang, two hundred unt forty-seven posts, ewery one delivered, twelve milliseconds in ze middle. Ewery message is signed vith ze house's own key, so nobody can fake your neighbour. Clocks? Ve do not trust zem: messages are ordered by a logical clock, so a Pi vith ze vrong time still agrees vith ze street. Zen ve take it to ze field.",
+      "caption": "We do not guess. We are very thorough. The real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered, twelve milliseconds in the middle. Every message is signed with the house's own key, so nobody can fake your neighbour. Clocks? We do not trust them: messages are ordered by a logical clock, so a Pi with the wrong time still agrees with the street. Then we take it to the field."
     },
     {
       "id": "close",
       "min": 8,
       "pad": 2.5,
-      "text": "batnet. Open source, cheap, and it works ven nothing else does. Ve haff vays of making you talk... to your neighbours.",
-      "caption": "batnet. Open source, cheap, and it works when nothing else does. We have ways of making you talk... to your neighbours."
+      "text": "batnet. Open source, cheap, unt it vorks ven nossing else does. Ve haff vays of making you talk... to your neighbours. Good moaning.",
+      "caption": "batnet. Open source, cheap, and it works when nothing else does. We have ways of making you talk... to your neighbours. Good moaning."
     }
   ]
 }

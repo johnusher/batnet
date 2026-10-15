@@ -129,7 +129,9 @@ def render_frames(tl: dict) -> list:
         shutil.rmtree(state.frames_dir)
     state.frames_dir.mkdir(parents=True)
     srv = serve(state)
-    profile = OUT / "chrome-profile"
+    # a profile of its own per run: a Chrome left over from a killed render holds the old one,
+    # and the new Chrome would exit at once with "the profile is in use"
+    profile = OUT / f"chrome-profile-{os.getpid()}"
     cmd = [chrome(), "--headless=new", "--disable-gpu", "--hide-scrollbars", "--no-first-run",
            f"--user-data-dir={profile}", f"--window-size={tl['width']},{tl['height']}",
            f"http://127.0.0.1:{PORT}/scenes.html?render=1"]
@@ -150,7 +152,12 @@ def render_frames(tl: dict) -> list:
         print(f"\r  {state.frames}/{total} frames in {time.time() - t0:.0f} s")
     finally:
         p.terminate()
+        try:
+            p.wait(10)
+        except subprocess.TimeoutExpired:
+            p.kill()
         srv.shutdown()
+        shutil.rmtree(profile, ignore_errors=True)
     (OUT / "events.json").write_text(json.dumps(state.events))
     return state.events
 
@@ -258,12 +265,38 @@ def mux(tl: dict, audio: Path, draft: bool) -> Path:
     return out
 
 
+# ---------- the README's preview: a few seconds of the film as a GIF, with a play button ----------
+
+PREVIEW_CLIPS = [("berlin", .36), ("berlin2", .45), ("how", .25), ("radio", .72), ("cost", .55), ("glasto", .6), ("bang", .3), ("burningman", .55), ("proof", .35)]
+PLAY_FONT = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"  # has the play triangle
+
+
+def preview_gif(film: Path, tl: dict) -> Path:
+    """One second from each of a few scenes, 800 px wide at 10 fps, a 'watch' button on top.
+    GitHub's README cannot embed a video from a branch, so this GIF links to the MP4."""
+    out = OUT / "preview.gif"
+    by = {s["id"]: s for s in tl["scenes"]}
+    segs = [by[i]["start"] + (by[i]["end"] - by[i]["start"]) * at for i, at in PREVIEW_CLIPS if i in by]
+    parts = "".join(f"[0:v]trim=start={t:.2f}:duration=1,setpts=PTS-STARTPTS,scale=800:-2[c{k}];" for k, t in enumerate(segs))
+    chain = "".join(f"[c{k}]" for k in range(len(segs)))
+    label = "▶   Watch the film  ·  4 min" if Path(PLAY_FONT).exists() else "Watch the film  ·  4 min"
+    font = f"fontfile='{PLAY_FONT}':" if Path(PLAY_FONT).exists() else ""
+    button = (f"drawbox=x=(iw-470)/2:y=(ih-84)/2:w=470:h=84:color=black@0.7:t=fill,"
+              f"drawtext={font}text='{label}':fontsize=34:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-2")
+    graph = (f"{parts}{chain}concat=n={len(segs)}:v=1:a=0,{button},fps=10,split[s0][s1];"
+             f"[s0]palettegen=max_colors=128:stats_mode=diff[p];[s1][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle")
+    subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", str(film), "-filter_complex", graph, "-loop", "0", str(out)], check=True)
+    print(f"preview: {out} ({out.stat().st_size / 1e6:.1f} MB)")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Render the batnet film.")
     ap.add_argument("--draft", action="store_true", help="720p, 15 fps, the cheaper voice model")
     ap.add_argument("--mux", action="store_true", help="only mix the audio into frames already rendered")
     ap.add_argument("--no-music", action="store_true", help="narration and effects only")
     ap.add_argument("--preview", action="store_true", help="open the real-time preview (needs a timeline: run once first)")
+    ap.add_argument("--gif", action="store_true", help="only remake the README's preview GIF from the rendered MP4")
     args = ap.parse_args()
     if args.preview:
         srv = serve(State())
@@ -275,13 +308,18 @@ def main() -> None:
         except KeyboardInterrupt:
             srv.shutdown()
         return
+    if args.gif:
+        preview_gif(OUT / "batnet.mp4", json.loads((OUT / "timeline.json").read_text()))
+        return
     tl = build_timeline(args.draft) if not args.mux else json.loads((OUT / "timeline.json").read_text())
     if args.mux:
         events = json.loads((OUT / "events.json").read_text()) if (OUT / "events.json").exists() else []
     else:
         events = render_frames(tl)
     audio = build_audio(tl, events, not args.no_music)
-    mux(tl, audio, args.draft)
+    film = mux(tl, audio, args.draft)
+    if not args.draft:
+        preview_gif(film, tl)
 
 
 if __name__ == "__main__":

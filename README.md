@@ -6,7 +6,9 @@ and no account with any company.
 
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
-### [🎬 Watch the two-minute film](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
+### [🎬 Watch the film (four minutes)](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
+
+[![A few seconds of the film: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang, Black Rock City. Click to watch the whole film.](https://github.com/johnusher/batnet/raw/film/preview.gif)](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
 
 batnet turns small, cheap computers into a local chat network for a house, a
 street, a village, a festival camp or a group on a hike. New to words like
@@ -23,7 +25,7 @@ street, a village, a festival camp or a group on a hike. New to words like
 |---|---|
 | **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. |
 | **People** | About **60 phones** on a Pi 5 node, 40 on a Pi 4, 8 on a pocket Pi Zero 2 W. These are estimates, not measured yet. |
-| **Cost** | About **€180–200 per house**, plus **€25** for the long-range radio. A pocket node is about **€65**. (EU prices, October 2026.) |
+| **Cost** | **From about €45**: a Pi Zero 2 W (€19) and the long-range radio (€25) make a pocket node. A house node that also links houses over WiFi is about **€150**. (EU prices, October 2026.) |
 | **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates. |
 | **Setup** | Our goal is **under 15 minutes** per node, from download to first message. |
 
@@ -78,36 +80,34 @@ To find each part, type the **article number** into the shop's search box.
 Prices are from October 2026, include VAT and leave out shipping. Shops sell
 out, so check before you order.
 
-**A house node, about €180–200.** Use either a Pi 5 or a Pi 4, with the matching
-power supply and case.
+**A pocket node, about €45.** A Pi Zero 2 W and the long-range radio. It runs
+on any USB power bank, and it is a Meshtastic radio too.
+
+| Part | Shop | Article number | About |
+|---|---|---|---|
+| Raspberry Pi Zero 2 W | [Berrybase](https://www.berrybase.de/raspberry-pi-zero-2-w) | `RPIZ-2W` | €19 |
+| RAK WisMesh Pi HAT (RAK6421) | [Hexaspot](https://hexaspot.com/products/wismesh-pi-hat-rak6421) | `RAK-610012` | €14 |
+| + its radio module RAK13300, EU868, antenna included | [Hexaspot](https://hexaspot.com/products/module-for-lorawan-with-semtech-lora-chip-sx1262-rak13300) | `RAK-105006` | €10 |
+| A [3D-printed case](#3d-printable-cases) | print your own, or ask a local makerspace | | €2 of plastic |
+
+**A house node, about €150.** A bigger Pi, for about 60 phones, and a WiFi
+stick that links it to the neighbours' nodes. Add the €25 radio above to reach
+over the hills.
 
 | Part | Shop | Article number | About |
 |---|---|---|---|
 | Raspberry Pi 5, 4 GB | [Berrybase](https://www.berrybase.de/raspberry-pi-5-4gb-ram) | `RPI5-4GB` | €119 |
 | *or* Raspberry Pi 4 Model B, 4 GB | [Berrybase](https://www.berrybase.de/raspberry-pi-4-computer-modell-b-4gb-ram) | `RPI4B-4GB` | €106 |
-| Power supply: 27 W for a Pi 5 | [Berrybase](https://www.berrybase.de/raspberry-pi-27w-usb-c-power-supply-netzteil-weiss) | `RPI5NT5AW` | €12 |
-| *or* 15 W for a Pi 4 | [Berrybase](https://www.berrybase.de/offizielles-raspberry-pi-usb-c-netzteil-5-1v-3-0a-eu-weiss) | `RPI4NT3AW` | €8 |
-| Memory card, SanDisk Ultra 32 GB | [Berrybase](https://www.berrybase.de/sandisk-ultra-microsdhc-a1-120mb-s-class-10-speicherkarte-adapter-32gb) | `619659184155` | €18 |
-| Case: official Pi 5 case (has a fan) | [Berrybase](https://www.berrybase.de/offizielles-gehaeuse-fuer-raspberry-pi-5-rot-weiss) | `RPI5-CASE-RE` | €10 |
-| *or* official Pi 4 case | [Berrybase](https://www.berrybase.de/offizielles-gehaeuse-fuer-raspberry-pi-4-rot-weiss) | `RPI4-CASE-RE` | €5 |
 | WiFi stick ALFA AWUS036ACHM, to link to other houses | [wlan-shop24](https://www.wlan-shop24.de/alfa-network-awus036achm-wlan-usb-adapter-802-11ac-dual-band) | `ART7230` | €43 |
+| *or*, instead of the HAT: Elecrow Meshstick, the radio on a USB stick | [Berrybase](https://www.berrybase.de/elecrow-meshstick-usb-to-spi-sx1262-tcxo-lora-usb-stick-meshtastic-eu868-sma-22-dbm-5-v) | `EL-LMM15202D` | €25 |
 
-**Add the long-range radio, about €25.** Pick one:
-
-| Part | Shop | Article number | About |
-|---|---|---|---|
-| RAK WisMesh Pi HAT (RAK6421) | [Hexaspot](https://hexaspot.com/products/wismesh-pi-hat-rak6421) | `RAK-610012` | €14 |
-| + its radio module RAK13300, EU868, antenna included | [Hexaspot](https://hexaspot.com/products/module-for-lorawan-with-semtech-lora-chip-sx1262-rak13300) | `RAK-105006` | €10 |
-| *or* Elecrow Meshstick (plugs into USB, antenna included) | [Berrybase](https://www.berrybase.de/elecrow-meshstick-usb-to-spi-sx1262-tcxo-lora-usb-stick-meshtastic-eu868-sma-22-dbm-5-v) | `EL-LMM15202D` | €25 |
-
-**A pocket node, about €65,** plus a USB power bank you may already have:
-
-| Part | Shop | Article number | About |
-|---|---|---|---|
-| Raspberry Pi Zero 2 W | [Berrybase](https://www.berrybase.de/raspberry-pi-zero-2-w) | `RPIZ-2W` | €19 |
-| Memory card, SanDisk Ultra 32 GB | [Berrybase](https://www.berrybase.de/sandisk-ultra-microsdhc-a1-120mb-s-class-10-speicherkarte-adapter-32gb) | `619659184155` | €18 |
-| Long-range radio (RAK6421 + RAK13300, as above) | Hexaspot | `RAK-610012` + `RAK-105006` | €25 |
-| A [3D-printed case](#3d-printable-cases) | print your own, or ask a local makerspace | | €2 of plastic |
+**If you don't have them already:** a memory card (any 16 GB or bigger;
+[SanDisk Ultra 32 GB](https://www.berrybase.de/sandisk-ultra-microsdhc-a1-120mb-s-class-10-speicherkarte-adapter-32gb),
+`619659184155`, €18), a USB-C power supply for a house node
+([27 W for a Pi 5](https://www.berrybase.de/raspberry-pi-27w-usb-c-power-supply-netzteil-weiss), `RPI5NT5AW`, €12;
+[15 W for a Pi 4](https://www.berrybase.de/offizielles-raspberry-pi-usb-c-netzteil-5-1v-3-0a-eu-weiss), `RPI4NT3AW`, €8)
+and a case ([Pi 5, with a fan](https://www.berrybase.de/offizielles-gehaeuse-fuer-raspberry-pi-5-rot-weiss), `RPI5-CASE-RE`, €10;
+[Pi 4](https://www.berrybase.de/offizielles-gehaeuse-fuer-raspberry-pi-4-rot-weiss), `RPI4-CASE-RE`, €5).
 
 **Optional extras, about €20–50:**
 
@@ -670,10 +670,11 @@ Developers: the full list of technical terms is in
 
 ## The film
 
-**[Watch the two-minute film](https://github.com/johnusher/batnet/raw/film/batnet.mp4)**
-(MP4, 1080p, 26 MB; on the `film` branch, so the code branch stays small): a Berlin blackout, how a house node works, Glastonbury with a
-lost child and a bang that everyone reports, a whiteout at Black Rock City,
-and the simulator that runs the real code. The narrator's German accent is
+**[Watch the film, four minutes](https://github.com/johnusher/batnet/raw/film/batnet.mp4)**
+(MP4, 1080p; on the `film` branch, so the code branch stays small): a Berlin blackout, how a house node works, why it has two radios
+and what it costs, Glastonbury with a lost child and a bang that everyone
+reports, a whiteout at Black Rock City, and the simulator that runs the real
+code. The narrator's German accent is
 part of the act. The film is made from code in [`video/`](video/), so it can be
 re-cut as batnet changes; every number in it comes from the repo or the
 public record.

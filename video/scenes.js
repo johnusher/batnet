@@ -93,7 +93,7 @@
     const out = []; let cur = '';
     for (const p of parts) { if ((cur + p).length > 92 && cur) { out.push(cur.trim()); cur = p; } else cur += p; }
     if (cur.trim()) out.push(cur.trim());
-    return out.flatMap((c) => c.length > 110 ? c.split(/,\s/).reduce((acc, piece, i, arr) => { const last = acc[acc.length - 1]; if (last != null && (last + ', ' + piece).length <= 100) acc[acc.length - 1] = last + ', ' + piece; else acc.push(piece + (i < arr.length - 1 && !piece.endsWith(',') ? ',' : '')); return acc; }, []) : [c]);
+    return out.flatMap((c) => c.length > 110 ? c.split(/,\s/).reduce((acc, piece, i, arr) => { const p = piece + (i < arr.length - 1 && !piece.endsWith(',') ? ',' : ''); const last = acc[acc.length - 1]; if (last != null && (last + ' ' + p).length <= 100) acc[acc.length - 1] = last + ' ' + p; else acc.push(p); return acc; }, []) : [c]);
   }
   function caption(scene, u) {
     if (scene.id === 'title') return;
@@ -118,6 +118,9 @@
   const sceneStart = (id) => (tl.scenes.find((s) => s.id === id) || { start: 0 }).start;
   const sceneLen = (id) => { const s = tl.scenes.find((x) => x.id === id); return s ? s.end - s.start : 1; };
   const ev = (id, u, kind, gain) => events.push({ t: +(sceneStart(id) + u).toFixed(3), kind, gain });
+  // the second (from the scene's start) at which the narrator reaches a phrase: the words are
+  // spread evenly over the clip, like the captions, so moments keyed to a phrase follow a re-write
+  const cue = (id, phrase) => { const s = tl.scenes.find((x) => x.id === id); if (!s) return 0; const i = s.text.indexOf(phrase); if (i < 0) { log('no cue', id, phrase); return 0; } return s.speech * i / s.text.length; };
 
   // --- title ---
   scenes.title = {
@@ -203,6 +206,7 @@
       // the numbers
       const stat = (v, unit, y, t0) => { const k = ramp(u, t0, t0 + 2.2); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 4) * (1 - ramp(u, len - .4, len)); const n = typeof v === 'number' ? Math.round(easeOut(k) * v).toLocaleString('en-GB') : v; text(n, W - 100, y, 92, C.ink, 'right', 700, MONO); text(unit, W - 100, y + 62, 26, C.sub, 'right', 500); ctx.globalAlpha = 1; };
       stat(50000, 'homes dark', 330, 11); stat('3 days', 'without power or heating', 520, 13.6); stat('0 bars', 'mobile masts out after a few hours', 710, 15.4);
+      const pt = cue('berlin', 'Put zat light out'), pb = berlin.blocks[44]; bubble('Put that light out!', pb.x + pb.w / 2, pb.y + pb.h / 2, u, pt, { fill: C.warm, alpha: 1 - ramp(u, pt + 2.4, pt + 3) });
       label('Berlin, Treptow-Köpenick', '8 January 2025: an arson attack on two high-voltage cables');
       vignette(); fade(1 - ramp(u, 0, .6));
     },
@@ -226,59 +230,142 @@
 
   // --- how it works ---
   scenes.how = {
-    setup() { const r = rng(3); this.qr = Array.from({ length: 21 * 21 }, () => r() < .45); ev('how', 2.6, 'swell', -16); ev('how', 21.5, 'swell', -14); for (let i = 0; i < 6; i++) ev('how', 14.2 + i * .9, 'blip', -24); },
+    setup() {
+      const r = rng(3); this.qr = Array.from({ length: 21 * 21 }, () => r() < .45);
+      this.t = { wifi: cue('how', 'It makes an open'), phone: cue('how', 'Your own phone'), app: cue('how', 'zere is a chat app'), pike: cue('how', "Don't tell him"), mesh: cue('how', 'Houses link'), lora: cue('how', 'over ze hills'), qr: cue('how', 'Listen wery'), key: cue('how', 'ze willage key') };
+      ev('how', this.t.wifi + .2, 'swell', -16); ev('how', this.t.lora + .4, 'swell', -14); for (let i = 0; i < 6; i++) ev('how', this.t.mesh + 1.4 + i * .9, 'blip', -24); ev('how', this.t.pike, 'blip', -18);
+    },
     pi(x, y, s = 1) { ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = '#2f7d4f'; rr(-85, -55, 170, 110, 8); ctx.fill(); ctx.fillStyle = '#1b1f24'; rr(-60, -25, 54, 54, 4); ctx.fill(); ctx.fillStyle = '#c9ccd1'; for (let i = 0; i < 20; i++) { ctx.fillRect(-80 + i * 8, -52, 4, 10); } ctx.fillStyle = '#8a95a3'; rr(10, -20, 30, 22, 2); ctx.fill(); rr(45, -20, 30, 22, 2); ctx.fill(); rr(10, 10, 30, 22, 2); ctx.fill(); rr(45, 10, 30, 22, 2); ctx.fill(); ctx.fillStyle = C.ok; ctx.beginPath(); ctx.arc(-70, 42, 4, 0, 7); ctx.fill(); ctx.restore(); },
     draw(u, len) {
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
-      const A = 1 - ramp(u, 11.6, 12.4); // the house close-up
+      const T = this.t;
+      const A = 1 - ramp(u, T.mesh - .4, T.mesh + .2); // the house close-up
       if (A > 0) {
         ctx.globalAlpha = A;
         const hx = 640, hy = 760; ctx.strokeStyle = '#3a4a60'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(hx - 380, hy); ctx.lineTo(hx - 380, hy - 360); ctx.lineTo(hx, hy - 600); ctx.lineTo(hx + 380, hy - 360); ctx.lineTo(hx + 380, hy); ctx.closePath(); ctx.stroke();
         ctx.fillStyle = '#243041'; ctx.fillRect(hx - 220, hy - 190, 440, 14); ctx.fillRect(hx - 200, hy - 176, 14, 176); ctx.fillRect(hx + 186, hy - 176, 14, 176);
         const k1 = easeOut(ramp(u, .3, 1.0)); ctx.globalAlpha = A * k1; this.pi(hx - 40, hy - 250, 1); ctx.fillStyle = '#1b222d'; rr(hx + 70, hy - 230, 50, 110, 10); ctx.fill(); ctx.strokeStyle = '#555'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hx + 45, hy - 250); ctx.lineTo(hx + 95, hy - 250); ctx.lineTo(hx + 95, hy - 232); ctx.stroke();
         text('Raspberry Pi', hx - 40, hy - 330, 24, C.sub, 'center', 600); text('power bank', hx + 95, hy - 110, 20, C.sub, 'center', 600);
-        if (u > 2.4) for (let i = 0; i < 4; i++) ring(hx - 40, hy - 250, u, 2.4 + i * .55, 2.2, 520, C.wifi, 3);
-        const k2 = ramp(u, 3.4, 4); ctx.globalAlpha = A * k2; rr(hx - 220, hy - 480, 440, 48, 24); ctx.fillStyle = '#152a3c'; ctx.fill(); text('open WiFi  ·  batnet · Miller House', hx, hy - 456, 24, C.wifi, 'center', 600);
+        if (u > T.wifi) for (let i = 0; i < 4; i++) ring(hx - 40, hy - 250, u, T.wifi + i * .55, 2.2, 520, C.wifi, 3);
+        const k2 = ramp(u, T.wifi + .8, T.wifi + 1.4); ctx.globalAlpha = A * k2; rr(hx - 220, hy - 480, 440, 48, 24); ctx.fillStyle = '#152a3c'; ctx.fill(); text('open WiFi  ·  batnet · Miller House', hx, hy - 456, 24, C.wifi, 'center', 600);
         ctx.globalAlpha = A;
         // the phone with the real app
-        const k3 = easeOut(ramp(u, 5.8, 6.8)); if (k3 > 0) { const px = W - 540 + (1 - k3) * 300, py = 150; ctx.globalAlpha = A * k3; phone(px, py, 400, 800, '#0e1218'); const a2 = ramp(u, 8.8, 9.6); const im1 = images['app-sign-in'], im2 = images['app-conversation']; ctx.save(); rr(px + 12, py + 12, 376, 776, 36); ctx.clip(); if (im1) { ctx.globalAlpha = A * k3 * (1 - a2); ctx.drawImage(im1, px + 12, py + 12, 376, 770); } if (im2) { ctx.globalAlpha = A * k3 * a2; ctx.drawImage(im2, px + 12, py + 12, 376, 770); } ctx.restore(); ctx.globalAlpha = A * k3; text('no app store · no account · no company', px + 200, py + 840, 22, C.sub, 'center', 500); }
+        const k3 = easeOut(ramp(u, T.phone, T.phone + 1)); if (k3 > 0) { const px = W - 540 + (1 - k3) * 300, py = 150; ctx.globalAlpha = A * k3; phone(px, py, 400, 800, '#0e1218'); const a2 = ramp(u, T.app, T.app + .8); const im1 = images['app-sign-in'], im2 = images['app-conversation']; ctx.save(); rr(px + 12, py + 12, 376, 776, 36); ctx.clip(); if (im1) { ctx.globalAlpha = A * k3 * (1 - a2); ctx.drawImage(im1, px + 12, py + 12, 376, 770); } if (im2) { ctx.globalAlpha = A * k3 * a2; ctx.drawImage(im2, px + 12, py + 12, 376, 770); } ctx.restore(); ctx.globalAlpha = A * k3; text('iPhone, Android, laptop: any browser', px + 200, py + 840, 22, C.sub, 'center', 500); text('no app store · no account · no company', px + 200, py + 872, 22, C.sub, 'center', 500);
+          ctx.globalAlpha = A; bubble("Don't tell him, Pike!", px + 200, py + 130, u, T.pike, { fill: C.alert, color: '#fff', px: 26, alpha: 1 - ramp(u, T.pike + 3, T.pike + 3.6) }); }
         ctx.globalAlpha = 1;
       }
-      const B = ramp(u, 11.8, 12.6) * (1 - ramp(u, 26.4, 27.2)); // the village: mesh, then the hills and LoRa
+      const B = ramp(u, T.mesh - .2, T.mesh + .6) * (1 - ramp(u, T.qr - .2, T.qr + .6)); // the village: mesh, then the hills and LoRa
       if (B > 0) {
         ctx.globalAlpha = B;
-        // hills on the right from 20 s
-        const hk = easeOut(ramp(u, 19.6, 21));
+        // hills on the right as the narrator reaches them
+        const hk = easeOut(ramp(u, T.lora - .4, T.lora + 1));
         if (hk > 0) { ctx.fillStyle = '#16301f'; ctx.beginPath(); ctx.moveTo(900, H); for (let x = 900; x <= W; x += 20) ctx.lineTo(x, H - hk * (260 + 170 * Math.sin((x - 900) / 330) + 60 * Math.sin((x - 900) / 90))); ctx.lineTo(W, H); ctx.fill(); }
         const hs = [[260, 700], [470, 640], [690, 720], [560, 850], [360, 880], [800, 600]];
-        hs.forEach(([x, y], i) => { const t0 = 12.2 + i * .3; const k = ramp(u, t0, t0 + .4); if (k > 0) { ctx.globalAlpha = B * k; house(x, y, 26, '#2c3a4e'); node(x, y - 22, u, t0 + .2, C.wifi, 7); } });
-        ctx.globalAlpha = B * .5 * ramp(u, 13.6, 14.4); ctx.strokeStyle = C.wifi; ctx.lineWidth = 2;
+        hs.forEach(([x, y], i) => { const t0 = T.mesh + .2 + i * .3; const k = ramp(u, t0, t0 + .4); if (k > 0) { ctx.globalAlpha = B * k; house(x, y, 26, '#2c3a4e'); node(x, y - 22, u, t0 + .2, C.wifi, 7); } });
+        ctx.globalAlpha = B * .5 * ramp(u, T.mesh + 1.4, T.mesh + 2.2); ctx.strokeStyle = C.wifi; ctx.lineWidth = 2;
         const pairs = [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [1, 5], [2, 5], [0, 3]];
         for (const [a, b] of pairs) { ctx.beginPath(); ctx.moveTo(hs[a][0], hs[a][1] - 22); ctx.lineTo(hs[b][0], hs[b][1] - 22); ctx.stroke(); }
         ctx.globalAlpha = B;
-        pairs.forEach(([a, b], i) => { const t0 = 14.2 + i * .9; dot(hs[a][0], hs[a][1] - 22, hs[b][0], hs[b][1] - 22, (u - t0) / .5, C.wifi); });
+        pairs.forEach(([a, b], i) => { const t0 = T.mesh + 1.4 + i * .9; dot(hs[a][0], hs[a][1] - 22, hs[b][0], hs[b][1] - 22, (u - t0) / .5, C.wifi); });
         text('WiFi mesh between neighbours', 530, 520, 26, C.wifi, 'center', 600);
         // the far house over the hill, by LoRa
-        const fk = ramp(u, 20.8, 21.6); if (fk > 0) { const fx = 1720, fy = H - 330; ctx.globalAlpha = B * fk; house(fx, fy, 26, '#2c3a4e'); node(fx, fy - 22, u, 21.2, C.lora, 8); text('3 km, over the hill', fx, fy + 40, 22, C.lora, 'center', 600); ctx.globalAlpha = B;
-          const gx = hs[5][0], gy = hs[5][1] - 22; ctx.setLineDash([10, 14]); ctx.strokeStyle = C.lora; ctx.lineWidth = 3; ctx.globalAlpha = B * .8 * ramp(u, 21.4, 22.2); ctx.beginPath(); ctx.moveTo(gx, gy); ctx.quadraticCurveTo((gx + fx) / 2, 120, fx, fy - 22); ctx.stroke(); ctx.setLineDash([]);
-          for (let i = 0; i < 3; i++) { const k = ((u - 21.8 - i * 1.4) / 1.6); if (k > 0 && k < 1) { const x = (1 - k) * (1 - k) * gx + 2 * (1 - k) * k * (gx + fx) / 2 + k * k * fx, y = (1 - k) * (1 - k) * gy + 2 * (1 - k) * k * 120 + k * k * (fy - 22); glow(x, y, 26, C.lora, .6); ctx.fillStyle = C.lora; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); } }
-          ctx.globalAlpha = B * ramp(u, 22, 22.6); text('LoRa radio · 868 MHz · a few kilometres', 1180, 150, 26, C.lora, 'center', 600);
-          node(gx, gy, u, 20.9, C.lora, 8);
+        const fk = ramp(u, T.lora + .8, T.lora + 1.6); if (fk > 0) { const fx = 1720, fy = H - 330; ctx.globalAlpha = B * fk; house(fx, fy, 26, '#2c3a4e'); node(fx, fy - 22, u, T.lora + 1.2, C.lora, 8); text('3 km, over the hill', fx, fy + 40, 22, C.lora, 'center', 600); ctx.globalAlpha = B;
+          const gx = hs[5][0], gy = hs[5][1] - 22; ctx.setLineDash([10, 14]); ctx.strokeStyle = C.lora; ctx.lineWidth = 3; ctx.globalAlpha = B * .8 * ramp(u, T.lora + 1.4, T.lora + 2.2); ctx.beginPath(); ctx.moveTo(gx, gy); ctx.quadraticCurveTo((gx + fx) / 2, 120, fx, fy - 22); ctx.stroke(); ctx.setLineDash([]);
+          for (let i = 0; i < 3; i++) { const k = ((u - T.lora - 1.8 - i * 1.4) / 1.6); if (k > 0 && k < 1) { const x = (1 - k) * (1 - k) * gx + 2 * (1 - k) * k * (gx + fx) / 2 + k * k * fx, y = (1 - k) * (1 - k) * gy + 2 * (1 - k) * k * 120 + k * k * (fy - 22); glow(x, y, 26, C.lora, .6); ctx.fillStyle = C.lora; ctx.beginPath(); ctx.arc(x, y, 6, 0, 7); ctx.fill(); } }
+          ctx.globalAlpha = B * ramp(u, T.lora + 2, T.lora + 2.6); text('LoRa radio · 868 MHz · a few kilometres', 1180, 150, 26, C.lora, 'center', 600);
+          node(gx, gy, u, T.lora + .9, C.lora, 8);
         }
         ctx.globalAlpha = 1;
       }
-      const Q = ramp(u, 26.6, 27.4) * (1 - ramp(u, len - .5, len)); // the QR village key
+      const Q = ramp(u, T.qr, T.qr + .8) * (1 - ramp(u, len - .5, len)); // the QR village key
       if (Q > 0) {
         ctx.globalAlpha = Q; const px = W / 2 - 200, py = 110; phone(px, py, 400, 800, '#0e1218');
         const qx = px + 60, qy = py + 160, cs = 280 / 21; ctx.fillStyle = '#fff'; ctx.fillRect(qx - 14, qy - 14, 308, 308);
         ctx.fillStyle = '#000'; this.qr.forEach((on, i) => { if (on) ctx.fillRect(qx + (i % 21) * cs, qy + Math.floor(i / 21) * cs, cs, cs); });
         for (const [fx, fy] of [[0, 0], [14, 0], [0, 14]]) { ctx.fillStyle = '#000'; ctx.fillRect(qx + fx * cs, qy + fy * cs, 7 * cs, 7 * cs); ctx.fillStyle = '#fff'; ctx.fillRect(qx + (fx + 1) * cs, qy + (fy + 1) * cs, 5 * cs, 5 * cs); ctx.fillStyle = '#000'; ctx.fillRect(qx + (fx + 2) * cs, qy + (fy + 2) * cs, 3 * cs, 3 * cs); }
         text('Add a house', px + 200, py + 90, 30, C.ink, 'center', 700); text('scan once, from the admin’s phone', px + 200, py + 520, 22, C.sub, 'center'); text('village key · 2 minutes', px + 200, py + 560, 20, C.lora, 'center', 600);
-        const sk = easeOut(ramp(u, 28.4, 29.2)); if (sk > 0) { ctx.save(); ctx.translate(px + 200, py + 690); ctx.rotate(-.12); ctx.scale(1.3 - .3 * sk, 1.3 - .3 * sk); ctx.globalAlpha = Q * sk; ctx.strokeStyle = C.alert; ctx.lineWidth = 4; rr(-170, -30, 340, 60, 8); ctx.stroke(); text('NO ENIGMA REQUIRED', 0, 0, 26, C.alert, 'center', 800); ctx.restore(); }
+        const sk = easeOut(ramp(u, T.key + 1.2, T.key + 2)); if (sk > 0) { ctx.save(); ctx.translate(px + 200, py + 690); ctx.rotate(-.12); ctx.scale(1.3 - .3 * sk, 1.3 - .3 * sk); ctx.globalAlpha = Q * sk; ctx.strokeStyle = C.alert; ctx.lineWidth = 4; rr(-170, -30, 340, 60, 8); ctx.stroke(); text('NO ENIGMA REQUIRED', 0, 0, 26, C.alert, 'center', 800); ctx.restore(); }
         ctx.globalAlpha = 1;
       }
       label('How it works', 'one Pi per house');
       vignette(); fade(1 - ramp(u, 0, .5));
+    },
+  };
+
+  // --- why two radios: WiFi for the street, LoRa over the hills; a voice becomes text for the radio ---
+  // Numbers: the README's radio table (869.5 MHz, 0.16 W, 10 % airtime, ~1,000 bit/s, 1–3 km) and
+  // knowledge/research/speech-pipeline.md (Moonshine Tiny: 237 ms per phrase on a Pi 5).
+  scenes.radio = {
+    setup() {
+      this.t = { wifi: cue('radio', 'Vee-Fee is fast'), lora: cue('radio', 'LoRa is slow'), air: cue('radio', 'A short text'), voice: cue('radio', 'So ze house'), text: cue('radio', 'sends ze text'), aloud: cue('radio', 'reads it aloud'), bed: cue('radio', 'Ze radio can hide'), knobs: cue('radio', 'No flashing') };
+      const r = rng(31); this.wave = Array.from({ length: 60 }, () => .3 + r() * .7);
+      ev('radio', this.t.wifi, 'blip', -20); ev('radio', this.t.lora, 'swell', -16); ev('radio', this.t.text + .3, 'blip', -22); ev('radio', this.t.aloud, 'blip', -20); ev('radio', this.t.knobs, 'blip', -18);
+    },
+    col(x, y, title, color, rows, t0, u, dash, fadeTo) {
+      const k = easeOut(ramp(u, t0, t0 + .6)) * fadeTo; if (k <= 0) return;
+      ctx.globalAlpha = k; text(title, x, y, 56, color, 'center', 700);
+      if (!dash) { pulse(x, y + 120, u, t0 + .3, color, 2.4, 110, 3); ctx.globalAlpha = k; node(x, y + 120, u, t0, color, 8); }
+      else { ctx.setLineDash([8, 10]); ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 160, y + 170); ctx.quadraticCurveTo(x, y + 20, x + 160, y + 170); ctx.stroke(); ctx.setLineDash([]); node(x - 160, y + 170, u, t0 + .2, color, 7); node(x + 160, y + 170, u, t0 + .2, color, 7); }
+      rows.forEach(([a, b], i) => { const kk = ramp(u, t0 + .8 + i * .75, t0 + 1.2 + i * .75); if (kk <= 0) return; ctx.globalAlpha = k * kk; ctx.fillStyle = '#121a2a'; rr(x - 330, y + 210 + i * 78, 660, 64, 10); ctx.fill(); text(a, x - 306, y + 242 + i * 78, 22, C.sub, 'left', 600); text(b, x + 306, y + 242 + i * 78, 24, C.ink, 'right', 500); });
+      ctx.globalAlpha = 1;
+    },
+    draw(u, len) {
+      const T = this.t; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const top = 1 - ramp(u, T.voice - .3, T.voice + .4);
+      if (top > 0) {
+        this.col(480, 170, 'WiFi', C.wifi, [['range', 'a few hundred metres'], ['speed', 'megabits: calls, voice, photos'], ['mesh', 'batman-adv: every house relays'], ['the link', 'the Pi’s own WiFi, or a €43 stick']], T.wifi, u, false, top);
+        this.col(1440, 170, 'LoRa', C.lora, [['range', '1–3 km, more from a roof'], ['speed', 'about 1,000 bit/s: text only'], ['band', '869.5 MHz · no licence · 10 % airtime'], ['power', '0.16 W, less than a phone']], T.lora, u, true, top);
+        const ak = ramp(u, T.air, T.air + .5) * top; if (ak > 0) { ctx.globalAlpha = ak; text('a short text: ½ s on air  ·  a voice call: never', 960, 790, 28, C.lora, 'center', 600); ctx.globalAlpha = 1; }
+      }
+      const V = ramp(u, T.voice - .2, T.voice + .6) * (1 - ramp(u, len - .5, len));
+      if (V > 0) {
+        ctx.globalAlpha = V; const y = 470, xs = [260, 720, 1200, 1660];
+        // you speak into your phone
+        phone(xs[0] - 70, y - 140, 140, 280, '#0e1218'); const wa = ramp(u, T.voice, T.voice + 1.2) * (1 - ramp(u, T.text, T.text + .5));
+        this.wave.forEach((h, i) => { const hh = h * 70 * wa * (.6 + .4 * Math.sin(u * 9 + i)); ctx.fillStyle = C.wifi; ctx.fillRect(xs[0] - 55 + i * 1.9, y - hh / 2, 1.2, hh); });
+        text('you speak', xs[0], y + 190, 24, C.sub, 'center', 600);
+        dot(xs[0] + 70, y, xs[1] - 90, y, (u - T.voice - 1) / .5, C.wifi);
+        // the Pi turns it into text
+        scenes.how.pi(xs[1], y, .9); text('the Pi: speech to text', xs[1], y + 100, 24, C.sub, 'center', 600); text('Moonshine, ¼ s per phrase, no cloud', xs[1], y + 134, 20, C.sub, 'center');
+        const msg = 'Insulin needed, block C'; bubble(msg, xs[2], y + 40, u, T.text, { px: 24 }); const bk2 = ramp(u, T.text + .3, T.text + .7); if (bk2 > 0) { ctx.globalAlpha = V * bk2; text(`${msg.length} bytes · ½ s on air`, xs[2], y + 90, 22, C.lora, 'center', 600); ctx.globalAlpha = V; }
+        dot(xs[1] + 90, y, xs[2] - 150, y, (u - T.text + .4) / .4, C.wifi);
+        // over the hill by LoRa, read aloud at the far end
+        const lk = ramp(u, T.text + .6, T.text + 1.2); if (lk > 0) { ctx.globalAlpha = V * lk * .8; ctx.setLineDash([10, 14]); ctx.strokeStyle = C.lora; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(xs[2] + 150, y); ctx.quadraticCurveTo((xs[2] + xs[3]) / 2, y - 220, xs[3] - 80, y); ctx.stroke(); ctx.setLineDash([]); ctx.globalAlpha = V; }
+        for (let i = 0; i < 3; i++) { const k = (u - T.text - .9 - i * .8) / 1.2; if (k > 0 && k < 1) { const ax = xs[2] + 150, bx = xs[3] - 80, mx = (ax + bx) / 2; const x = (1 - k) * (1 - k) * ax + 2 * (1 - k) * k * mx + k * k * bx, yy = (1 - k) * (1 - k) * y + 2 * (1 - k) * k * (y - 220) + k * k * y; glow(x, yy, 26, C.lora, .6); ctx.fillStyle = C.lora; ctx.beginPath(); ctx.arc(x, yy, 6, 0, 7); ctx.fill(); } }
+        phone(xs[3] - 70, y - 140, 140, 280, '#0e1218'); const sk = ramp(u, T.aloud, T.aloud + .4); if (sk > 0) { ctx.globalAlpha = V * sk; ctx.fillStyle = C.ink; ctx.beginPath(); ctx.moveTo(xs[3] - 24, y - 14); ctx.lineTo(xs[3] - 8, y - 14); ctx.lineTo(xs[3] + 12, y - 32); ctx.lineTo(xs[3] + 12, y + 32); ctx.lineTo(xs[3] - 8, y + 14); ctx.lineTo(xs[3] - 24, y + 14); ctx.closePath(); ctx.fill(); for (let i = 0; i < 3; i++) ring(xs[3] + 14, y, u, T.aloud + .2 + i * .5, 1.6, 70, C.ink, 2.5); ctx.globalAlpha = V; }
+        text('read aloud at the far house', xs[3], y + 190, 24, C.sub, 'center', 600);
+        // the radio under the bed, like in the café
+        const bk = easeOut(ramp(u, T.bed, T.bed + .6)); if (bk > 0) { ctx.globalAlpha = V * bk; const bx = 760, by = 760; ctx.fillStyle = '#3a4656'; rr(bx, by, 220, 46, 8); ctx.fill(); ctx.fillStyle = '#2a3340'; ctx.fillRect(bx - 6, by - 60, 14, 120); ctx.fillRect(bx + 212, by + 10, 10, 50); ctx.fillRect(bx + 8, by + 46, 10, 14); ctx.fillRect(bx + 200, by + 46, 10, 14); ctx.fillStyle = '#c9ccd1'; rr(bx + 20, by - 18, 70, 22, 6); ctx.fill();
+          ctx.fillStyle = '#6b4f2a'; rr(bx + 70, by + 52, 80, 30, 4); ctx.fill(); ctx.fillStyle = '#ddd'; for (const kx of [bx + 92, bx + 128]) { ctx.beginPath(); ctx.arc(kx, by + 67, 6, 0, 7); ctx.fill(); }
+          text('the radio under the bed', bx + 250, by + 14, 24, C.sub, 'left', 600); const kk = ramp(u, T.knobs, T.knobs + .4); if (kk > 0) { ctx.globalAlpha = V * bk * kk; text('knobs: not flashing', bx + 250, by + 50, 22, C.lora, 'left', 600); } }
+        ctx.globalAlpha = 1;
+      }
+      label('Why two radios', 'WiFi for the street, LoRa over the hills'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
+    },
+  };
+
+  // --- what it costs: the pocket node first ---
+  // Prices: the README's shopping list (EU shops, October 2026, incl. VAT): Pi Zero 2 W €19, RAK WisMesh
+  // Pi HAT + RAK13300 €24 (Meshstick €25); Pi 4 €106 or Pi 5 €119 + ALFA WiFi stick €43. Power: the
+  // README's power table (18 Wh a day: about 1½ days on 10,000 mAh). Phones: the README's at-a-glance.
+  scenes.cost = {
+    setup() {
+      this.t = { zero: cue('cost', 'A Raspberry Pi Zero'), radio: cue('cost', 'A LoRa radio'), total: cue('cost', 'Zat is it'), bank: cue('cost', 'on ze power bank'), house: cue('cost', 'A house node'), phones: cue('cost', 'sixty phones'), est: cue('cost', 'Ja, estimates'), boy: cue('cost', 'not stupid boys') };
+      ev('cost', this.t.zero, 'blip', -20); ev('cost', this.t.radio, 'blip', -20); ev('cost', this.t.total, 'swell', -14); ev('cost', this.t.house, 'blip', -22); ev('cost', this.t.boy, 'blip', -16);
+    },
+    draw(u, len) {
+      const T = this.t; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+      const line = (y, name, price, t0, big) => { const k = easeOut(ramp(u, t0, t0 + .5)); if (k <= 0) return; ctx.globalAlpha = k; ctx.save(); ctx.translate((1 - k) * -60, 0); text(name, 120, y, big ? 40 : 32, C.ink, 'left', big ? 700 : 500); text(price, 940, y, big ? 72 : 44, big ? C.warm : C.ink, 'right', 700, MONO); ctx.restore(); ctx.globalAlpha = 1; };
+      line(250, 'Raspberry Pi Zero 2 W', '€19', T.zero);
+      line(330, 'LoRa radio module (868 MHz, antenna included)', '€25', T.radio);
+      const tk = ramp(u, T.total, T.total + .4); if (tk > 0) { ctx.globalAlpha = tk; ctx.fillStyle = C.warm; ctx.fillRect(120, 380, 820, 3); ctx.globalAlpha = 1; }
+      line(460, 'a radio station in your pocket', '€44', T.total + .2, true);
+      const bk = easeOut(ramp(u, T.bank, T.bank + .6)); if (bk > 0) { ctx.globalAlpha = bk; const x = 120, y = 560; ctx.fillStyle = '#1b222d'; rr(x, y, 220, 70, 12); ctx.fill(); ctx.fillStyle = '#3a4656'; rr(x + 220, y + 22, 10, 26, 3); ctx.fill(); const f = ramp(u, T.bank + .4, T.bank + 2.4); ctx.fillStyle = C.ok; rr(x + 10, y + 10, 200 * (1 - .6 * f), 50, 8); ctx.fill(); text('your own 10,000 mAh power bank: about 1½ days', x + 260, y + 35, 26, C.sub, 'left'); ctx.globalAlpha = 1; }
+      const hk = easeOut(ramp(u, T.house, T.house + .6)); if (hk > 0) { ctx.globalAlpha = hk; const x = 1120, y = 230; house(x + 40, y + 70, 40, '#2c3a4e'); node(x + 40, y + 36, u, T.house + .3, C.wifi, 8); text('a house node', x + 110, y + 20, 32, C.ink, 'left', 700); text('Pi 4 or 5 + a WiFi stick to link houses', x + 110, y + 60, 24, C.sub, 'left'); text('about €150', x + 110, y + 108, 48, C.warm, 'left', 700, MONO); ctx.globalAlpha = 1; }
+      const pk = ramp(u, T.phones, T.phones + 1.5); if (pk > 0) { const n = Math.round(pk * 60); for (let i = 0; i < n; i++) { const x = 1120 + (i % 15) * 46, y = 400 + Math.floor(i / 15) * 60; phone(x, y, 28, 48, '#1a2230'); } ctx.globalAlpha = ramp(u, T.phones + .5, T.phones + 1); text('about 60 phones on one Pi 5', 1120, 665, 24, C.sub, 'left'); ctx.globalAlpha = 1; }
+      const ek = ramp(u, T.est, T.est + .5); if (ek > 0) { ctx.globalAlpha = ek; text('EU shop prices, October 2026, incl. VAT  ·  estimates, not yet measured on our own kit', 120, 760, 22, C.sub, 'left'); ctx.globalAlpha = 1; }
+      const sk = easeOut(ramp(u, T.boy, T.boy + .5)); if (sk > 0) { ctx.save(); ctx.translate(1560, 790); ctx.rotate(-.1); ctx.scale(1.3 - .3 * sk, 1.3 - .3 * sk); ctx.globalAlpha = sk; ctx.strokeStyle = C.alert; ctx.lineWidth = 4; rr(-160, -30, 320, 60, 8); ctx.stroke(); text('NOT STUPID BOYS', 0, 0, 26, C.alert, 'center', 800); ctx.restore(); }
+      label('What it costs', 'a pocket node: a Pi Zero 2 W and the radio, plus a memory card you may have'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
     },
   };
 
@@ -290,7 +377,8 @@
       const r = rng(11);
       for (let i = 0; i < 420; i++) { const x = r() * (W + 600) - 300, layer = Math.floor(r() * 3); const y = this.hill(x, 0)[layer] + r() * 40 + 10; this.tents.push({ x, y, layer, c: ['#e35c5c', '#5aa9e6', '#f2c14e', '#7bd389', '#d87be6', '#f0f0f0'][Math.floor(r() * 6)], s: 9 + r() * 8 - layer * 2 }); }
       this.tents.sort((a, b) => b.layer - a.layer || a.y - b.y);
-      this.nodes = [[700, 575], [300, 720], [1100, 690], [1500, 600], [1750, 790], [950, 860], [480, 880]].map(([x, y], i) => ({ x, y, t0: 4.2 + i * .45 }));
+      const tn = cue('glasto', 'Pocket nodes'); // the nodes arrive as the narrator reaches them (the alert at 12.9 s needs them all)
+      this.nodes = [[700, 575], [300, 720], [1100, 690], [1500, 600], [1750, 790], [950, 860], [480, 880]].map(([x, y], i) => ({ x, y, t0: Math.min(tn, 9) + i * .45 }));
       for (let a = 0; a < this.nodes.length; a++) for (let b = a + 1; b < this.nodes.length; b++) if (Math.hypot(this.nodes[a].x - this.nodes[b].x, this.nodes[a].y - this.nodes[b].y) < 620) this.links.push([a, b]);
       // the alert: from the stage node (0), one hop every .45 s
       const at = new Map([[0, 12.9]]); const q = [0];
@@ -331,8 +419,15 @@
     },
   };
   scenes.glasto = {
-    setup() { glasto.setup(); for (let i = 0; i < 4; i++) ev('glasto', 4.6 + i * .5, 'blip', -22); },
-    draw(u, len) { glasto.base(u); glasto.nodesAndLinks(u); glasto.signal(u); label('Glastonbury', 'Worthy Farm, Somerset: 210,000 people on a hill'); vignette(); fade(1 - ramp(u, 0, .6)); },
+    setup() { glasto.setup(); for (let i = 0; i < 4; i++) ev('glasto', glasto.nodes[0].t0 + .4 + i * .5, 'blip', -22); },
+    draw(u, len) {
+      glasto.base(u); glasto.nodesAndLinks(u); glasto.signal(u);
+      const td = cue('glasto', "Ve're doomed"), tn = cue('glasto', 'No. Pocket'), th = cue('glasto', 'sree hops');
+      bubble("We're doomed!", 1330, 745, u, td, { fill: C.alert, color: '#fff', px: 26, alpha: 1 - ramp(u, tn + .6, tn + 1.1) });
+      bubble('No.', 1500, 560, u, tn + .3, { px: 26, alpha: 1 - ramp(u, tn + 2.6, tn + 3.1) });
+      const hk = ramp(u, th, th + .5); if (hk > 0) { ctx.globalAlpha = hk; text('3 hops: Meshtastic’s limit, enough for the farm', W - 100, 200, 26, C.ink, 'right', 700); ctx.globalAlpha = 1; }
+      label('Glastonbury', 'Worthy Farm, Somerset: 210,000 people on a hill'); vignette(); fade(1 - ramp(u, 0, .6));
+    },
   };
   scenes.lostchild = {
     setup() {},
@@ -341,6 +436,7 @@
       for (const [i, t] of glasto.alertAt) { const n = glasto.nodes[i]; ring(n.x, n.y, ug, t, 1.2, 160, C.alert, 4); const k = ramp(ug, t, t + .3); if (k > 0) { ctx.fillStyle = C.alert; ctx.globalAlpha = k; rr(n.x - 34, n.y - 58, 68, 22, 5); ctx.fill(); text('ALERT', n.x, n.y - 47, 14, '#fff', 'center', 800); ctx.globalAlpha = 1; } }
       const s0 = glasto.nodes[0]; bubble('⚠ Lost child, red jacket, about 6, last seen by the Pyramid', s0.x, s0.y - 60, ug, 12.6, { fill: C.alert, color: '#fff' });
       const last = Math.max(...glasto.alertAt.values()); const k = ramp(ug, last + .3, last + .8); if (k > 0) { ctx.globalAlpha = k; text('every camp alerted', W - 100, 200, 30, C.alert, 'right', 700); text(`${Math.round((last - 12.9) * 12 + 5)} s`, W - 100, 250, 56, C.ink, 'right', 700, MONO); ctx.globalAlpha = 1; }
+      const tq = cue('lostchild', 'jumps ze queue'); const qk = ramp(u, tq, tq + .5); if (qk > 0) { ctx.globalAlpha = qk; text('priority High: sent before everything else', W - 100, 310, 24, C.alert, 'right', 600); ctx.globalAlpha = 1; }
       label('Glastonbury', 'a High message from the welfare tent'); vignette();
     },
   };
@@ -356,6 +452,8 @@
       }
       for (const rp of glasto.reports) { const n = glasto.nodes[rp.n]; dot(rp.x, rp.y - 20, n.x, n.y, (ug - rp.t0 - .3) / .6, C.wifi, 4); bubble(rp.s, rp.x, rp.y, ug, rp.t0, { px: 19, alpha: 1 - ramp(ug, rp.t0 + 3.5, rp.t0 + 4.5) }); }
       const n = glasto.reports.filter((rp) => ug > rp.t0).length; if (n > 0) { text(`${n} reports`, W - 100, 200, 30, C.ink, 'right', 700); text('all converge on the west field', W - 100, 240, 22, C.sub, 'right'); }
+      const tp = cue('bang', "Don't panic"); bubble("Don't panic!", bx, by - 150, u, tp, { fill: C.alert, color: '#fff', px: 28, alpha: 1 - ramp(u, tp + 2.4, tp + 3) });
+      const ta = cue('bang', 'Each report'); const ak = ramp(u, ta, ta + .5); if (ak > 0) { ctx.globalAlpha = ak; text('airtime: ½ s per report · 6 min an hour allowed', W - 100, 285, 22, C.lora, 'right', 600); ctx.globalAlpha = 1; }
       const mk = ramp(ug, 23.6, 27); if (mk > 0) { const s0 = glasto.nodes[0]; const x = lerp(s0.x, bx + 30, easeInOut(mk)), y = lerp(s0.y + 20, by + 10, easeInOut(mk)); ctx.fillStyle = '#fff'; rr(x - 16, y - 16, 32, 32, 6); ctx.fill(); ctx.fillStyle = C.alert; ctx.fillRect(x - 3, y - 11, 6, 22); ctx.fillRect(x - 11, y - 3, 22, 6); text('medics', x, y + 30, 18, '#fff', 'center', 700); }
       label('Glastonbury', 'a bang by the west field, 23:40'); vignette(); fade(ramp(u, len - .5, len));
     },
@@ -366,10 +464,11 @@
     setup() {
       const r = rng(13); this.camps = []; const cx = 960, cy = 905; this.c = [cx, cy];
       for (let ri = 0; ri < 11; ri++) { const rad = 330 + ri * 38; for (let a = -150; a <= -30; a += 1.3 + r() * 2) { const ang = a * Math.PI / 180; if (r() < .8) this.camps.push({ x: cx + Math.cos(ang) * rad, y: cy + Math.sin(ang) * rad, w: 4 + r() * 6, h: 4 + r() * 5, c: `rgba(${90 + r() * 80 | 0},${70 + r() * 60 | 0},${50 + r() * 40 | 0},1)` }); } }
-      this.nodes = [-140, -120, -100, -85, -70, -55, -40, -130].map((a, i) => { const ang = a * Math.PI / 180, rad = i === 7 ? 360 : 520 + (i % 3) * 80; return { x: cx + Math.cos(ang) * rad, y: cy + Math.sin(ang) * rad, t0: 2.2 + i * .35 }; });
-      this.alertAt = this.nodes.map((n, i) => 9.2 + i * .28);
+      const tp = cue('burningman', 'Perfect for radio'); this.tw = cue('burningman', 'A vhiteout'); this.tv = cue('burningman', 'Do you sink');
+      this.nodes = [-140, -120, -100, -85, -70, -55, -40, -130].map((a, i) => { const ang = a * Math.PI / 180, rad = i === 7 ? 360 : 520 + (i % 3) * 80; return { x: cx + Math.cos(ang) * rad, y: cy + Math.sin(ang) * rad, t0: tp + i * .35 }; });
+      this.alertAt = this.nodes.map((n, i) => this.tw + 1.7 + i * .28);
       this.dust = Array.from({ length: 900 }, () => ({ x: r(), y: r(), s: 1 + r() * 3, v: .6 + r() * .8 }));
-      ev('burningman', 2.4, 'swell', -14); ev('burningman', 9.2, 'alert', -8); for (let i = 1; i < 8; i++) ev('burningman', 9.2 + i * .28, 'blip', -22);
+      ev('burningman', tp + .2, 'swell', -14); ev('burningman', this.tw + 1.7, 'alert', -8); for (let i = 1; i < 8; i++) ev('burningman', this.tw + 1.7 + i * .28, 'blip', -22);
     },
     draw(u, len) {
       const [cx, cy] = this.c; const z = 1 + .12 * easeInOut(ramp(u, 0, len));
@@ -387,14 +486,15 @@
       for (const n of this.nodes) { const k = easeOut(ramp(u, n.t0, n.t0 + 1.8)); if (k > 0) { ctx.fillStyle = 'rgba(242,165,65,.07)'; ctx.beginPath(); ctx.arc(n.x, n.y, 560 * k, 0, 7); ctx.fill(); ctx.strokeStyle = 'rgba(242,165,65,.35)'; ctx.lineWidth = 2; ctx.stroke(); } }
       for (const n of this.nodes) node(n.x, n.y, u, n.t0, C.lora, 10);
       // the whiteout: a wall of dust from the north-west, and the alert ahead of it
-      const dk = ramp(u, 7.5, 15.5); const front = -500 + dk * 2900; // the front's x at y = 0, sloping
+      const dk = ramp(u, this.tw, this.tw + 8); const front = -500 + dk * 2900; // the front's x at y = 0, sloping
       if (dk > 0) { ctx.save(); const g = ctx.createLinearGradient(front - 500, 0, front + 150, 0); g.addColorStop(0, 'rgba(226,206,160,1)'); g.addColorStop(.7, 'rgba(226,206,160,.85)'); g.addColorStop(1, 'rgba(226,206,160,0)'); ctx.translate(0, 0); ctx.transform(1, 0, -.35, 1, 0, 0); ctx.fillStyle = g; ctx.fillRect(-3000, -100, front + 3150, H + 200); ctx.restore();
         for (const d of this.dust) { const x = ((d.x * 2200 - 1000 + u * 160 * d.v) % 2200) - 300 + front - 2200 * .5; const y = d.y * H; if (x < front + 150 - y * .35) { ctx.fillStyle = `rgba(240,225,190,${.5 + .5 * d.v - .3})`; ctx.fillRect(x, y, d.s * 2, d.s); } } }
       ctx.restore();
       this.alertAt.forEach((t, i) => { const n = this.nodes[i]; const sx = cx + (n.x - cx) * z, sy = cy + (n.y - cy) * z; ring(sx, sy, u, t, 1.4, 240, C.alert, 5); const k = ramp(u, t, t + .3); if (k > 0) { ctx.globalAlpha = k; ctx.fillStyle = C.alert; rr(sx - 36, sy - 60, 72, 24, 6); ctx.fill(); text('ALERT', sx, sy - 48, 15, '#fff', 'center', 800); ctx.globalAlpha = 1; } });
-      const n0 = this.nodes[0]; bubble('⚠ Whiteout coming from the north-west. Stay in camp.', cx + (n0.x - cx) * z, cy + (n0.y - cy) * z - 62, u, 9.0, { fill: C.alert, color: '#fff' });
+      const n0 = this.nodes[0]; bubble('⚠ Whiteout coming from the north-west. Stay in camp.', cx + (n0.x - cx) * z, cy + (n0.y - cy) * z - 62, u, this.tw + 1.5, { fill: C.alert, color: '#fff' });
+      bubble("Do you think that's wise, sir?", 1500, 700, u, this.tv, { px: 26, alpha: 1 - ramp(u, this.tv + 3, this.tv + 3.6) });
       ctx.fillStyle = '#3a2d20'; ctx.fillRect(W - 420, H - 160, 300, 4); ctx.fillRect(W - 420, H - 170, 4, 14); ctx.fillRect(W - 120, H - 170, 4, 14); text('4 km', W - 270, H - 185, 22, '#3a2d20', 'center', 700);
-      const ak = ramp(u, 11.6, 12.2); if (ak > 0) { ctx.globalAlpha = ak; text('alert delivered: 8 nodes, 80,000 people', W - 100, 200, 28, '#3a2d20', 'right', 700); ctx.globalAlpha = 1; }
+      const ak = ramp(u, this.tw + 4.1, this.tw + 4.7); if (ak > 0) { ctx.globalAlpha = ak; text('alert delivered: 8 nodes, 80,000 people', W - 100, 200, 28, '#3a2d20', 'right', 700); ctx.globalAlpha = 1; }
       ctx.fillStyle = 'rgba(58,45,32,.9)'; text('BLACK ROCK CITY', 64, 62, 22, '#3a2d20', 'left', 800); ctx.fillStyle = '#3a2d20'; ctx.fillRect(64, 82, 180, 3); text('Nevada: 80,000 people, 2:00 to 10:00 round the Man', 64, 110, 20, '#5a4a38');
       const vg = ctx.createRadialGradient(W / 2, H / 2, H * .4, W / 2, H / 2, H); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(60,40,20,.45)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
       fade(1 - ramp(u, 0, .6)); fade(ramp(u, len - .5, len));
@@ -408,13 +508,14 @@
       for (let i = 0; i < 40; i++) { const [cx, cy] = cs[i % 2]; const a = r() * 7, d = 60 + r() * 230; this.houses.push({ x: cx + Math.cos(a) * d * 1.3, y: cy + Math.sin(a) * d, r: 2 + r() * 4 }); }
       this.links = []; for (let a = 0; a < 40; a++) for (let b = a + 1; b < 40; b++) if (Math.hypot(this.houses[a].x - this.houses[b].x, this.houses[a].y - this.houses[b].y) < 150) this.links.push([a, b]);
       this.school = [760, 370];
-      this.beams = Array.from({ length: 160 }, (_, i) => { const [a, b] = this.links[Math.floor(r() * this.links.length)]; return { a, b, t0: 1.8 + i * .055 + r() * .05 }; });
-      ev('proof', 1.5, 'boom', -16); for (let i = 0; i < 8; i++) ev('proof', 2 + i * .5, 'blip', -26);
+      this.t = { bang: cue('proof', 'a bang'), posts: cue('proof', 'two hundred'), delivered: cue('proof', 'ewery one delivered'), ms: cue('proof', 'twelve milliseconds'), signed: cue('proof', 'Ewery message is signed'), clock: cue('proof', 'Clocks?'), field: cue('proof', 'Zen ve take'), sim: cue('proof', 'simulator') };
+      this.beams = Array.from({ length: 160 }, (_, i) => { const [a, b] = this.links[Math.floor(r() * this.links.length)]; return { a, b, t0: this.t.bang + .3 + i * .055 + r() * .05 }; });
+      ev('proof', this.t.bang, 'boom', -16); for (let i = 0; i < 8; i++) ev('proof', this.t.bang + .5 + i * .5, 'blip', -26); ev('proof', this.t.signed, 'blip', -20); ev('proof', this.t.clock, 'blip', -20);
     },
     draw(u, len) {
       ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       ctx.strokeStyle = 'rgba(111,182,234,.25)'; ctx.lineWidth = 1; for (const [a, b] of this.links) { ctx.beginPath(); ctx.moveTo(this.houses[a].x, this.houses[a].y); ctx.lineTo(this.houses[b].x, this.houses[b].y); ctx.stroke(); }
-      const [sx, sy] = this.school; ring(sx, sy, u, 1.5, 1.6, 420, C.warm, 6); glow(sx, sy, 90, 'rgba(255,210,122,.8)', clamp(1 - (u - 1.5) / 1.5));
+      const T = this.t; const [sx, sy] = this.school; ring(sx, sy, u, T.bang, 1.6, 420, C.warm, 6); glow(sx, sy, 90, 'rgba(255,210,122,.8)', clamp(1 - (u - T.bang) / 1.5));
       for (const h of this.houses) { ctx.fillStyle = '#243041'; rr(h.x - 9, h.y - 9, 18, 18, 3); ctx.fill(); ctx.fillStyle = C.wifi; ctx.beginPath(); ctx.arc(h.x, h.y, 2.5, 0, 7); ctx.fill(); }
       ctx.strokeStyle = C.wifi; ctx.lineWidth = 2.5;
       for (const b of this.beams) { const k = (u - b.t0) / .4; if (k < 0 || k > 1) continue; const A = this.houses[b.a], B = this.houses[b.b]; ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.moveTo(A.x, A.y); ctx.lineTo(lerp(A.x, B.x, Math.min(1, k * 2)), lerp(A.y, B.y, Math.min(1, k * 2))); ctx.stroke(); }
@@ -422,9 +523,10 @@
       text('bang.json: 40 houses, everyone near the school posts within 30 s', 64, 160, 22, C.sub, 'left');
       // the tiles
       const tile = (x, y, v, unit, t0, fmt = (n) => Math.round(n).toLocaleString('en-GB')) => { const k = ramp(u, t0, t0 + 2); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 3); ctx.fillStyle = '#121a2a'; rr(x, y, 330, 120, 12); ctx.fill(); text(typeof v === 'number' ? fmt(easeOut(k) * v) : v, x + 24, y + 48, 48, C.ink, 'left', 700, MONO); text(unit, x + 24, y + 94, 20, C.sub); ctx.globalAlpha = 1; };
-      tile(1480, 160, 247, 'posts, real signed entries', 2.2); tile(1480, 300, 8968, 'deliveries', 2.6); tile(1480, 440, 12, 'ms median delivery', 3.0, (n) => Math.round(n)); tile(1480, 580, 0, 'missing  ·  0 late', 3.4);
-      const ck = ramp(u, 7.6, 8.2); if (ck > 0) { ctx.globalAlpha = ck; ctx.fillStyle = '#10301f'; rr(1480, 720, 330, 64, 12); ctx.fill(); text('✓  CI: six scenarios pass', 1500, 752, 24, C.ok, 'left', 700); ctx.globalAlpha = 1; }
-      const im = images['village-sim-dark']; const wk = easeOut(ramp(u, 5.6, 6.6)); if (im && wk > 0) { const w = 560, h = w * im.height / im.width, x = 320 + (wk - 1) * 200, y = H - h - 190; ctx.globalAlpha = wk; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.drawImage(im, x, y, w, h); ctx.shadowBlur = 0; text('the simulator, in your browser: johnusher.github.io/batnet', x + w / 2, y + h + 26, 20, C.sub, 'center'); ctx.globalAlpha = 1; }
+      tile(1480, 160, 247, 'posts, real signed entries', T.posts); tile(1480, 300, 8968, 'deliveries', T.delivered); tile(1480, 440, 12, 'ms median delivery', T.ms, (n) => Math.round(n)); tile(1480, 580, 0, 'missing  ·  0 late', T.ms + .6);
+      const badge = (y, s, t0) => { const k = ramp(u, t0, t0 + .5); if (k <= 0) return; ctx.globalAlpha = k; ctx.fillStyle = '#10301f'; rr(1480, y, 330, 44, 10); ctx.fill(); text(s, 1496, y + 22, 19, C.ok, 'left', 700); ctx.globalAlpha = 1; };
+      badge(720, '✓  ed25519 signature on every entry', T.signed); badge(772, '✓  ordered by a hybrid logical clock', T.clock); badge(824, '✓  CI: six scenarios pass on every push', T.field);
+      const im = images['village-sim-dark']; const wk = easeOut(ramp(u, T.sim, T.sim + 1)); if (im && wk > 0) { const w = 560, h = w * im.height / im.width, x = 320 + (wk - 1) * 200, y = H - h - 190; ctx.globalAlpha = wk; ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 40; ctx.drawImage(im, x, y, w, h); ctx.shadowBlur = 0; text('the simulator, in your browser: johnusher.github.io/batnet', x + w / 2, y + h + 26, 20, C.sub, 'center'); ctx.globalAlpha = 1; }
       label('The real code, simulated', 'batnetd -sim: the same Go code the Pi runs, in virtual time, on every push'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
     },
   };
@@ -440,6 +542,7 @@
       ctx.globalAlpha = ramp(u, 1.2, 2); text('Open source (MIT)  ·  github.com/johnusher/batnet', cx, 460, 34, C.ink, 'center', 500);
       ctx.globalAlpha = ramp(u, 2.0, 2.8); text('Try the simulator in your browser: johnusher.github.io/batnet', cx, 520, 28, C.sub, 'center');
       ctx.globalAlpha = ramp(u, 3.0, 3.8); text('Next: the field. Three to five houses, two radios, one bang.', cx, 575, 28, C.sub, 'center');
+      const tg = cue('close', 'Good moaning'); ctx.globalAlpha = ramp(u, tg, tg + .6); text('Good moaning.', cx, 640, 30, C.warm, 'center', 600);
       const hs = [[cx - 320, 760], [cx - 160, 800], [cx, 740], [cx + 160, 800], [cx + 320, 760]];
       hs.forEach(([x, y], i) => { const t0 = 4.4 + i * .3; const k = ramp(u, t0, t0 + .4); if (k > 0) { ctx.globalAlpha = k; house(x, y, 22, '#2c3a4e'); node(x, y - 20, u, t0 + .2, i === 2 ? C.lora : C.wifi, 7); } });
       ctx.globalAlpha = .5 * ramp(u, 5.6, 6.2); ctx.strokeStyle = C.wifi; ctx.lineWidth = 2; for (let i = 1; i < hs.length; i++) { ctx.beginPath(); ctx.moveTo(hs[i - 1][0], hs[i - 1][1] - 20); ctx.lineTo(hs[i][0], hs[i][1] - 20); ctx.stroke(); }
