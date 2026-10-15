@@ -146,3 +146,172 @@ func TestBootstrapAndEvents(t *testing.T) {
 		t.Fatal("the new message did not arrive on the event stream")
 	}
 }
+
+func TestSignupApprovalLogin(t *testing.T) {
+	miller, fern := newHouse(t, "Miller"), newHouse(t, "Fern")
+	link(miller, fern)
+	miller.srv.Bootstrap("Anna", "482915", []string{"Medical"})
+	fern.srv.Bootstrap("Cleo", "111111", nil)
+
+	ben := &client{t: t, h: miller}
+	code, out := ben.do("POST", "/api/signup", map[string]string{"name": "Ben", "pin": "246810"})
+	if code != 200 || out["status"] != "pending" {
+		t.Fatalf("signup: %d %v", code, out)
+	}
+	if code, _ := ben.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "hi"}); code != http.StatusForbidden {
+		t.Fatalf("a pending account posted: %d", code)
+	}
+	anna := &client{t: t, h: miller}
+	anna.do("POST", "/api/login", map[string]string{"name": "anna", "pin": "482915"})
+	_, pend := anna.do("GET", "/api/admin/pending", nil)
+	if code, _ := anna.do("POST", "/api/admin/approve", map[string]string{"account": out["account"].(string)}); code != 200 {
+		t.Fatalf("approve: %d (pending: %v)", code, pend)
+	}
+	if _, me := ben.do("GET", "/api/me", nil); me["status"] != "approved" {
+		t.Fatalf("Ben after approval: %v", me)
+	}
+	// Ben can now sign in at another house too (accounts are copied to every house)
+	benAtFern := &client{t: t, h: fern}
+	if code, _ := benAtFern.do("POST", "/api/login", map[string]string{"name": "Ben", "pin": "246810"}); code != 200 {
+		t.Fatalf("login at Fern: %d", code)
+	}
+	// Cleo, admin at Fern, cannot approve Miller's accounts
+	dan := &client{t: t, h: miller}
+	_, d := dan.do("POST", "/api/signup", map[string]string{"name": "Dan", "pin": "135790"})
+	cleo := &client{t: t, h: fern}
+	cleo.do("POST", "/api/login", map[string]string{"name": "Cleo", "pin": "111111"})
+	if code, _ := cleo.do("POST", "/api/admin/approve", map[string]string{"account": d["account"].(string)}); code != http.StatusForbidden {
+		t.Fatalf("another house's admin approved Dan: %d", code)
+	}
+}
+
+// Review focus 3.
+func TestLoginErrorsAlike(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	c := &client{t: t, h: h}
+	c1, o1 := c.do("POST", "/api/login", map[string]string{"name": "Nobody", "pin": "482915"})
+	c2, o2 := c.do("POST", "/api/login", map[string]string{"name": "Anna", "pin": "000000"})
+	if c1 != 401 || c2 != 401 || o1["error"] != o2["error"] {
+		t.Fatalf("wrong name %d %v, wrong PIN %d %v", c1, o1, c2, o2)
+	}
+	for i := 0; i < 5; i++ {
+		c.do("POST", "/api/login", map[string]string{"name": "Anna", "pin": "000000"})
+	}
+	if code, out := c.do("POST", "/api/login", map[string]string{"name": "Anna", "pin": "482915"}); code != 429 || out["retryAfter"] == nil {
+		t.Fatalf("not locked after six wrong PINs: %d %v", code, out)
+	}
+}
+
+// Review focus 4.
+func TestSignedOutCannotRead(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	c := &client{t: t, h: h}
+	for _, p := range []string{"/api/me", "/api/conversations", "/api/messages?conv=everyone", "/api/directory", "/api/events", "/api/admin/pending"} {
+		if code, _ := c.do("GET", p, nil); code != 401 {
+			t.Errorf("%s without a session: %d", p, code)
+		}
+	}
+	if code, _ := c.do("POST", "/api/signup", map[string]string{"name": "Ben", "pin": "12345"}); code != 400 {
+		t.Errorf("a 5-digit PIN was accepted: %d", code)
+	}
+}
+
+func signedIn(t *testing.T, h *house, name, pin string) *client {
+	t.Helper()
+	c := &client{t: t, h: h}
+	if code, out := c.do("POST", "/api/login", map[string]string{"name": name, "pin": pin}); code != 200 {
+		t.Fatalf("login %s: %d %v", name, code, out)
+	}
+	return c
+}
+
+func TestPostAndRead(t *testing.T) {
+	miller, fern := newHouse(t, "Miller"), newHouse(t, "Fern")
+	link(miller, fern)
+	miller.srv.Bootstrap("Anna", "482915", []string{"Medical"})
+	fern.srv.Bootstrap("Cleo", "111111", nil)
+	anna, cleo := signedIn(t, miller, "Anna", "482915"), signedIn(t, fern, "Cleo", "111111")
+	if code, out := anna.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "Water point open", "prio": "high",
+		"loc": map[string]any{"lat": 52.52, "lon": 13.40, "acc": 15, "source": "phone"}}); code != 200 || out["prio"].(float64) != 8 {
+		t.Fatalf("post: %d %v", code, out)
+	}
+	code, _ := cleo.do("GET", "/api/messages?conv=everyone", nil)
+	if code != 200 {
+		t.Fatalf("read at Fern: %d", code)
+	}
+	req, _ := http.NewRequest("GET", fern.ts.URL+"/api/messages?conv=everyone", nil)
+	for _, ck := range cleo.jar {
+		req.AddCookie(ck)
+	}
+	resp, _ := http.DefaultClient.Do(req)
+	var msgs []map[string]any
+	json.NewDecoder(resp.Body).Decode(&msgs)
+	resp.Body.Close()
+	if len(msgs) != 1 || msgs[0]["text"] != "Water point open" || msgs[0]["loc"] == nil {
+		t.Fatalf("Fern sees %v", msgs)
+	}
+	_, me := anna.do("GET", "/api/me", nil)
+	if code, _ := cleo.do("POST", "/api/post", map[string]any{"conv": "dm:" + me["account"].(string), "text": "Got it"}); code != 200 {
+		t.Fatalf("dm: %d", code)
+	}
+	if code, _ := cleo.do("POST", "/api/post", map[string]any{"conv": "group:medical", "text": "not a member"}); code != http.StatusForbidden {
+		t.Fatalf("posted to a group without joining: %d", code)
+	}
+	cleo.do("POST", "/api/groups/join", map[string]string{"group": "medical"})
+	if code, _ := cleo.do("POST", "/api/post", map[string]any{"conv": "group:medical", "text": "Nurse at the school"}); code != 200 {
+		t.Fatalf("group post after joining: %d", code)
+	}
+}
+
+func TestPriorityRules(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	ben := &client{t: t, h: h}
+	_, b := ben.do("POST", "/api/signup", map[string]string{"name": "Ben", "pin": "246810"})
+	anna.do("POST", "/api/admin/approve", map[string]string{"account": b["account"].(string)})
+	for i := 0; i < 3; i++ {
+		if code, _ := ben.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "urgent", "prio": "high"}); code != 200 {
+			t.Fatalf("High %d refused", i+1)
+		}
+	}
+	if code, out := ben.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "urgent again", "prio": "high"}); code != 429 || !strings.Contains(out["error"].(string), "High") {
+		t.Fatalf("a fourth High in the hour: %d %v", code, out)
+	}
+	if code, _ := ben.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "evacuate", "prio": "alert"}); code != http.StatusForbidden {
+		t.Fatalf("a non-admin sent an alert: %d", code)
+	}
+	if code, out := anna.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": "Flood on the low road", "prio": "alert"}); code != 200 || out["alert"] != true || out["prio"].(float64) != 9 {
+		t.Fatalf("admin alert: %d %v", code, out)
+	}
+}
+
+// Review focus 5.
+func TestPostValidation(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	bad := []map[string]any{
+		{"conv": "everyone", "text": "   "},
+		{"conv": "everyone", "text": strings.Repeat("x", 2001)},
+		{"conv": "nowhere", "text": "x"},
+		{"conv": "dm:nobody", "text": "x"},
+		{"conv": "everyone", "text": "x", "prio": "urgent"},
+		{"conv": "everyone", "text": "x", "loc": map[string]any{"lat": 91, "lon": 0, "acc": 5, "source": "phone"}},
+		{"conv": "everyone", "text": "x", "loc": map[string]any{"lat": 0, "lon": 0, "acc": 5, "source": "satellite"}},
+		{"conv": "everyone", "text": "x", "extra": true},
+	}
+	for i, b := range bad {
+		if code, _ := anna.do("POST", "/api/post", b); code != 400 {
+			t.Errorf("bad post %d accepted or wrong code: %d", i, code)
+		}
+	}
+	if code, _ := anna.do("POST", "/api/post", map[string]any{"conv": "everyone", "text": strings.Repeat("x", 20000)}); code != 413 {
+		t.Errorf("an oversized body: %d", code)
+	}
+	if _, convs := anna.do("GET", "/api/conversations", nil); len(convs) != 0 {
+		t.Fatalf("a rejected post was stored: %v", convs)
+	}
+}
