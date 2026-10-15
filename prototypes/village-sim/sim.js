@@ -115,7 +115,7 @@
     const S = {
       cfg, now: 8 * HOUR, start: 8 * HOUR, nodes: [], houses: [], people: [], personById: new Map(), groups: GROUPS.map((g) => Object.assign({ members: new Set() }, g)),
       links: [], clusters: [], msgs: [], msgById: new Map(), queue: [], chan: { busyUntil: 0, log: [], pumpAt: Infinity },
-      heap: new Heap(), nextMsgId: 1, nextPid: 0, deliveries: [], series: { util: [], queue: [], pending: [] }, uiEvents: [], signups: [],
+      heap: new Heap(), nextMsgId: 1, nextPid: 0, deliveries: [], series: { util: [], queue: [], pending: [] }, uiEvents: [], airLog: [], signups: [],
       counters: { sent: 0, loraTx: 0, loraRetries: 0, truncated: 0, bgAir: 0, msgAir: 0 },
     };
     const preset = () => PRESETS[cfg.preset] || PRESETS.LongFast;
@@ -159,7 +159,7 @@
       i++;
     }
     for (let i = 0; i < cfg.meshUsers; i++) {
-      S.nodes.push({ id: 'm' + i, kind: 'mesh', name: FIRST[(i * 7 + 3) % FIRST.length] + "'s Meshtastic", x: cfg.width * rnd(), y: cfg.height * rnd(), lora: true, online: true, air: [], cluster: -1 });
+      S.nodes.push({ id: 'm' + i, kind: 'mesh', name: FIRST[(i * 7 + 3) % FIRST.length] + "'s Meshtastic", x: cfg.width * rnd(), y: cfg.height * rnd(), lora: true, online: true, air: [], cluster: -1, heard: [], relayed: 0 });
     }
     const nodeById = new Map(S.nodes.map((n) => [n.id, n]));
     S.nodeById = nodeById;
@@ -336,12 +336,29 @@
       S.chan.log.push({ t: S.now, dur: total });
       it.gw.air.push({ t: S.now, dur: it.dur });
       S.counters.loraTx++;
+      it.log = { t: S.now, from: it.gw.name, mesh: it.gw.kind === 'mesh', kind: it.kind, channel: channelOf(it), dur: total, text: it.kind === 'msg' && it.m.kind === 'public' ? it.m.text : null, heard: 0 };
+      S.airLog.push(it.log);
+      if (S.airLog.length > 50) S.airLog.shift();
       if (it.kind === 'msg') { S.counters.msgAir += total; it.m.inQueue.delete(it.gw.id); } else S.counters.bgAir += total;
       S.uiEvents.push({ type: 'lora', node: it.gw, t: S.now, kind: it.kind });
       if (S.uiEvents.length > 200) S.uiEvents.shift();
       schedule(S.now + total, () => { receive(it); pump(); });
     }
+    // Public posts go out on Meshtastic's open LongFast channel; everything else on batnet's encrypted channel.
+    function channelOf(it) { return it.kind === 'msg' && it.m.kind === 'public' ? 'public' : 'private'; }
     function receive(it) {
+      // Every radio in direct range hears the packet, Meshtastic users included. They read public posts
+      // and pass batnet's encrypted packets on without being able to read them.
+      const R = preset().range, heardBy = [];
+      for (const r of S.nodes) {
+        if (r === it.gw || !r.lora || !r.online || dist(it.gw, r) > R) continue;
+        heardBy.push(r.id);
+        if (r.kind !== 'mesh') continue;
+        if (channelOf(it) === 'public') { if (!r.heard.some((x) => x.id === it.m.id)) r.heard.push({ id: it.m.id, t: S.now, name: senderLabel(it.m), text: it.m.text }); if (r.heard.length > 80) r.heard.shift(); }
+        else r.relayed++;
+      }
+      it.log.heard = heardBy.length;
+      S.uiEvents.push({ type: 'rx', node: it.gw, to: heardBy, channel: channelOf(it), t: S.now });
       if (it.kind === 'beacon') return recover(it.gw);
       if (it.kind !== 'msg') return;
       const m = it.m;
@@ -393,8 +410,16 @@
       arrive(house, m, S.now, 'local');
       return m;
     }
-    function sendPublicFromMesh(node) {
-      const m = { id: S.nextMsgId++, t: S.now, from: null, fromName: node.name, fromHouse: null, kind: 'public', to: null, text: pick(PHRASES.public), targets: new Set(S.houses.map((h) => h.id)), deliv: new Map(), loraBy: new Set([node.id]), inQueue: new Set([node.id]), truncated: false, via: 'lora' };
+    function senderLabel(m) {
+      if (m.fromName) return m.fromName;
+      const p = S.personById.get(m.from);
+      return p ? p.name + ' · ' + nodeById.get(p.houseId).name : '?';
+    }
+    function sendPublicFromMesh(node, text) {
+      const own = text != null;
+      text = own ? text : pick(PHRASES.public);
+      node.heard.push({ id: S.nextMsgId, t: S.now, name: node.name, text, own });
+      const m = { id: S.nextMsgId++, t: S.now, from: null, fromName: node.name, fromHouse: null, kind: 'public', to: null, text, targets: new Set(S.houses.map((h) => h.id)), deliv: new Map(), loraBy: new Set([node.id]), inQueue: new Set([node.id]), truncated: false, via: 'lora' };
       S.msgs.push(m); S.msgById.set(m.id, m);
       S.queue.push({ kind: 'msg', gw: node, m, dur: loraPayload(m).dur, frags: 1, retry: false, t: S.now });
       pump();
@@ -411,7 +436,8 @@
         } else if (r < 0.85 && p.groups.size) {
           const g = pick([...p.groups]);
           send(p.id, 'group', g, makeText(g));
-        } else send(p.id, 'everyone', null, makeText('everyone'));
+        } else if (rnd() < 0.2) send(p.id, 'public', null, makeText('public'));
+        else send(p.id, 'everyone', null, makeText('everyone'));
       }
       const rate = (Math.max(online.length, 1) * Math.max(cfg.chat, 0.01)) / HOUR;
       schedule(S.now + expo(rate), trafficLoop);
@@ -538,7 +564,8 @@
       return null;
     }
 
-    return { S, cfg, step, send, setOnline, setPreset, edit, stats, loraReach, approve, recompute, preset, airtimeMs: (b) => airtimeMs(b + LORA_OVERHEAD, preset()) };
+    const meshPost = (id, text) => { const n = nodeById.get(id); if (n && n.kind === 'mesh') sendPublicFromMesh(n, text); };
+    return { S, cfg, step, send, meshPost, setOnline, setPreset, edit, stats, loraReach, approve, recompute, preset, airtimeMs: (b) => airtimeMs(b + LORA_OVERHEAD, preset()) };
   }
 
   const ASSUMPTIONS = [

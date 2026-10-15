@@ -81,6 +81,17 @@ select.field, input.field { border: 1px solid var(--rule); background: var(--pan
 .lg-wifi { width: 18px; height: 0; border-top: 2px solid var(--wifi); }
 .lg-p2p { width: 18px; height: 0; border-top: 2px dashed var(--wifi); }
 .lg-lorareach { width: 18px; height: 0; border-top: 2px dotted var(--lora); }
+.lg-beam-priv { width: 18px; height: 0; border-top: 2px solid var(--lora); }
+.lg-beam-pub { width: 18px; height: 0; border-top: 2px solid var(--mesh); }
+.airlog { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+.airlog li { display: grid; grid-template-columns: 44px 1fr auto; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--rule); align-items: baseline; }
+.airlog li:last-child { border-bottom: 0; }
+.airlog time, .airlog .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.airlog .what { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.airlog .tag { font-weight: 600; }
+.airlog .tag.pub { color: var(--mesh); }
+.airlog .tag.priv { color: var(--lora); }
+.banner.mesh { color: var(--mesh); background: color-mix(in srgb, var(--mesh) 10%, transparent); }
 .lg-lora { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--lora); }
 .lg-house { width: 11px; height: 11px; border: 2px solid var(--ink); border-radius: 2px; }
 .lg-relay { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid var(--muted); }
@@ -225,6 +236,8 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
           <span><i class="lg-wifi"></i>WiFi mesh link</span>
           <span><i class="lg-p2p"></i>Point-to-point link</span>
           <span><i class="lg-lorareach"></i>LoRa in range</span>
+          <span><i class="lg-beam-priv"></i>batnet packet (encrypted)</span>
+          <span><i class="lg-beam-pub"></i>Public Meshtastic post</span>
           <span><i class="lg-lora"></i>LoRa radio · rings = transmitting</span>
         </div>
       </div>
@@ -264,6 +277,11 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
       </section>
       <section class="card inspector" id="inspector" aria-live="polite"></section>
     </div>
+
+    <section class="card">
+      <p class="eyebrow">On the air · latest LoRa packets</p>
+      <ol class="airlog" id="airlog"></ol>
+    </section>
 
     <section class="card">
       <p class="eyebrow">LoRa airtime used in the last hour, per radio</p>
@@ -323,6 +341,7 @@ let running = store.get('running', true);
 let speed = store.get('speed', 60);
 let selectedId = null;
 const pulses = [];
+const beams = []; // packet from one radio to each radio that heard it
 let lastFrame = performance.now();
 const app = { persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
 
@@ -424,6 +443,19 @@ function drawMap() {
     const [x, y] = px(p.node);
     ctx.beginPath(); ctx.arc(x, y, 8 + age * 70, 0, Math.PI * 2);
     ctx.strokeStyle = p.node.kind === 'mesh' ? mesh : lora; ctx.globalAlpha = (1 - age) * (p.kind === 'msg' ? 0.9 : 0.4); ctx.lineWidth = 2; ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  // packets landing: a line from the sender to every radio that heard it. Purple = public Meshtastic channel, amber = batnet's encrypted channel.
+  for (let i = beams.length - 1; i >= 0; i--) {
+    const b = beams[i], age = (nowR - b.t0) / 1600;
+    if (age > 1) { beams.splice(i, 1); continue; }
+    const [x1, y1] = px(b.node);
+    ctx.strokeStyle = b.channel === 'public' ? mesh : lora; ctx.lineWidth = 2; ctx.globalAlpha = 0.85 * (1 - age);
+    for (const id of b.to) {
+      const t = S.nodeById.get(id); if (!t) continue;
+      const [x2, y2] = px(t), k = Math.min(1, age * 3);
+      ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + (x2 - x1) * k, y1 + (y2 - y1) * k); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
   }
   // nodes
   ctx.font = '600 11px ' + css('--f-mono');
@@ -541,7 +573,17 @@ function renderTiles() {
   lineChart($('#chartUtil'), S.series.util, { color: css('--lora'), fmt: (v) => Math.round(v * 100) + '%', min: 0.3, ref: 0.25, refLabel: 'congested' });
   lineChart($('#chartQueue'), S.series.queue, { color: css('--lora'), fmt: (v) => String(Math.round(v)), min: 4 });
 }
+function renderAirLog() {
+  const label = { msg: 'message', beacon: 'sync beacon', directory: 'directory card', housekeeping: 'housekeeping' };
+  const rows = S.airLog.slice(-8).reverse().map((e) => {
+    const tag = e.channel === 'public' ? '<span class="tag pub">Public</span>' : '<span class="tag priv">batnet 🔒</span>';
+    const what = e.channel === 'public' ? `${esc(e.from)}${e.mesh ? '' : ' House'}: "${esc(e.text)}"` : `${esc(e.from)} House · ${label[e.kind] || e.kind} (encrypted)`;
+    return `<li><time>${hhmm(e.t)}</time><span class="what">${tag} · ${what}</span><span class="n">${(e.dur / 1000).toFixed(1)} s · heard by ${e.heard}</span></li>`;
+  }).join('');
+  $('#airlog').innerHTML = rows || '<li><span></span><span class="note">Nothing sent over LoRa yet.</span><span></span></li>';
+}
 function renderAirtime() {
+  renderAirLog();
   const radios = S.nodes.filter((n) => n.lora);
   const cut = S.now - HOUR;
   const rows = radios.map((n) => ({ n, used: n.air.filter((e) => e.t > cut).reduce((a, e) => a + e.dur, 0) })).sort((a, b) => b.used - a.used).slice(0, 14);
@@ -569,7 +611,10 @@ function renderInspector() {
   const el = $('#inspector');
   if (!n) { el.innerHTML = '<p class="eyebrow">Selected</p><p class="note">Click a house on the map.</p>'; return; }
   if (n.kind === 'mesh') {
-    el.innerHTML = `<p class="eyebrow">Selected</p><h3>${esc(n.name)}</h3><p class="meta">A neighbour's own Meshtastic radio. It isn't running batnet, but it's on the same air: its posts on the public channel show up in batnet's "Neighbourhood (public)" group, and batnet's posts there show up on its phone. It also passes batnet's private messages along to radios it can reach, without being able to read them. Dotted lines show which radios it hears directly.</p>`;
+    el.innerHTML = `<p class="eyebrow">Selected</p><h3>${esc(n.name)}</h3><p class="meta">A neighbour's own Meshtastic radio. It isn't running batnet, but it's on the same air: its posts on the public channel show up in batnet's "Neighbourhood (public)" group, and batnet's posts there show up on its phone. It also passes batnet's private messages along to radios it can reach, without being able to read them. Dotted lines show which radios it hears directly.</p>
+    <div class="caps"><span class="chip">${n.heard.filter((x) => !x.own).length} public posts heard</span><span class="chip">${n.relayed} batnet packets passed on, unread</span></div>
+    <div style="margin-top:12px"><button class="btn" id="i-meshphone" type="button">See their Meshtastic app</button></div>`;
+    $('#i-meshphone').onclick = () => setMeshPersona(n.id);
     return;
   }
   const cl = clusterOf(n);
@@ -630,12 +675,15 @@ function fillPersonas() {
     for (const pid of h.people) { const p = S.personById.get(pid); opts.push(`<option value="p:${pid}">${esc(p.name)}${h.admin === pid ? ' (admin)' : ''}</option>`); }
     opts.push('</optgroup>');
   }
+  const meshUsers = S.nodes.filter((n) => n.kind === 'mesh');
+  if (meshUsers.length) opts.push('<optgroup label="Meshtastic users (not on batnet)">' + meshUsers.map((n) => `<option value="m:${n.id}">${esc(n.name)} app</option>`).join('') + '</optgroup>');
   sel.innerHTML = opts.join('');
-  sel.value = app.persona.personId ? 'p:' + app.persona.personId : 'v:' + app.persona.houseId;
+  sel.value = app.persona.meshId ? 'm:' + app.persona.meshId : app.persona.personId ? 'p:' + app.persona.personId : 'v:' + app.persona.houseId;
 }
 $('#persona').addEventListener('change', (e) => {
   const [k, id] = e.target.value.split(':');
   if (k === 'v') { app.persona = { visitor: true, houseId: id }; app.screen = 'portal'; renderPhone(true); renderTable(); }
+  else if (k === 'm') setMeshPersona(id);
   else setPersona(id);
 });
 function setPersona(pid) {
@@ -644,6 +692,19 @@ function setPersona(pid) {
   app.screen = 'app'; app.tab = 'chats'; app.conv = null; app.calling = null;
   $('#persona').value = 'p:' + pid;
   renderPhone(true); renderTable();
+}
+function setMeshPersona(id) {
+  app.persona = { meshId: id }; app.draft = '';
+  $('#persona').value = 'm:' + id;
+  renderPhone(true); renderTable();
+}
+// What a neighbour sees in the ordinary Meshtastic phone app: the public LongFast channel, nothing of batnet's private traffic.
+function screenMeshApp(n) {
+  const items = n.heard.slice(-60).map((x) => `<div class="bubble ${x.own ? 'me' : ''}">${x.own ? '' : `<div class="who">${esc(x.name)}</div>`}${esc(x.text)}<div class="meta"><span>${hhmm(x.t)}</span></div></div>`).join('');
+  return `<div class="ap-head"><h2>LongFast<span class="sub">Meshtastic app · public channel</span></h2></div>
+  <div class="banner mesh">This person isn't on batnet. They see batnet's public posts here, and batnet houses see theirs in "Neighbourhood (public)". Their radio has passed on ${n.relayed} encrypted batnet packets it can't read.</div>
+  <div class="ap-body" id="msglist"><div class="msgs">${items || '<p class="ap-p" style="text-align:center;padding:24px 0">Nothing heard yet.</p>'}</div></div>
+  <form class="compose" data-form="meshsend"><input class="ap-input" id="draft" autocomplete="off" placeholder="Post on LongFast…" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
 }
 function homeHouse() { return S.nodeById.get(app.persona.houseId); }
 function convKey(m, me) {
@@ -860,6 +921,17 @@ function screenCall(me) {
 
 function renderPhone(force) {
   const scr = $('#screen');
+  if (app.persona.meshId) {
+    const n = S.nodeById.get(app.persona.meshId);
+    $('#sb-time').textContent = hhmm(S.now);
+    $('#sb-net').textContent = 'Meshtastic · LoRa only';
+    const active = document.activeElement;
+    if (active && scr.contains(active) && active.tagName === 'INPUT' && !force) return;
+    const list0 = $('#msglist'), atBottom0 = !list0 || list0.scrollTop + list0.clientHeight >= list0.scrollHeight - 30;
+    scr.innerHTML = screenMeshApp(n);
+    const nl0 = $('#msglist'); if (nl0 && (atBottom0 || force)) nl0.scrollTop = nl0.scrollHeight;
+    return;
+  }
   const me = currentPerson();
   const h = homeHouse();
   $('#sb-time').textContent = hhmm(S.now);
@@ -918,6 +990,10 @@ $('#screen').addEventListener('submit', (e) => {
     S.signups.push(s);
     app.persona = { visitor: true, houseId: h.id, signupId: s.id }; app.screen = 'pending';
   }
+  if (f === 'meshsend') {
+    const text = $('#draft').value.trim(); if (!text) return;
+    sim.meshPost(app.persona.meshId, text); app.draft = '';
+  }
   if (f === 'send') {
     const me = currentPerson(); const text = $('#draft').value.trim(); if (!text || !me) return;
     const k = app.conv;
@@ -938,8 +1014,15 @@ function frame(now) {
   const dt = Math.min(now - lastFrame, 120); lastFrame = now;
   if (running) {
     sim.step(S.now + dt * speed, 40000);
-    for (const ev of S.uiEvents) if (ev.t > (frame.lastEv || 0)) { pulses.push({ node: ev.node, kind: ev.kind, t0: now }); frame.lastEv = ev.t; }
+    for (const ev of S.uiEvents) {
+      if (ev.t <= (frame.lastEv || 0) || ev.seen) continue;
+      ev.seen = true;
+      if (ev.type === 'rx') beams.push({ node: ev.node, to: ev.to, channel: ev.channel, t0: now });
+      else pulses.push({ node: ev.node, kind: ev.kind, t0: now });
+    }
+    if (S.uiEvents.length) frame.lastEv = S.uiEvents[S.uiEvents.length - 1].t - 1;
     if (pulses.length > 60) pulses.splice(0, pulses.length - 60);
+    if (beams.length > 40) beams.splice(0, beams.length - 40);
   }
   $('#clock').textContent = hhmm(S.now);
   $('#day').textContent = 'Day ' + (Math.floor(S.now / (24 * HOUR)) + 1) + ' · simulated';
