@@ -45,3 +45,40 @@ func TestInlineDriving(t *testing.T) {
 		t.Fatalf("b holds %d entries right after HandlePacket, want 3", len(all))
 	}
 }
+
+// An entry from the radio is stored, announced to OnEntry and broadcast on the mesh, once.
+func TestInject(t *testing.T) {
+	m := mock.NewMesh(1)
+	k, _ := seal.NewVillageKey()
+	mk := func(addr string, onEntry func(*ledger.Entry)) (*meshsync.Syncer, *ledger.MemStore, *mock.Link) {
+		st := ledger.NewMemStore()
+		link := m.Add(addr)
+		sealer, _ := seal.NewSealer(k, seal.PurposeMesh)
+		return meshsync.New(meshsync.Config{Link: link, Store: st, Clock: hlc.New(func() int64 { return 1 }), Sealer: sealer,
+			Spawn: func(f func()) { f() }, OnEntry: onEntry}), st, link
+	}
+	seen := 0
+	gw, gwStore, _ := mk("gw", func(*ledger.Entry) { seen++ })
+	_, _, peer := mk("peer", nil)
+	m.Connect("gw", "peer")
+	_, priv, _ := ed25519.GenerateKey(nil)
+	remote, _ := ledger.NewAuthor(priv, hlc.New(func() int64 { return 1 }), ledger.NewMemStore())
+	e, _ := remote.Append(ledger.TypeMsgPost, 5, map[string]string{"text": "from far away"})
+	if !gw.Inject(e) || gw.Inject(e) {
+		t.Fatal("Inject should accept a new entry once")
+	}
+	if got, _ := gwStore.Get(e.Key); got == nil || seen != 1 {
+		t.Fatalf("stored %v, OnEntry %d times", got, seen)
+	}
+	select {
+	case <-peer.Inbox():
+	default:
+		t.Fatal("injected entry not broadcast on the mesh")
+	}
+	bad := *e
+	bad.Body = []byte(`{"text":"changed"}`)
+	bad.Key.Seq = 2
+	if gw.Inject(&bad) {
+		t.Fatal("an entry with a bad signature was injected")
+	}
+}

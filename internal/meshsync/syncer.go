@@ -267,3 +267,15 @@ func (s *Syncer) handle(from string, req []byte) []byte {
 	}
 	return box
 }
+
+// Inject takes an entry from outside the mesh (the LoRa bridge): it is verified,
+// stored, reported to OnEntry and broadcast on the mesh if new.
+func (s *Syncer) Inject(e *ledger.Entry) bool {
+	if !s.accept(e) {
+		return false
+	}
+	if err := s.Publish(e); err != nil {
+		s.cfg.Logf("inject: %v", err)
+	}
+	return true
+}
