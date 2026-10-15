@@ -276,6 +276,15 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .callscreen .big { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font-size: 36px; font-weight: 800; background: var(--app-chip); }
 .hang { background: var(--critical); color: #fff; border: 0; border-radius: 999px; padding: 12px 26px; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+[hidden] { display: none !important; }
+#realview { padding: 0 24px 24px; display: flex; flex-direction: column; gap: 12px; }
+.rv-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.rv-clock { font-family: var(--f-mono); font-size: 22px; }
+.rv-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+#rv-map { width: 100%; height: 520px; background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; }
+.rv-checks, .rv-posts { list-style: none; margin: 0; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
+.rv-checks .ok b { color: var(--wifi); } .rv-checks .bad b { color: var(--critical); }
+@media (max-width: 900px) { .rv-grid { grid-template-columns: 1fr; } #rv-map { height: 360px; } }
 </style>
 
 <header class="top">
@@ -283,6 +292,10 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
     <h1>batnet <span>village simulator</span></h1>
     <p>A pretend village running entirely in this page, with no network. Houses link over WiFi mesh where they are close and over Meshtastic LoRa where they are not. Change the village, cut the power, and watch what each person's phone shows.</p>
   </div>
+  <select class="field" id="engine" aria-label="Engine" title="Model: a quick JavaScript model. Real: batnet's own Go code, compiled for the browser.">
+    <option value="model">Engine: model (JavaScript)</option>
+    <option value="real">Engine: real batnet code (Go)</option>
+  </select>
   <div class="transport">
     <select id="scenario" class="field" aria-label="Scenario"></select>
     <button id="play" class="btn primary" type="button">Pause</button>
@@ -380,8 +393,31 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
     <p class="phonenote" id="phonenote">The app is served by the house Pi and uses the phone's own fonts and voices, so it works with no internet at all.</p>
   </aside>
 </main>
+<section id="realview" hidden aria-label="Real batnet code">
+  <p class="note" id="rv-status"></p>
+  <div class="rv-bar">
+    <select class="field" id="rv-scenario" aria-label="Scenario"></select>
+    <button class="btn primary" id="rv-run">Run</button>
+    <button class="btn" id="rv-restart">Restart</button>
+    <span class="seg" id="rv-speeds"><button data-speed="1">1×</button><button data-speed="10" aria-pressed="true">10×</button><button data-speed="60">60×</button></span>
+    <b id="rv-clock" class="rv-clock">--:--:--</b>
+    <progress id="rv-progress" max="1" value="0"></progress>
+  </div>
+  <p class="note" id="rv-about"></p>
+  <div class="rv-grid">
+    <canvas id="rv-map" aria-label="Map of the simulated village"></canvas>
+    <div>
+      <section class="card inspector" id="rv-house"></section>
+      <section class="card"><p class="eyebrow">Checks</p><ul class="rv-checks" id="rv-checks"></ul></section>
+    </div>
+  </div>
+  <div class="tiles" id="rv-tiles"></div>
+  <section class="card"><p class="eyebrow">Latest posts</p><ul class="rv-posts" id="rv-posts"></ul></section>
+</section>
 
 <script src="sim.js"></script>
+<script src="wasm_exec.js"></script>
+<script src="real.js"></script>
 <script>
 (() => {
 'use strict';
@@ -471,6 +507,7 @@ function layoutMap() {
 const px = (n) => [view.ox + n.x * view.s, view.oy + n.y * view.s];
 function niceStep(metres) { const steps = [50, 100, 200, 250, 500, 1000, 2000]; for (const s of steps) if (s * view.s >= 60) return s; return 5000; }
 function drawMap() {
+  if (document.querySelector('main.layout').hidden) return; // the real engine is showing
   if (!view.w) layoutMap();
   const W = view.w, H = view.h;
   ctx.clearRect(0, 0, W, H);
@@ -509,7 +546,7 @@ function drawMap() {
   // LoRa pulses
   const nowR = performance.now();
   for (let i = pulses.length - 1; i >= 0; i--) {
-    const p = pulses[i], age = (nowR - p.t0) / 1400;
+    const p = pulses[i], age = Math.max(0, (nowR - p.t0) / 1400);
     if (age > 1) { pulses.splice(i, 1); continue; }
     const [x, y] = px(p.node);
     ctx.beginPath(); ctx.arc(x, y, 8 + age * 70, 0, Math.PI * 2);
@@ -517,7 +554,7 @@ function drawMap() {
   }
   // packets landing: a line from the sender to every radio that heard it. Purple = public Meshtastic channel, amber = batnet's encrypted channel.
   for (let i = beams.length - 1; i >= 0; i--) {
-    const b = beams[i], age = (nowR - b.t0) / 1600;
+    const b = beams[i], age = Math.max(0, (nowR - b.t0) / 1600);
     if (age > 1) { beams.splice(i, 1); continue; }
     const [x1, y1] = px(b.node);
     ctx.strokeStyle = b.channel === 'public' ? mesh : lora; ctx.lineWidth = 2; ctx.globalAlpha = 0.85 * (1 - age);
@@ -1316,6 +1353,7 @@ function renderAll(force) { renderTiles(); renderAirtime(); renderTable(); rende
 let lastPanels = 0, lastPhone = 0, seenEvents = 0;
 function frame(now) {
   const dt = Math.min(now - lastFrame, 120); lastFrame = now;
+  if (document.querySelector('main.layout').hidden) { requestAnimationFrame(frame); return; } // the real engine is showing
   if (running) {
     sim.step(S.now + dt * speed, 40000);
     for (const ev of S.uiEvents) {
@@ -1339,6 +1377,13 @@ function frame(now) {
 $('#scenario').innerHTML = Object.entries(SCENARIOS).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('');
 $('#c-preset').innerHTML = Object.entries(PRESETS).map(([k, v]) => `<option value="${k}">${v.label} · reach ~${(v.range / 1000).toFixed(1)} km</option>`).join('');
 $('#speeds').innerHTML = [1, 10, 60, 300].map((s) => `<button type="button" data-speed="${s}" aria-pressed="${s === speed}">${s}×</button>`).join('');
+$('#engine').addEventListener('change', (e) => {
+  const real = e.target.value === 'real';
+  document.querySelector('main.layout').hidden = real;
+  document.querySelector('.transport').hidden = real;
+  $('#realview').hidden = !real;
+  if (real) { running = false; window.realEngine.enter(); }
+});
 $('#speeds').addEventListener('click', (e) => { const b = e.target.closest('[data-speed]'); if (!b) return; speed = +b.dataset.speed; store.set('speed', speed); for (const x of $('#speeds').children) x.setAttribute('aria-pressed', x === b); });
 $('#play').textContent = running ? 'Pause' : 'Run';
 $('#play').addEventListener('click', () => { running = !running; store.set('running', running); $('#play').textContent = running ? 'Pause' : 'Run'; });
