@@ -285,6 +285,10 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .rv-checks, .rv-posts { list-style: none; margin: 0; padding: 0; font-size: 14px; display: flex; flex-direction: column; gap: 6px; }
 .rv-checks .ok b { color: var(--wifi); } .rv-checks .bad b { color: var(--critical); }
 @media (max-width: 900px) { .rv-grid { grid-template-columns: 1fr; } #rv-map { height: 360px; } }
+.rv-phonebar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.rv-phonebar .field { flex: 1; min-width: 0; }
+#rv-phone { height: 640px; margin: 0 auto; }
+#rv-phone iframe { flex: 1; width: 100%; border: 0; background: var(--app-bg); }
 </style>
 
 <header class="top">
@@ -409,6 +413,14 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
     <div>
       <section class="card inspector" id="rv-house"></section>
       <section class="card"><p class="eyebrow">Checks</p><ul class="rv-checks" id="rv-checks"></ul></section>
+      <section class="card" aria-label="A phone at a house">
+        <p class="eyebrow">A phone · the real app, talking to the house's real server</p>
+        <div class="rv-phonebar">
+          <select class="field" id="rv-phouse" aria-label="House"></select>
+          <select class="field" id="rv-person" aria-label="Person"></select>
+        </div>
+        <div class="phone" id="rv-phone"><p class="note" style="margin:16px">Pick a house and a person.</p></div>
+      </section>
     </div>
   </div>
   <div class="tiles" id="rv-tiles"></div>

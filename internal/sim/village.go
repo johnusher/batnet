@@ -2,6 +2,7 @@ package sim
 
 import (
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -135,6 +136,7 @@ func (v *Village) add(name, kind string, x, y float64, pi, wifi string, withLoRa
 		n.Web = web.New(web.Config{House: name, Author: n.Author, State: state.New(),
 			Now: func() time.Time { return time.UnixMilli(v.EpochMs + v.Sch.Now()/Ms) },
 			Publish: func(e *ledger.Entry) {
+				v.track(n, e)
 				n.Sync.Publish(e)
 				if n.Bridge != nil {
 					n.Bridge.Consider(e)
@@ -231,10 +233,22 @@ func (v *Village) Post(house, text string, level uint8) (*Post, error) {
 	if err != nil {
 		return nil, err
 	}
-	p := &Post{Key: e.Key, House: house, Text: text, Prio: level, Created: v.Sch.Now(), Arrived: map[string]int64{house: v.Sch.Now()}}
+	return v.byKey[e.Key], nil // tracked when the server published it
+}
+
+// track records every message a house writes, from the page's button or from a
+// phone, so the page lists it and the checks judge its delivery.
+func (v *Village) track(n *Node, e *ledger.Entry) {
+	if e.Type != ledger.TypeMsgPost && e.Type != ledger.TypeAlert {
+		return
+	}
+	var body struct {
+		Text string `json:"text"`
+	}
+	json.Unmarshal(e.Body, &body)
+	p := &Post{Key: e.Key, House: n.Name, Text: body.Text, Prio: e.Prio, Created: v.Sch.Now(), Arrived: map[string]int64{n.Name: v.Sch.Now()}}
 	v.Posts = append(v.Posts, p)
 	v.byKey[e.Key] = p
-	return p, nil
 }
 
 // SetPower cuts or restores a node's power. Its store survives (the SD card).

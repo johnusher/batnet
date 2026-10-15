@@ -32,7 +32,40 @@
     try { about = JSON.parse(scenarioJSON).about || ''; } catch (e) {}
     $('#rv-about').textContent = about;
     selected = null; beams.length = 0;
+    clearPhone(); refreshPeople(false);
     pull();
+  }
+
+  // ---------- the phone: the real app (internal/web/app) in an iframe ----------
+  let people = [];
+  function refreshPeople(keep) {
+    people = JSON.parse(batnetSim.people());
+    const hs = $('#rv-phouse'), cur = hs.value;
+    hs.innerHTML = people.map((h) => `<option>${esc(h.house)}</option>`).join('');
+    if (people.some((h) => h.house === cur)) hs.value = cur;
+    fillPersons(keep);
+  }
+  function fillPersons(keep) {
+    const ps = $('#rv-person'), cur = ps.value;
+    const h = people.find((x) => x.house === $('#rv-phouse').value);
+    ps.innerHTML = '<option value="">Pick a person</option>' +
+      (h ? h.people : []).map((p) => `<option value="${esc(p.id)}">${esc(p.name)}${p.admin ? ' · admin' : ''}</option>`).join('') +
+      '<option value="visitor">New visitor (no account yet)</option>';
+    if (keep && [...ps.options].some((o) => o.value === cur)) ps.value = cur;
+  }
+  function clearPhone(msg) {
+    $('#rv-phone').innerHTML = `<p class="note" style="margin:16px">${esc(msg || 'Pick a house and a person.')}</p>`;
+  }
+  function openPhone() {
+    const house = $('#rv-phouse').value, who = $('#rv-person').value;
+    if (!who) return clearPhone();
+    let token = '';
+    if (who !== 'visitor') {
+      const r = JSON.parse(batnetSim.login(house, who));
+      if (r.error) return clearPhone(r.error);
+      token = r.token;
+    }
+    $('#rv-phone').innerHTML = `<iframe title="The batnet app at ${esc(house)}" src="sim-app.html?house=${encodeURIComponent(house)}&token=${encodeURIComponent(token)}"></iframe>`;
   }
 
   function pull() {
@@ -202,6 +235,9 @@
   window.realEngine = { enter };
   document.addEventListener('DOMContentLoaded', () => {
     $('#rv-scenario').onchange = (e) => loadScenario(e.target.value).catch((err) => { $('#rv-status').textContent = err.message; });
+    $('#rv-phouse').onchange = () => { fillPersons(false); clearPhone(); };
+    $('#rv-person').onfocus = () => refreshPeople(true); // pick up people approved since
+    $('#rv-person').onchange = openPhone;
     $('#rv-run').onclick = () => { running = !running; $('#rv-run').textContent = running ? 'Pause' : 'Run'; };
     $('#rv-restart').onclick = () => loadScenario($('#rv-scenario').value);
     for (const b of document.querySelectorAll('#rv-speeds button')) b.onclick = () => { speed = +b.dataset.speed; for (const x of document.querySelectorAll('#rv-speeds button')) x.setAttribute('aria-pressed', x === b); };

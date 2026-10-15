@@ -29,18 +29,7 @@ jobs:
         with:
           go-version-file: go.mod
       - name: Build the site
-        # index.html is written without a document skeleton (the artifact host adds one), so add it here.
-        run: |
-          mkdir -p _site/scenarios
-          cp prototypes/village-sim/sim.js prototypes/village-sim/real.js _site/
-          cp scenarios/*.json _site/scenarios/
-          GOOS=js GOARCH=wasm go build -ldflags="-s -w" -o _site/batnet.wasm ./cmd/batnetwasm
-          cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" _site/
-          {
-            echo '<!doctype html>'
-            echo '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
-            cat prototypes/village-sim/index.html
-          } > _site/index.html
+        run: sh prototypes/village-sim/build-site.sh _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
       - id: deployment

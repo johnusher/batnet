@@ -88,3 +88,41 @@ func TestSimEvents(t *testing.T) {
 		t.Fatalf("Miller doesn't see Fern's post after 5 s: %s", msgs)
 	}
 }
+
+// A post written on a phone counts like any other: it is in the village's
+// posts, so the page lists it and the checks judge its delivery.
+func TestPhonePostIsTracked(t *testing.T) {
+	var a API
+	if err := a.Load([]byte(street)); err != nil {
+		t.Fatal(err)
+	}
+	var people []struct {
+		House  string
+		People []struct{ ID, Name string }
+	}
+	json.Unmarshal(a.People(), &people)
+	fern := people[1]
+	tok, _ := a.Login(fern.House, fern.People[0].ID)
+	before := len(a.v.Posts)
+	if status, _, body := a.HTTP(fern.House, "POST", "/api/post", `{"conv":"everyone","text":"tracked from the phone","prio":"high"}`, tok); status != 200 {
+		t.Fatalf("post: %d %s", status, body)
+	}
+	if len(a.v.Posts) != before+1 {
+		t.Fatalf("posts: %d, want %d", len(a.v.Posts), before+1)
+	}
+	p := a.v.Posts[len(a.v.Posts)-1]
+	if p.House != fern.House || p.Text != "tracked from the phone" || p.Prio < 8 {
+		t.Fatalf("tracked post: %+v", p)
+	}
+	a.Step(5000)
+	if _, ok := p.Arrived[people[0].House]; !ok {
+		t.Fatalf("arrival at %s not recorded: %v", people[0].House, p.Arrived)
+	}
+	// a post from the simulator's own button is still counted once
+	if _, err := a.v.Post(fern.House, "from the button", 5); err != nil {
+		t.Fatal(err)
+	}
+	if len(a.v.Posts) != before+2 {
+		t.Fatalf("posts after the button: %d, want %d", len(a.v.Posts), before+2)
+	}
+}
