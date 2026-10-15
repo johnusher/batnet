@@ -2,7 +2,94 @@
 // Every piece of text from the server goes into the page as text, never as HTML.
 
 const app = document.getElementById('app');
-const state = { me: null, house: '', conv: null, tab: 'chats', unread: {}, loc: false, prio: 'normal', alert: null, events: null, names: {}, pendingTimer: null, retry: 1000 };
+const state = {
+  me: null, house: '', conv: null, tab: 'chats', unread: {}, loc: false, prio: 'normal', alert: null,
+  events: null, names: {}, pendingTimer: null, retry: 1000, bedside: null,
+};
+
+// ---------- words: English and German ----------
+
+const T = {
+  en: {
+    tagline: 'No internet: this connects you to the houses around you',
+    signIn: 'Sign in', createAccount: 'Create an account', yourName: 'Your name', choosePin: 'Choose a 6-digit PIN', yourPin: 'Your 6-digit PIN',
+    askToJoin: 'Ask to join', haveAccount: 'I already have an account', anyHouse: 'You can sign in at any house in the village.',
+    approvesNew: (h) => 'Someone in ' + h + ' approves new accounts, so strangers walking past can\'t join.',
+    waiting: 'Waiting for approval', notApproved: 'Not approved',
+    waitingText: (n, h) => 'Thanks, ' + n + '. ' + h + '\'s admin needs to let you in. This page updates by itself.',
+    deniedText: (n, h) => 'Sorry, ' + n + ': ' + h + '\'s admin did not approve this account. Ask them in person.',
+    signOut: 'Sign out', chats: 'Chats', people: 'People', settings: 'Settings', everyone: 'Everyone', noMessages: 'No messages yet',
+    message: 'Message', normal: 'Normal', high: '❗ High', low: 'Low', attachLoc: 'Attach my location', send: 'Send', back: 'Back',
+    waitingToSend: 'waiting to send', failed: 'not sent', alertFrom: (n) => '⚠ Alert from ' + n, someone: 'Someone', theAdmin: 'the house admin',
+    houseGps: 'house GPS', phoneGps: 'phone GPS', noLocation: 'Couldn\'t get your location. Send without it, or try again outside.',
+    noGeo: 'This browser has no location.', groups: 'Groups', join: 'Join', leave: 'Leave', everyoneIn: 'Everyone in the village', directMessage: 'Direct message',
+    you: 'You', notifications: 'Notifications', speaker: 'Announce my messages on the house speaker', speakerSub: 'Says who a message is for and who sent it, never what it says',
+    quiet: 'Quiet hours, 22:00–07:00', quietSub: 'Only High messages and alerts are announced', locked: 'A locked phone can\'t ring without the internet. Keep batnet open, or use bedside mode.',
+    bedside: 'Bedside mode', bedsideSub: 'Keeps the screen on and dim while charging, so the phone can ring at night', bedsideOn: 'batnet will ring for new messages',
+    bedsideNoLock: 'Keep the screen on yourself: this browser can\'t.', tapToLeave: 'Tap to leave', display: 'Display', language: 'Language', auto: 'Automatic',
+    largeText: 'Large text', on: 'On', off: 'Off', joinRequests: 'Join requests', noRequests: 'No requests.', approve: 'Approve', deny: 'Deny',
+    alertEveryone: 'Alert everyone', alertHelp: 'For emergencies only. It goes ahead of everything else and shows at the top of every phone.',
+    sendAlert: 'Send alert to everyone', alertSent: 'Alert sent.', help: 'How batnet works', alertBanner: '⚠ Alert',
+    helpText: [
+      'batnet works without the internet. Your house\'s Pi links to the houses around it by WiFi, and to houses further away by radio.',
+      'Your browser warned that this page is "not private" once. That\'s expected without the internet: the connection is still encrypted.',
+      'Keep batnet open to hear new messages: a locked phone can\'t ring. At night, use bedside mode.',
+      'Normal is for most messages. High goes first over the radio and alerts people: you have 3 an hour. Low can wait.',
+      'Messages you write out of range wait on your phone and send by themselves when you\'re back.',
+      'Turn on the house speaker in Settings to have the house Pi announce messages for you.',
+    ],
+    retryIn: (s) => ' (try again in ' + s + ' s)',
+  },
+  de: {
+    tagline: 'Kein Internet: Das verbindet dich mit den Häusern um dich herum',
+    signIn: 'Anmelden', createAccount: 'Konto anlegen', yourName: 'Dein Name', choosePin: 'Wähle eine 6-stellige PIN', yourPin: 'Deine 6-stellige PIN',
+    askToJoin: 'Beitritt anfragen', haveAccount: 'Ich habe schon ein Konto', anyHouse: 'Du kannst dich in jedem Haus im Dorf anmelden.',
+    approvesNew: (h) => 'Jemand in ' + h + ' gibt neue Konten frei, damit Fremde im Vorbeigehen nicht beitreten können.',
+    waiting: 'Warten auf Freigabe', notApproved: 'Nicht freigegeben',
+    waitingText: (n, h) => 'Danke, ' + n + '. Die Verwaltung von ' + h + ' muss dich freigeben. Diese Seite aktualisiert sich von selbst.',
+    deniedText: (n, h) => 'Tut uns leid, ' + n + ': Die Verwaltung von ' + h + ' hat dieses Konto nicht freigegeben. Frag sie persönlich.',
+    signOut: 'Abmelden', chats: 'Chats', people: 'Leute', settings: 'Einstellungen', everyone: 'Alle', noMessages: 'Noch keine Nachrichten',
+    message: 'Nachricht', normal: 'Normal', high: '❗ Wichtig', low: 'Niedrig', attachLoc: 'Meinen Standort anhängen', send: 'Senden', back: 'Zurück',
+    waitingToSend: 'wartet auf Versand', failed: 'nicht gesendet', alertFrom: (n) => '⚠ Alarm von ' + n, someone: 'Jemand', theAdmin: 'der Hausverwaltung',
+    houseGps: 'Haus-GPS', phoneGps: 'Handy-GPS', noLocation: 'Standort nicht gefunden. Sende ohne, oder versuch es draußen noch einmal.',
+    noGeo: 'Dieser Browser kennt keinen Standort.', groups: 'Gruppen', join: 'Beitreten', leave: 'Verlassen', everyoneIn: 'Alle im Dorf', directMessage: 'Direktnachricht',
+    you: 'Du', notifications: 'Benachrichtigungen', speaker: 'Meine Nachrichten über den Hauslautsprecher ansagen', speakerSub: 'Sagt, für wen eine Nachricht ist und von wem, nie was drinsteht',
+    quiet: 'Ruhezeit, 22:00–07:00', quietSub: 'Nur wichtige Nachrichten und Alarme werden angesagt', locked: 'Ein gesperrtes Handy kann ohne Internet nicht klingeln. Lass batnet offen, oder nutze den Nachtmodus.',
+    bedside: 'Nachtmodus', bedsideSub: 'Hält den Bildschirm beim Laden an und gedimmt, damit das Handy nachts klingeln kann', bedsideOn: 'batnet klingelt bei neuen Nachrichten',
+    bedsideNoLock: 'Lass den Bildschirm selbst an: Dieser Browser kann das nicht.', tapToLeave: 'Tippen zum Verlassen', display: 'Anzeige', language: 'Sprache', auto: 'Automatisch',
+    largeText: 'Große Schrift', on: 'An', off: 'Aus', joinRequests: 'Beitrittsanfragen', noRequests: 'Keine Anfragen.', approve: 'Freigeben', deny: 'Ablehnen',
+    alertEveryone: 'Alle alarmieren', alertHelp: 'Nur für Notfälle. Geht allem anderen vor und erscheint oben auf jedem Handy.',
+    sendAlert: 'Alarm an alle senden', alertSent: 'Alarm gesendet.', help: 'So funktioniert batnet', alertBanner: '⚠ Alarm',
+    helpText: [
+      'batnet funktioniert ohne Internet. Der Pi deines Hauses verbindet sich per WLAN mit den Häusern in der Nähe und per Funk mit weiter entfernten.',
+      'Dein Browser hat einmal gewarnt, diese Seite sei „nicht privat“. Das ist ohne Internet normal: Die Verbindung ist trotzdem verschlüsselt.',
+      'Lass batnet offen, um neue Nachrichten zu hören: Ein gesperrtes Handy kann nicht klingeln. Nachts hilft der Nachtmodus.',
+      'Normal ist für die meisten Nachrichten. Wichtig geht per Funk zuerst und alarmiert: du hast 3 pro Stunde. Niedrig kann warten.',
+      'Nachrichten, die du außer Reichweite schreibst, warten auf deinem Handy und gehen von selbst raus, sobald du zurück bist.',
+      'Schalte in den Einstellungen den Hauslautsprecher ein, dann sagt der Pi deine Nachrichten an.',
+    ],
+    retryIn: (s) => ' (in ' + s + ' s erneut versuchen)',
+  },
+};
+
+function store(key, value) {
+  try {
+    if (value === undefined) return localStorage.getItem('batnet.' + key);
+    localStorage.setItem('batnet.' + key, value);
+  } catch (e) { return null; }
+  return null;
+}
+
+function lang() {
+  const chosen = store('lang');
+  if (chosen === 'en' || chosen === 'de') return chosen;
+  return (navigator.language || 'en').toLowerCase().startsWith('de') ? 'de' : 'en';
+}
+
+function t(key, ...args) {
+  const v = (T[lang()] || T.en)[key] ?? T.en[key] ?? key;
+  return typeof v === 'function' ? v(...args) : v;
+}
 
 // ---------- helpers ----------
 
@@ -28,6 +115,8 @@ function h(tag, attrs, ...kids) {
 
 function show(...els) {
   app.replaceChildren(...els.filter((e) => e != null && e !== false));
+  document.documentElement.lang = lang();
+  document.body.classList.toggle('large', store('large') === '1');
 }
 
 async function api(path, body) {
@@ -50,12 +139,18 @@ async function api(path, body) {
 }
 
 function time(ts) {
-  const d = new Date(ts.Wall || 0);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const d = new Date((ts && ts.Wall) || 0);
+  return d.toLocaleTimeString(lang(), { hour: '2-digit', minute: '2-digit' });
 }
 
 function initials(name) {
   return String(name).split(/\s+/).map((w) => w[0] || '').join('').slice(0, 2).toUpperCase();
+}
+
+function newClientId() {
+  const b = new Uint8Array(12);
+  crypto.getRandomValues(b);
+  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
 }
 
 // ---------- sound (only while the app is open: a locked phone can't ring) ----------
@@ -71,39 +166,110 @@ document.addEventListener('pointerdown', unlockAudio, { once: true });
 function beep(kind) {
   if (!audio) return;
   const notes = kind === 'alert' ? [880, 660, 880, 660, 880] : kind === 'high' ? [880, 880] : [660];
-  let t = audio.currentTime;
+  let at = audio.currentTime;
   for (const f of notes) {
     const o = audio.createOscillator(), g = audio.createGain();
     o.frequency.value = f;
     g.gain.value = kind === 'normal' ? 0.08 : 0.2;
     o.connect(g).connect(audio.destination);
-    o.start(t);
-    o.stop(t + 0.15);
-    t += 0.2;
+    o.start(at);
+    o.stop(at + 0.15);
+    at += 0.2;
   }
   if (navigator.vibrate) navigator.vibrate(kind === 'normal' ? 80 : [200, 100, 200]);
 }
+
+// ---------- the outbox: messages written out of range wait here (IndexedDB) ----------
+
+const outbox = {
+  db: null,
+  mem: [], // used when IndexedDB is unavailable (private windows): lost on reload
+  async open() {
+    if (this.db || !window.indexedDB) return this.db;
+    this.db = await new Promise((resolve) => {
+      let req;
+      try { req = indexedDB.open('batnet', 1); } catch (e) { return resolve(null); }
+      req.onupgradeneeded = () => req.result.createObjectStore('outbox', { keyPath: 'clientId' });
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+    return this.db;
+  },
+  async tx(mode, f) {
+    const db = await this.open();
+    if (!db) return undefined;
+    return new Promise((resolve) => {
+      const tr = db.transaction('outbox', mode);
+      const req = f(tr.objectStore('outbox'));
+      tr.oncomplete = () => resolve(req && req.result);
+      tr.onerror = () => resolve(undefined);
+    });
+  },
+  async all() {
+    const got = await this.tx('readonly', (s) => s.getAll());
+    return (got === undefined ? this.mem.slice() : got).sort((a, b) => a.made - b.made);
+  },
+  async put(item) {
+    if ((await this.tx('readwrite', (s) => s.put(item))) === undefined) {
+      this.mem = this.mem.filter((x) => x.clientId !== item.clientId).concat([item]);
+    }
+  },
+  async remove(id) {
+    await this.tx('readwrite', (s) => s.delete(id));
+    this.mem = this.mem.filter((x) => x.clientId !== id);
+  },
+  async add(item) {
+    item.made = Date.now();
+    item.status = 'waiting';
+    await this.put(item);
+    this.flush();
+  },
+  busy: false,
+  async flush() {
+    if (this.busy || !state.me || state.me.status !== 'approved') return;
+    this.busy = true;
+    try {
+      for (const item of await this.all()) {
+        if (item.status === 'failed') continue;
+        try {
+          await api('/api/post', { conv: item.conv, text: item.text, prio: item.prio, loc: item.loc, clientId: item.clientId });
+          await this.remove(item.clientId);
+        } catch (e) {
+          if (e.status === 401) break; // signed out: keep it until the person signs in again
+          if (e.status === 429 || !e.status || e.status >= 500) break; // try later
+          item.status = 'failed';
+          item.error = e.message;
+          await this.put(item);
+        }
+      }
+    } finally {
+      this.busy = false;
+    }
+    if (state.conv) refreshOutboxBubbles();
+  },
+};
+window.addEventListener('online', () => outbox.flush());
+setInterval(() => outbox.flush(), 15000);
 
 // ---------- start ----------
 
 async function boot() {
   try { state.house = (await api('/api/house')).house; } catch (e) { state.house = ''; }
   document.title = 'batnet · ' + state.house;
-  try {
-    state.me = await api('/api/me');
-  } catch (e) {
-    state.me = null;
-  }
+  try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
   route();
+  outbox.flush();
 }
 
 function route() {
+  if (state.bedside) return bedside();
   if (!state.me) return landing();
   if (state.me.status !== 'approved') return pending();
   listen();
   if (state.conv) return conversation();
   if (state.tab === 'people') return people();
   if (state.tab === 'settings') return settings();
+  if (state.tab === 'help') return help();
   return chats();
 }
 
@@ -120,35 +286,34 @@ function landing(mode) {
       await api(mode === 'signup' ? '/api/signup' : '/api/login', { name: name.value, pin: pin.value });
       state.me = await api('/api/me');
       route();
+      outbox.flush();
     } catch (x) {
-      err.textContent = x.retryAfter ? x.message + ' (' + x.retryAfter + ' s)' : x.message;
+      err.textContent = x.retryAfter ? x.message + t('retryIn', x.retryAfter) : x.message;
     }
   };
   show(
-    h('header', {}, h('h1', {}, 'batnet · ' + state.house, h('span', { class: 'sub' }, 'No internet: this connects you to the houses around you'))),
+    h('header', {}, h('h1', {}, 'batnet · ' + state.house, h('span', { class: 'sub' }, t('tagline')))),
     h('form', { class: 'pad', onsubmit: submit },
-      h('h2', {}, mode === 'signup' ? 'Create an account' : 'Sign in'),
-      h('label', {}, 'Your name', name),
-      h('label', {}, mode === 'signup' ? 'Choose a 6-digit PIN' : 'Your 6-digit PIN', pin),
+      h('h2', {}, mode === 'signup' ? t('createAccount') : t('signIn')),
+      h('label', {}, t('yourName'), name),
+      h('label', {}, mode === 'signup' ? t('choosePin') : t('yourPin'), pin),
       err,
-      h('button', { class: 'btn', type: 'submit' }, mode === 'signup' ? 'Ask to join' : 'Sign in'),
+      h('button', { class: 'btn', type: 'submit' }, mode === 'signup' ? t('askToJoin') : t('signIn')),
       h('button', { class: 'btn ghost', type: 'button', onclick: () => landing(mode === 'signup' ? 'login' : 'signup') },
-        mode === 'signup' ? 'I already have an account' : 'Create an account'),
-      h('p', { class: 'muted' }, mode === 'signup'
-        ? 'Someone in ' + state.house + ' approves new accounts, so strangers walking past can\'t join.'
-        : 'You can sign in at any house in the village.')));
+        mode === 'signup' ? t('haveAccount') : t('createAccount')),
+      h('p', { class: 'muted' }, mode === 'signup' ? t('approvesNew', state.house) : t('anyHouse')),
+      h('button', { class: 'btn ghost', type: 'button', onclick: () => help(true) }, t('help'))));
 }
 
 function pending() {
   const denied = state.me.status === 'denied';
+  const home = state.me.house || state.house;
   show(
     h('header', {}, h('h1', {}, 'batnet · ' + state.house)),
     h('div', { class: 'pad' },
-      h('h2', {}, denied ? 'Not approved' : 'Waiting for approval'),
-      h('p', {}, denied
-        ? 'Sorry, ' + state.me.name + ': ' + (state.me.house || state.house) + '\'s admin did not approve this account. Ask them in person.'
-        : 'Thanks, ' + state.me.name + '. ' + (state.me.house || state.house) + '\'s admin needs to let you in. This page updates by itself.'),
-      h('button', { class: 'btn ghost', onclick: logout }, 'Sign out')));
+      h('h2', {}, denied ? t('notApproved') : t('waiting')),
+      h('p', {}, denied ? t('deniedText', state.me.name, home) : t('waitingText', state.me.name, home)),
+      h('button', { class: 'btn ghost', onclick: logout }, t('signOut'))));
   clearTimeout(state.pendingTimer);
   if (denied) return;
   state.pendingTimer = setTimeout(async () => {
@@ -164,6 +329,7 @@ async function logout() {
   state.events = null;
   state.me = null;
   state.conv = null;
+  state.tab = 'chats';
   route();
 }
 
@@ -179,16 +345,18 @@ function listen() {
     const key = m.audience.startsWith('dm:') ? (mine ? m.audience : 'dm:' + m.from) : m.audience;
     if (m.alert) state.alert = m;
     if (!mine) beep(m.alert ? 'alert' : m.prio >= 8 ? 'high' : 'normal');
+    if (state.bedside) return;
     if (state.conv === key) appendBubble(m); // add it in place: rebuilding would wipe what the person is typing
     else {
       if (!mine) state.unread[key] = (state.unread[key] || 0) + 1;
       if (!state.conv) route();
     }
   });
-  state.events.addEventListener('state', () => { if (!state.conv) route(); });
+  state.events.addEventListener('state', () => { if (!state.conv && !state.bedside) route(); });
   state.events.addEventListener('open', () => {
     state.retry = 1000;
-    if (!state.conv) route(); // catch up on anything missed while disconnected
+    outbox.flush();
+    if (!state.conv && !state.bedside) route(); // catch up on anything missed while disconnected
   });
   state.events.addEventListener('error', () => {
     if (state.events && state.events.readyState === EventSource.CLOSED) {
@@ -203,19 +371,17 @@ function listen() {
   });
 }
 
-function appendBubble(m) {
-  const list = document.querySelector('.msgs');
-  if (!list) return conversation();
-  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
-  list.append(bubble(m, state.names));
-  if (atBottom) list.scrollTop = list.scrollHeight;
-}
-
 // ---------- signed in ----------
 
 function tabs() {
   const tab = (k, label) => h('button', { 'aria-current': state.tab === k ? 'page' : false, onclick: () => { state.tab = k; state.conv = null; route(); } }, label);
-  return h('nav', { class: 'tabs' }, tab('chats', 'Chats'), tab('people', 'People'), tab('settings', 'Settings'));
+  return h('nav', { class: 'tabs' }, tab('chats', t('chats')), tab('people', t('people')), tab('settings', t('settings')));
+}
+
+function alertBar() {
+  const a = state.alert;
+  if (!a) return null;
+  return h('div', { class: 'alertbar', role: 'alert' }, h('b', {}, t('alertBanner') + ' · '), a.text);
 }
 
 async function chats() {
@@ -224,13 +390,14 @@ async function chats() {
   try {
     [convs, dir] = await Promise.all([api('/api/conversations'), api('/api/directory')]);
   } catch (e) { if (e.status === 401) return logout(); }
+  for (const c of convs) if (c.last && c.last.alert && (!state.alert || c.last.ts.Wall > state.alert.ts.Wall)) state.alert = c.last;
   const keys = new Set(convs.map((c) => c.key));
-  const rows = convs.map((c) => convRow(c.key, c.name, c.last));
-  if (!keys.has('everyone')) rows.unshift(convRow('everyone', 'Everyone', null));
-  const alertBar = state.alert ? h('div', { class: 'alertbar', role: 'alert' }, h('b', {}, '⚠ Alert · '), state.alert.text) : null;
+  const rows = convs.map((c) => convRow(c.key, c.key === 'everyone' ? t('everyone') : c.name, c.last));
+  if (!keys.has('everyone')) rows.unshift(convRow('everyone', t('everyone'), null));
+  for (const g of dir.groups) if (!keys.has('group:' + g.id)) rows.push(convRow('group:' + g.id, g.name, null));
   show(
-    h('header', {}, h('h1', {}, 'Chats', h('span', { class: 'sub' }, state.me.name + ' · ' + state.house))),
-    alertBar,
+    h('header', {}, h('h1', {}, t('chats'), h('span', { class: 'sub' }, state.me.name + ' · ' + state.house))),
+    alertBar(),
     h('div', { class: 'grow' }, rows),
     tabs());
 }
@@ -239,7 +406,7 @@ function convRow(key, name, last) {
   const n = state.unread[key] || 0;
   return h('button', { class: 'row', onclick: () => { state.conv = key; state.unread[key] = 0; conversation(); } },
     h('span', { class: 'av' }, key === 'everyone' ? 'All' : initials(name)),
-    h('span', { class: 'main' }, h('span', { class: 'title' }, name), h('div', { class: 'last' }, last ? last.text : 'No messages yet')),
+    h('span', { class: 'main' }, h('span', { class: 'title' }, name), h('div', { class: 'last' }, last ? last.text : t('noMessages'))),
     n ? h('span', { class: 'badge' }, n) : null);
 }
 
@@ -251,59 +418,80 @@ async function conversation() {
   const names = {};
   for (const house of dir.houses) for (const p of house.people) names[p.id] = p.name + ' · ' + house.name;
   state.names = names;
-  const title = state.conv === 'everyone' ? 'Everyone'
+  const title = state.conv === 'everyone' ? t('everyone')
     : state.conv.startsWith('group:') ? ((dir.groups.find((g) => 'group:' + g.id === state.conv) || {}).name || state.conv)
-    : (names[state.conv.slice(3)] || 'Direct message');
+    : (names[state.conv.slice(3)] || t('directMessage'));
   const list = h('div', { class: 'msgs' }, msgs.map((m) => bubble(m, names)));
   const err = h('p', { class: 'err', role: 'alert' });
-  const text = h('input', { type: 'text', placeholder: 'Message', maxlength: 2000, 'aria-label': 'Message' });
+  const text = h('input', { type: 'text', placeholder: t('message'), maxlength: 2000, 'aria-label': t('message') });
+  const locBtn = h('button', { type: 'button', class: 'icon' + (state.loc ? ' on' : ''), 'aria-pressed': String(state.loc), title: t('attachLoc'), 'aria-label': t('attachLoc'),
+    onclick: () => { state.loc = !state.loc; locBtn.classList.toggle('on', state.loc); locBtn.setAttribute('aria-pressed', String(state.loc)); } }, '📍');
   const prio = h('select', { 'aria-label': 'Priority', onchange: (e) => { state.prio = e.target.value; if (state.prio === 'high') { state.loc = true; locBtn.classList.add('on'); } } },
-    h('option', { value: 'normal' }, 'Normal'), h('option', { value: 'high' }, '❗ High'), h('option', { value: 'low' }, 'Low'),
-    state.me.admin && state.conv === 'everyone' ? h('option', { value: 'alert' }, '⚠ Alert') : null);
+    h('option', { value: 'normal' }, t('normal')), h('option', { value: 'high' }, t('high')), h('option', { value: 'low' }, t('low')));
   prio.value = state.prio;
-  const locBtn = h('button', { type: 'button', class: 'icon' + (state.loc ? ' on' : ''), 'aria-pressed': String(state.loc), title: 'Attach my location', onclick: () => { state.loc = !state.loc; locBtn.classList.toggle('on', state.loc); locBtn.setAttribute('aria-pressed', String(state.loc)); } }, '📍');
   const send = async (e) => {
     e.preventDefault();
     if (!text.value.trim()) return;
     err.textContent = '';
-    const body = { conv: state.conv, text: text.value, prio: state.prio };
-    try {
-      if (state.loc) body.loc = await position();
-      await api('/api/post', body);
-      text.value = '';
-      state.prio = 'normal';
-      state.loc = false;
-      prio.value = 'normal';
-      locBtn.classList.remove('on');
-    } catch (x) {
-      err.textContent = x.message;
+    const item = { clientId: newClientId(), conv: state.conv, text: text.value.trim(), prio: state.prio };
+    if (state.loc) {
+      try { item.loc = await position(); } catch (x) { err.textContent = x.message; return; }
     }
+    text.value = '';
+    state.prio = 'normal';
+    state.loc = false;
+    prio.value = 'normal';
+    locBtn.classList.remove('on');
+    await outbox.add(item);
+    refreshOutboxBubbles();
   };
   show(
-    h('header', {}, h('button', { class: 'back', 'aria-label': 'Back', onclick: () => { state.conv = null; route(); } }, '‹'), h('h1', {}, title)),
+    h('header', {}, h('button', { class: 'back', 'aria-label': t('back'), onclick: () => { state.conv = null; route(); } }, '‹'), h('h1', {}, title)),
     list,
     err,
-    h('form', { class: 'compose', onsubmit: send }, prio, locBtn, text, h('button', { class: 'icon on', type: 'submit', 'aria-label': 'Send' }, '➤')));
+    h('form', { class: 'compose', onsubmit: send }, prio, locBtn, text, h('button', { class: 'icon on', type: 'submit', 'aria-label': t('send') }, '➤')));
+  await refreshOutboxBubbles();
   list.scrollTop = list.scrollHeight;
+}
+
+// the outbox's items for this conversation, shown as bubbles marked "waiting to send"
+async function refreshOutboxBubbles() {
+  const list = document.querySelector('.msgs');
+  if (!list) return;
+  for (const el of list.querySelectorAll('.outbox')) el.remove();
+  for (const item of await outbox.all()) {
+    if (item.conv !== state.conv) continue;
+    list.append(h('div', { class: 'bubble me outbox' + (item.status === 'failed' ? ' failed' : '') },
+      h('div', {}, item.text),
+      h('div', { class: 'meta' }, item.status === 'failed' ? t('failed') + (item.error ? ' · ' + item.error : '') : t('waitingToSend'))));
+  }
+}
+
+function appendBubble(m) {
+  const list = document.querySelector('.msgs');
+  if (!list) return conversation();
+  const atBottom = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
+  list.insertBefore(bubble(m, state.names), list.querySelector('.outbox'));
+  if (atBottom) list.scrollTop = list.scrollHeight;
 }
 
 function bubble(m, names) {
   const mine = m.from === state.me.account;
   const cls = 'bubble' + (mine ? ' me' : '') + (m.alert ? ' alert' : m.prio >= 8 ? ' high' : '');
   return h('div', { class: cls },
-    m.alert ? h('div', { class: 'who' }, '⚠ Alert from ' + (names[m.from] || 'the house admin'))
-      : !mine && !m.audience.startsWith('dm:') ? h('div', { class: 'who' }, names[m.from] || 'Someone') : null,
+    m.alert ? h('div', { class: 'who' }, t('alertFrom', names[m.from] || t('theAdmin')))
+      : !mine && !m.audience.startsWith('dm:') ? h('div', { class: 'who' }, names[m.from] || t('someone')) : null,
     h('div', {}, m.text),
-    m.loc ? h('div', { class: 'loc' }, '📍 ' + m.loc.lat.toFixed(4) + ', ' + m.loc.lon.toFixed(4) + ' (±' + Math.round(m.loc.acc) + ' m, ' + (m.loc.source === 'node' ? 'house GPS' : 'phone GPS') + ')') : null,
-    h('div', { class: 'meta' }, (m.prio >= 8 && !m.alert ? '❗ High · ' : '') + time(m.ts)));
+    m.loc ? h('div', { class: 'loc' }, '📍 ' + m.loc.lat.toFixed(4) + ', ' + m.loc.lon.toFixed(4) + ' (±' + Math.round(m.loc.acc) + ' m, ' + (m.loc.source === 'node' ? t('houseGps') : t('phoneGps')) + ')') : null,
+    h('div', { class: 'meta' }, (m.prio >= 8 && !m.alert ? t('high') + ' · ' : '') + time(m.ts)));
 }
 
 function position() {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('This browser has no location.'));
+    if (!navigator.geolocation) return reject(new Error(t('noGeo')));
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude, acc: Math.min(10000, p.coords.accuracy || 0), source: 'phone' }),
-      () => reject(new Error('Couldn\'t get your location. Send without it, or try again outside.')),
+      () => reject(new Error(t('noLocation'))),
       { enableHighAccuracy: true, timeout: 60000, maximumAge: 60000 });
   });
 }
@@ -320,36 +508,104 @@ async function people() {
         h('span', { class: 'av' }, initials(p.name)), h('span', { class: 'main' }, h('span', { class: 'title' }, p.name + (p.admin ? ' · admin' : '')))));
     }
   }
-  rows.push(h('div', { class: 'section' }, 'Groups'));
+  rows.push(h('div', { class: 'section' }, t('groups')));
   for (const g of dir.groups) {
     rows.push(h('div', { class: 'row' },
       h('span', { class: 'av' }, initials(g.name)),
-      h('button', { class: 'main title', style: 'border:0;background:none;text-align:left', onclick: () => { state.conv = 'group:' + g.id; conversation(); } }, g.name),
-      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/join', { group: g.id }); people(); } }, 'Join'),
-      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/leave', { group: g.id }); people(); } }, 'Leave')));
+      h('button', { class: 'main title plain', onclick: () => { state.conv = 'group:' + g.id; conversation(); } }, g.name),
+      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/join', { group: g.id }); people(); } }, t('join')),
+      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/leave', { group: g.id }); people(); } }, t('leave'))));
   }
-  show(h('header', {}, h('h1', {}, 'People', h('span', { class: 'sub' }, 'Everyone in the village'))), h('div', { class: 'grow' }, rows), tabs());
+  show(h('header', {}, h('h1', {}, t('people'), h('span', { class: 'sub' }, t('everyoneIn')))), h('div', { class: 'grow' }, rows), tabs());
 }
 
+function setRow(title, sub, value, onclick) {
+  return h('button', { class: 'row', onclick }, h('span', { class: 'main' }, h('span', { class: 'title' }, title), sub ? h('div', { class: 'last' }, sub) : null), h('span', { class: 'muted' }, value));
+}
+
+const nextLang = { auto: 'en', en: 'de', de: 'auto' };
+
 async function settings() {
+  const me = state.me;
+  const toggle = (field) => async () => {
+    await api('/api/settings', { [field]: !me[field] });
+    state.me = await api('/api/me');
+    settings();
+  };
   const parts = [
-    h('div', { class: 'section' }, 'You'),
-    h('div', { class: 'pad' }, h('p', {}, state.me.name + ' · ' + (state.me.house || state.house)), h('button', { class: 'btn ghost', onclick: logout }, 'Sign out')),
-    h('div', { class: 'section' }, 'Notifications'),
-    h('div', { class: 'pad' }, h('p', { class: 'muted' }, 'A locked phone can\'t ring without the internet. Keep batnet open to hear new messages.')),
+    h('div', { class: 'section' }, t('you')),
+    setRow(me.name + ' · ' + (me.house || state.house), null, t('signOut'), logout),
+    h('div', { class: 'section' }, t('notifications')),
+    setRow(t('speaker'), t('speakerSub'), me.speaker ? t('on') : t('off'), toggle('speaker')),
+    setRow(t('quiet'), t('quietSub'), me.quietHours ? t('on') : t('off'), toggle('quietHours')),
+    setRow(t('bedside'), t('bedsideSub'), '›', () => { state.bedside = { lock: null }; bedside(); }),
+    h('div', { class: 'pad' }, h('p', { class: 'muted' }, t('locked'))),
+    h('div', { class: 'section' }, t('display')),
+    setRow(t('language'), null, { en: 'English', de: 'Deutsch' }[store('lang')] || t('auto'), () => {
+      store('lang', nextLang[store('lang') || 'auto']);
+      settings();
+    }),
+    setRow(t('largeText'), null, store('large') === '1' ? t('on') : t('off'), () => { store('large', store('large') === '1' ? '0' : '1'); settings(); }),
+    setRow(t('help'), null, '›', () => { state.tab = 'help'; help(); }),
   ];
-  if (state.me.admin) {
+  if (me.admin) {
     let pend = [];
     try { pend = await api('/api/admin/pending'); } catch (e) { pend = []; }
-    parts.push(h('div', { class: 'section' }, 'Join requests'));
-    if (!pend.length) parts.push(h('div', { class: 'pad' }, h('p', { class: 'muted' }, 'No requests.')));
+    parts.push(h('div', { class: 'section' }, t('joinRequests')));
+    if (!pend.length) parts.push(h('div', { class: 'pad' }, h('p', { class: 'muted' }, t('noRequests'))));
     for (const p of pend) {
       parts.push(h('div', { class: 'row' }, h('span', { class: 'av' }, initials(p.name)), h('span', { class: 'main title' }, p.name),
-        h('button', { class: 'btn', onclick: async () => { await api('/api/admin/approve', { account: p.id }); settings(); } }, 'Approve'),
-        h('button', { class: 'btn ghost', onclick: async () => { await api('/api/admin/deny', { account: p.id }); settings(); } }, 'Deny')));
+        h('button', { class: 'btn', onclick: async () => { await api('/api/admin/approve', { account: p.id }); settings(); } }, t('approve')),
+        h('button', { class: 'btn ghost', onclick: async () => { await api('/api/admin/deny', { account: p.id }); settings(); } }, t('deny'))));
     }
+    const alertText = h('textarea', { rows: 2, maxlength: 2000, 'aria-label': t('alertEveryone') });
+    const alertMsg = h('p', { class: 'muted', role: 'status' });
+    parts.push(h('div', { class: 'section' }, t('alertEveryone')),
+      h('div', { class: 'pad' }, h('p', { class: 'muted' }, t('alertHelp')), alertText, alertMsg,
+        h('button', { class: 'btn danger', onclick: async () => {
+          if (!alertText.value.trim()) return;
+          try {
+            await api('/api/post', { conv: 'everyone', text: alertText.value, prio: 'alert', clientId: newClientId() });
+            alertText.value = '';
+            alertMsg.textContent = t('alertSent');
+          } catch (x) { alertMsg.textContent = x.message; }
+        } }, t('sendAlert'))));
   }
-  show(h('header', {}, h('h1', {}, 'Settings')), h('div', { class: 'grow' }, parts), tabs());
+  show(h('header', {}, h('h1', {}, t('settings'))), h('div', { class: 'grow' }, parts), tabs());
+}
+
+function help(signedOut) {
+  show(
+    h('header', {}, h('button', { class: 'back', 'aria-label': t('back'), onclick: () => { if (signedOut) landing(); else { state.tab = 'settings'; route(); } } }, '‹'), h('h1', {}, t('help'))),
+    h('div', { class: 'pad' }, t('helpText').map((p) => h('p', {}, p))),
+    signedOut ? null : tabs());
+}
+
+// ---------- bedside mode: screen on and dim, so the phone can ring at night ----------
+
+async function keepAwake() {
+  if (!state.bedside) return;
+  try {
+    if (navigator.wakeLock) state.bedside.lock = await navigator.wakeLock.request('screen');
+  } catch (e) { state.bedside.lock = null; }
+}
+document.addEventListener('visibilitychange', () => { if (state.bedside && document.visibilityState === 'visible') keepAwake(); });
+
+function bedside() {
+  const clock = h('div', { class: 'clock' });
+  const tick = () => { clock.textContent = new Date().toLocaleTimeString(lang(), { hour: '2-digit', minute: '2-digit' }); };
+  tick();
+  clearInterval(state.bedsideTimer);
+  state.bedsideTimer = setInterval(tick, 10000);
+  const leave = () => {
+    clearInterval(state.bedsideTimer);
+    if (state.bedside && state.bedside.lock) state.bedside.lock.release().catch(() => {});
+    state.bedside = null;
+    route();
+  };
+  show(h('div', { class: 'bedside', role: 'button', 'aria-label': t('tapToLeave'), onclick: leave },
+    clock, h('p', {}, t('bedsideOn')), navigator.wakeLock ? null : h('p', {}, t('bedsideNoLock')), h('p', { class: 'small' }, t('tapToLeave')), alertBar()));
+  keepAwake();
 }
 
 boot();

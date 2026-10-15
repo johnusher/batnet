@@ -462,3 +462,13 @@ func TestSettingsOwnOnly(t *testing.T) {
 		t.Fatalf("a body naming another account: %d", code)
 	}
 }
+
+func TestAppHasTheFullFeatures(t *testing.T) {
+	b, _ := appFS.ReadFile("app/app.js")
+	src := string(b)
+	for _, want := range []string{"indexedDB", "wakeLock", "de: {", "en: {", "clientId", "/api/settings", "'alert'"} {
+		if !strings.Contains(src, want) {
+			t.Errorf("app.js lacks %q", want)
+		}
+	}
+}
