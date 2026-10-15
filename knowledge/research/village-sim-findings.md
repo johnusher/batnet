@@ -66,3 +66,8 @@ heartbeats (flooded to every node by batman-adv) keep the channel 5% busy at
 10 houses, 10% at 20, 41% at 40 and 100% at 80 (quiet scenarios, 5 min). Spec
 section 5 needs heartbeats that stay one hop (neighbours compare and repair
 hop by hop), or a longer interval that grows with the mesh. To decide.
+
+**Resolved (2026-10-15, [decision 0021](/decisions/0021-one-hop-heartbeats.md)):**
+heartbeats now go one hop. Heartbeats alone use 1% of the channel at 10, 20
+and 40 houses and 2% at 80; bang passes with median delivery 10 ms, worst 48 s,
+nothing lost, with repair paying for its airtime.

@@ -33,6 +33,7 @@ checks all of this and runs in the pre-commit hook.
 | `Test Report` | `tests/` | one bench or field test: setup, results, what it settles, what was not recorded |
 | `Policy` | `security/` | a rule that protects people or secrets |
 | `Skill Catalog` | `skills/` | the agent skills, shipped and planned |
+| `Issue List` | root | known problems: bugs, limits, deferred review findings, things to measure; with status |
 
 A new type is fine when none fits; add it to this table.
 

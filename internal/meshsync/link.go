@@ -16,6 +16,9 @@ type Link interface {
 	Addr() string
 	// Broadcast sends to every node reachable over the mesh; delivery is best-effort.
 	Broadcast(pkt []byte) error
+	// BroadcastLocal sends to direct neighbours only (one hop), for heartbeats
+	// (decision 0021): flooding them costs airtime growing with the square of the mesh.
+	BroadcastLocal(pkt []byte) error
 	// Request asks one node and waits for its answer.
 	Request(ctx context.Context, to string, req []byte) ([]byte, error)
 	Inbox() <-chan Packet

@@ -143,3 +143,19 @@ func TestRequestsCostAirtime(t *testing.T) {
 		t.Fatal("no request failed on a saturated channel")
 	}
 }
+
+// Decision 0021: heartbeats go one hop - to direct neighbours only, one frame of airtime.
+func TestBroadcastLocal(t *testing.T) {
+	var s Scheduler
+	air := NewAir(&s, 1)
+	air.BaseLoss = 0
+	a := air.Add("a", 0, 0, 350)
+	r := air.Add("relay", 300, 0, 350)
+	b := air.Add("b", 600, 0, 350)
+	gotR, gotB := listen(r), listen(b)
+	a.BroadcastLocal([]byte("beat"))
+	s.RunUntil(Second)
+	if len(*gotR) != 1 || len(*gotB) != 0 {
+		t.Fatalf("relay got %d, b got %d; want 1 and 0", len(*gotR), len(*gotB))
+	}
+}

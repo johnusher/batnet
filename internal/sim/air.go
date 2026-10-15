@@ -210,6 +210,46 @@ func (a *Air) broadcast(n *AirNode, pkt []byte) {
 	}
 }
 
+// broadcastLocal sends one frame heard by n's direct, powered neighbours.
+func (a *Air) broadcastLocal(n *AirNode, pkt []byte) {
+	others, _ := a.hops(n)
+	var near []*AirNode
+	for _, r := range others {
+		if a.Linked(n, r) {
+			near = append(near, r)
+		}
+	}
+	if len(near) == 0 {
+		return
+	}
+	now := a.sch.Now()
+	frame := 200 + 8*int64(len(pkt))
+	c := a.channelFor(n, others)
+	start := max(now, c.busyUntil)
+	util := c.utilisation(start)
+	c.busyUntil = start + frame
+	c.spans = append(c.spans, [2]int64{start, start + frame})
+	if u := c.utilisation(start + frame); u > a.Stats.MaxUtil {
+		a.Stats.MaxUtil = u
+	}
+	loss := a.BaseLoss + math.Min(0.6, util*util)
+	a.Stats.Frames++
+	a.Stats.Bytes += int64(len(pkt))
+	for _, r := range near {
+		if a.rnd.Float64() < loss {
+			a.Stats.Lost++
+			continue
+		}
+		r, data := r, append([]byte(nil), pkt...)
+		a.sch.At(start+frame, func() {
+			if r.On && r.deliver != nil {
+				a.Stats.Delivered++
+				r.deliver(meshsync.Packet{From: n.Name, Data: data})
+			}
+		})
+	}
+}
+
 // AirNode is one node's radio in the Air; it implements meshsync.Link.
 type AirNode struct {
 	Name        string
@@ -275,6 +315,13 @@ func (a *Air) useChannel(c *channel, size, hops int) bool {
 	}
 	a.Stats.RequestBytes += int64(size)
 	return a.rnd.Float64() >= a.BaseLoss+math.Min(0.6, util*util)
+}
+
+func (n *AirNode) BroadcastLocal(pkt []byte) error {
+	if n.On {
+		n.air.broadcastLocal(n, pkt)
+	}
+	return nil
 }
 
 func (n *AirNode) Inbox() <-chan meshsync.Packet { return nil }

@@ -14,6 +14,7 @@ Rules for adding to it: [knowledge conventions](conventions.md).
 * [Vision](vision.md) - what batnet is for, who uses it, and how we know milestone 1 works
 * [Knowledge conventions](conventions.md) - how concepts, types, trust and freshness are recorded here
 * [Glossary](glossary.md) - mesh, LoRa, radio and web terms used across the bundle
+* [Known problems](known-problems.md) - open bugs, known limits, deferred review findings, things to measure
 
 # Sections
 

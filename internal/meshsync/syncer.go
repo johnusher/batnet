@@ -67,7 +67,11 @@ func (s *Syncer) SendHeartbeat() error {
 	if err != nil {
 		return err
 	}
-	return s.broadcast(encodeHeartbeat(heartbeat{Addr: s.cfg.Link.Addr(), Hash: v.Hash()}))
+	box, err := s.cfg.Sealer.Seal(encodeHeartbeat(heartbeat{Addr: s.cfg.Link.Addr(), Hash: v.Hash()}))
+	if err != nil {
+		return err
+	}
+	return s.cfg.Link.BroadcastLocal(box) // one hop: neighbours compare and repair hop by hop
 }
 
 func (s *Syncer) broadcast(pkt []byte) error {

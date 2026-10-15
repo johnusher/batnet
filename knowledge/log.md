@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Creation**: [Known problems](/known-problems.md) list (new type `Issue List`); decision [0021 one-hop heartbeats](/decisions/0021-one-hop-heartbeats.md), which makes bang pass.
 * **Update**: Plan 2 built: the real code runs in virtual time (`batnetd -sim`, CI, the simulator's real engine). [Findings](/research/village-sim-findings.md): flooded heartbeats saturate an 80-house mesh with no messages.
 * **Creation**: Decisions [0018 notifications and house speaker](/decisions/0018-notifications-and-house-speaker.md), [0019 location](/decisions/0019-location.md), [0020 photos](/decisions/0020-photos.md); milestones updated.
 * **Update**: Plan 1 of milestone 1 built: signed log, SQLite store, sealing, mesh sync with repair, and a mock village (`go run ./cmd/batnetd -mock 5`).

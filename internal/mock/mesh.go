@@ -135,6 +135,29 @@ func (l *Link) Broadcast(pkt []byte) error {
 	return nil
 }
 
+// BroadcastLocal sends to directly connected, powered neighbours only.
+func (l *Link) BroadcastLocal(pkt []byte) error {
+	m := l.mesh
+	m.mu.Lock()
+	var targets []*Link
+	if !m.down[l.addr] {
+		for addr := range m.adj[l.addr] {
+			if m.down[addr] || (m.loss > 0 && m.rnd.Float64() < m.loss) {
+				continue
+			}
+			targets = append(targets, m.links[addr])
+		}
+	}
+	m.mu.Unlock()
+	for _, t := range targets {
+		select {
+		case t.inbox <- meshsync.Packet{From: l.addr, Data: append([]byte(nil), pkt...)}:
+		default:
+		}
+	}
+	return nil
+}
+
 func (l *Link) Request(ctx context.Context, to string, req []byte) ([]byte, error) {
 	m := l.mesh
 	m.mu.Lock()

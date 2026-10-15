@@ -83,3 +83,17 @@ func TestLoss(t *testing.T) {
 		t.Fatal("packet arrived at 100% loss")
 	}
 }
+
+func TestBroadcastLocalOneHop(t *testing.T) {
+	m := NewMesh(1)
+	a, b, c := m.Add("a"), m.Add("b"), m.Add("c")
+	m.Connect("a", "b")
+	m.Connect("b", "c")
+	a.BroadcastLocal([]byte("beat"))
+	if _, ok := recv(t, b); !ok {
+		t.Fatal("neighbour b missed a one-hop broadcast")
+	}
+	if _, ok := recv(t, c); ok {
+		t.Fatal("c, two hops away, got a one-hop broadcast")
+	}
+}

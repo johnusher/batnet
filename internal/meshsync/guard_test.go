@@ -26,6 +26,7 @@ type fakeLink struct {
 
 func (l *fakeLink) Addr() string                           { return "me" }
 func (l *fakeLink) Broadcast([]byte) error                 { return nil }
+func (l *fakeLink) BroadcastLocal([]byte) error            { return nil }
 func (l *fakeLink) Inbox() <-chan Packet                   { return l.inbox }
 func (l *fakeLink) SetHandler(func(string, []byte) []byte) {}
 func (l *fakeLink) Request(ctx context.Context, to string, req []byte) ([]byte, error) {

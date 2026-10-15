@@ -1,8 +1,6 @@
 {
   "name": "bang",
   "about": "40 houses in 4 hamlets. At 20:05 everyone within 700 m of the school hears a bang and posts within 30 seconds, on top of normal chatter.",
-  "expect": "fail",
-  "because": "Flooded heartbeats (every node, every 5 s, to every node) plus the burst saturate a 40-house mesh; repair then cannot keep up. With 30 s heartbeats the same scenario passes. Decision pending: one-hop heartbeats (village-sim findings, 2026-10-15).",
   "seed": 11,
   "duration": "20m",
   "start": "20:00",

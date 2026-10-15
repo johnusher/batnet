@@ -42,5 +42,9 @@ implementation follows the plans in `docs/plans/`.
    supersedes the old one (`status: deprecated`, linked) — never a silent edit.
 4. **Go, pure Go for batnetd** (`CGO_ENABLED=0`); heavy work (speech, codecs,
    SDR) runs in helper processes. See decision 0005.
-5. **Radio rules matter.** Anything that transmits or scans must respect EU868
+5. **Keep the known-problems list current.** Any bug you find, review finding
+   you defer, or limit you accept goes in
+   [`knowledge/known-problems.md`](knowledge/known-problems.md) with where it
+   came from; move it to Resolved when fixed.
+6. **Radio rules matter.** Anything that transmits or scans must respect EU868
    duty cycle and power limits and the activity-only scanner rule (decision 0009).
