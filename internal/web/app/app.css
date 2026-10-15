@@ -42,7 +42,12 @@ label { font-weight: 600; font-size: 14px; display: flex; flex-direction: column
 nav.tabs { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line); position: sticky; bottom: 0; background: var(--bg); }
 nav.tabs button { border: 0; background: none; padding: 12px 2px 14px; color: var(--sub); font-size: 14px; }
 nav.tabs button[aria-current=page] { color: var(--accent); font-weight: 700; }
-.alertbar { margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: var(--high); color: #fff; }
+.alertbar { margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: var(--high); color: #fff; display: flex; align-items: flex-start; gap: 8px; }
+.alertbar .main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.alertbar .small { font-size: 12px; opacity: .85; white-space: nowrap; }
+.alertbar .close { border: 0; background: rgba(255, 255, 255, .18); color: #fff; width: 32px; height: 32px; border-radius: 50%; font-size: 20px; line-height: 1; flex: none; }
+.flash { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 32px); padding: 10px 14px; border-radius: 12px; background: var(--high); color: #fff; font-weight: 600; font-size: 14px; z-index: 5; box-shadow: 0 4px 16px rgba(0, 0, 0, .25); }
+.flash[hidden] { display: none; }
 .grow { flex: 1; }
 .bubble.outbox { opacity: .75; }
 .bubble.outbox.failed { box-shadow: inset 0 0 0 2px var(--high); opacity: 1; }

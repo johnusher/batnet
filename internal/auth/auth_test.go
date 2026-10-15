@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,49 @@ func TestPIN(t *testing.T) {
 	}
 	if !CheckPIN(h, "482915") || CheckPIN(h, "482916") || CheckPIN("garbage", "482915") {
 		t.Fatal("CheckPIN wrong")
+	}
+}
+
+// B21: a hash from the log with its own, costlier parameters is refused, not run.
+func TestCheckPINRefusesOtherParameters(t *testing.T) {
+	h, _ := HashPIN("482915")
+	costly := strings.Replace(h, "m=19456,t=2,p=1", "m=1048576,t=2,p=1", 1)
+	start := time.Now()
+	if CheckPIN(costly, "482915") {
+		t.Fatal("a hash with foreign parameters was accepted")
+	}
+	if time.Since(start) > 50*time.Millisecond {
+		t.Fatal("a hash with foreign parameters was computed")
+	}
+	for _, bad := range []string{
+		strings.Replace(h, "t=2", "t=1", 1),
+		strings.Replace(h, "p=1", "p=2", 1),
+		strings.Replace(h, "v=19", "v=16", 1),
+	} {
+		if CheckPIN(bad, "482915") {
+			t.Errorf("accepted %q", bad)
+		}
+	}
+}
+
+// B22: made-up names don't grow the lockout table without bound.
+func TestLockoutTableIsBounded(t *testing.T) {
+	l := NewLockout()
+	now := time.Unix(1_790_000_000, 0)
+	for i := 0; i < 3*maxTracked; i++ {
+		l.Fail(fmt.Sprintf("nobody-%d", i), now)
+	}
+	if len(l.fails) > maxTracked+1 {
+		t.Fatalf("%d names tracked, want at most %d", len(l.fails), maxTracked+1)
+	}
+	for i := 0; i < 5; i++ {
+		l.Fail("anna", now) // locked: must survive the pruning
+	}
+	for i := 0; i < 2*maxTracked; i++ {
+		l.Fail(fmt.Sprintf("other-%d", i), now)
+	}
+	if l.Wait("anna", now) == 0 {
+		t.Fatal("a live lockout was pruned")
 	}
 }
 

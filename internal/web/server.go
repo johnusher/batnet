@@ -113,6 +113,25 @@ func (s *Server) hashSlot(f func()) {
 	f()
 }
 
+var dummyOnce struct {
+	sync.Once
+	hash string
+}
+
+// dummyHash is a hash of no one's PIN, checked when a sign-in names nobody,
+// so that a wrong name costs the same time as a wrong PIN (B23). Made once per
+// process: every house server shares it.
+func dummyHash() string {
+	dummyOnce.Do(func() {
+		h, err := auth.HashPIN("000000")
+		if err != nil {
+			panic(err) // crypto/rand does not fail on supported platforms
+		}
+		dummyOnce.hash = h
+	})
+	return dummyOnce.hash
+}
+
 // New returns a server.
 func New(cfg Config) *Server {
 	if cfg.Now == nil {
@@ -200,7 +219,7 @@ func securityHeaders(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
 		h.ServeHTTP(w, r)
 	})
 }
@@ -226,11 +245,25 @@ type hub struct {
 
 func newHub() *hub { return &hub{listeners: map[*listener]bool{}} }
 
+// maxStreamsPerAccount bounds the live streams one account may hold open (B26):
+// a phone, a laptop and a kiosk or two, not a loop that opens thousands.
+const maxStreamsPerAccount = 8
+
+// add opens a stream; nil if the account already has its share.
 func (h *hub) add(account, token string) *listener {
-	l := &listener{account: account, token: token, ch: make(chan []byte, 64), done: make(chan struct{})}
 	h.mu.Lock()
+	defer h.mu.Unlock()
+	open := 0
+	for l := range h.listeners {
+		if l.account == account {
+			open++
+		}
+	}
+	if open >= maxStreamsPerAccount {
+		return nil
+	}
+	l := &listener{account: account, token: token, ch: make(chan []byte, 64), done: make(chan struct{})}
 	h.listeners[l] = true
-	h.mu.Unlock()
 	return l
 }
 
@@ -308,6 +341,9 @@ func (s *Server) Subscribe(token string) (drain func() []Event, stop func(), err
 		return nil, nil, fmt.Errorf("web: no approved session")
 	}
 	l := s.hub.add(id, token)
+	if l == nil {
+		return nil, nil, fmt.Errorf("web: too many open streams for this account")
+	}
 	drain = func() []Event {
 		var out []Event
 		for {

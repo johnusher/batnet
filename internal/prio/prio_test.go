@@ -17,7 +17,7 @@ func TestForPost(t *testing.T) {
 		{"low", "dm", false, 3},
 		{"high", "everyone", false, 8},
 		{"high", "public", true, 8}, // High never drops below 8
-		{"high", "dm", false, 9},
+		{"high", "dm", false, 8},    // nor above: 9 is the admin's Alert (B13)
 		{"alert", "everyone", false, 9},
 		{"", "everyone", false, 5}, // empty means normal
 	}

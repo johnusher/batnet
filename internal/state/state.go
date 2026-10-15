@@ -459,6 +459,19 @@ func (s *State) convName(k string) string {
 	return k
 }
 
+// LatestAlert is the newest alert that counts (written by an admin's own
+// house), or nil: the banner every phone shows, found again after a reload.
+func (s *State) LatestAlert() *Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for i := len(s.messages) - 1; i >= 0; i-- {
+		if m := s.messages[i]; m.Alert && s.counts(m) {
+			return m
+		}
+	}
+	return nil
+}
+
 // MessageByID returns a message or nil.
 func (s *State) MessageByID(id string) *Message {
 	s.mu.RLock()

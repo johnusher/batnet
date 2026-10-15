@@ -29,7 +29,7 @@ const T = {
     bedsideNoLock: 'Keep the screen on yourself: this browser can\'t.', tapToLeave: 'Tap to leave', display: 'Display', language: 'Language', auto: 'Automatic',
     largeText: 'Large text', on: 'On', off: 'Off', joinRequests: 'Join requests', noRequests: 'No requests.', approve: 'Approve', deny: 'Deny',
     alertEveryone: 'Alert everyone', alertHelp: 'For emergencies only. It goes ahead of everything else and shows at the top of every phone.',
-    sendAlert: 'Send alert to everyone', alertSent: 'Alert sent.', help: 'How batnet works', alertBanner: '⚠ Alert',
+    sendAlert: 'Send alert to everyone', alertSent: 'Alert sent.', help: 'How batnet works', alertBanner: '⚠ Alert', dismiss: 'Dismiss',
     helpText: [
       'batnet works without the internet. Your house\'s Pi links to the houses around it by WiFi, and to houses further away by radio.',
       'Your browser warned that this page is "not private" once. That\'s expected without the internet: the connection is still encrypted.',
@@ -59,7 +59,7 @@ const T = {
     bedsideNoLock: 'Lass den Bildschirm selbst an: Dieser Browser kann das nicht.', tapToLeave: 'Tippen zum Verlassen', display: 'Anzeige', language: 'Sprache', auto: 'Automatisch',
     largeText: 'Große Schrift', on: 'An', off: 'Aus', joinRequests: 'Beitrittsanfragen', noRequests: 'Keine Anfragen.', approve: 'Freigeben', deny: 'Ablehnen',
     alertEveryone: 'Alle alarmieren', alertHelp: 'Nur für Notfälle. Geht allem anderen vor und erscheint oben auf jedem Handy.',
-    sendAlert: 'Alarm an alle senden', alertSent: 'Alarm gesendet.', help: 'So funktioniert batnet', alertBanner: '⚠ Alarm',
+    sendAlert: 'Alarm an alle senden', alertSent: 'Alarm gesendet.', help: 'So funktioniert batnet', alertBanner: '⚠ Alarm', dismiss: 'Ausblenden',
     helpText: [
       'batnet funktioniert ohne Internet. Der Pi deines Hauses verbindet sich per WLAN mit den Häusern in der Nähe und per Funk mit weiter entfernten.',
       'Dein Browser hat einmal gewarnt, diese Seite sei „nicht privat“. Das ist ohne Internet normal: Die Verbindung ist trotzdem verschlüsselt.',
@@ -117,6 +117,38 @@ function show(...els) {
   app.replaceChildren(...els.filter((e) => e != null && e !== false));
   document.documentElement.lang = lang();
   document.body.classList.toggle('large', store('large') === '1');
+}
+
+// flash shows an error for a moment at the top of the page, so a button that
+// failed (out of range, refused) never just does nothing (B29).
+function flash(msg) {
+  let el = document.getElementById('flash');
+  if (!el) {
+    el = h('div', { id: 'flash', class: 'flash', role: 'alert' });
+    document.body.append(el);
+  }
+  el.textContent = msg;
+  el.hidden = false;
+  clearTimeout(state.flashTimer);
+  state.flashTimer = setTimeout(() => { el.hidden = true; }, 6000);
+}
+
+// act runs a button's request and flashes its error instead of swallowing it.
+async function act(f) {
+  try { await f(); } catch (x) { flash(x.message); }
+}
+
+// loadMe fetches who is signed in, and the village's latest alert with it.
+async function loadMe() {
+  state.me = await api('/api/me');
+  pickAlert(state.me && state.me.alert);
+}
+
+// pickAlert shows an alert unless it is the one the person already dismissed.
+function pickAlert(a) {
+  if (!a) return;
+  if (store('dismissedAlert') === a.id) return;
+  if (!state.alert || a.ts.Wall >= state.alert.ts.Wall) state.alert = a;
 }
 
 async function api(path, body) {
@@ -228,24 +260,29 @@ const outbox = {
     this.flush();
   },
   busy: false,
+  again: false, // a message was written while a round was sending: go round once more (B27)
   async flush() {
-    if (this.busy || !state.me || state.me.status !== 'approved') return;
+    if (!state.me || state.me.status !== 'approved') return;
+    if (this.busy) { this.again = true; return; }
     this.busy = true;
     try {
-      for (const item of await this.all()) {
-        if (item.status === 'failed' || !this.mine(item)) continue;
-        try {
-          await api('/api/post', { conv: item.conv, text: item.text, prio: item.prio, loc: item.loc, clientId: item.clientId });
-          await this.remove(item.clientId);
-        } catch (e) {
-          if (e.status === 401) break; // signed out: keep it until the person signs in again
-          if (!e.status || e.status >= 500) break; // out of range or the Pi is busy: try later
-          // refused (e.g. 429, the High limit): mark it with the reason and carry on with the rest
-          item.status = 'failed';
-          item.error = e.message;
-          await this.put(item);
+      do {
+        this.again = false;
+        for (const item of await this.all()) {
+          if (item.status === 'failed' || !this.mine(item)) continue;
+          try {
+            await api('/api/post', { conv: item.conv, text: item.text, prio: item.prio, loc: item.loc, clientId: item.clientId });
+            await this.remove(item.clientId);
+          } catch (e) {
+            if (e.status === 401) { this.again = false; break; } // signed out: keep it until the person signs in again
+            if (!e.status || e.status >= 500) { this.again = false; break; } // out of range or the Pi is busy: try later
+            // refused (e.g. 429, the High limit): mark it with the reason and carry on with the rest
+            item.status = 'failed';
+            item.error = e.message;
+            await this.put(item);
+          }
         }
-      }
+      } while (this.again);
     } finally {
       this.busy = false;
     }
@@ -260,7 +297,7 @@ setInterval(() => outbox.flush(), 15000);
 async function boot() {
   try { state.house = (await api('/api/house')).house; } catch (e) { state.house = ''; }
   document.title = 'batnet · ' + state.house;
-  try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
+  try { await loadMe(); } catch (e) { state.me = null; }
   route();
   outbox.flush();
 }
@@ -288,7 +325,7 @@ function landing(mode) {
     err.textContent = '';
     try {
       await api(mode === 'signup' ? '/api/signup' : '/api/login', { name: name.value, pin: pin.value });
-      state.me = await api('/api/me');
+      await loadMe();
       route();
       outbox.flush();
     } catch (x) {
@@ -321,7 +358,7 @@ function pending() {
   clearTimeout(state.pendingTimer);
   if (denied) return;
   state.pendingTimer = setTimeout(async () => {
-    try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
+    try { await loadMe(); } catch (e) { state.me = null; }
     route();
   }, 5000);
 }
@@ -347,9 +384,9 @@ function listen() {
     try { m = JSON.parse(ev.data); } catch (e) { return; }
     const mine = m.from === state.me.account;
     const key = m.audience.startsWith('dm:') ? (mine ? m.audience : 'dm:' + m.from) : m.audience;
-    if (m.alert) state.alert = m;
+    if (m.alert) pickAlert(m);
     if (!mine) beep(m.alert ? 'alert' : m.prio >= 8 ? 'high' : 'normal');
-    if (state.bedside) return;
+    if (state.bedside) { if (m.alert) bedside(); return; } // the dim screen shows the alert's text too (B28)
     if (state.conv === key) appendBubble(m); // add it in place: rebuilding would wipe what the person is typing
     else {
       if (!mine) state.unread[key] = (state.unread[key] || 0) + 1;
@@ -367,7 +404,7 @@ function listen() {
       // the browser gave up (e.g. the Pi restarted and the session is gone): check, then reconnect with backoff
       state.events = null;
       setTimeout(async () => {
-        try { state.me = await api('/api/me'); } catch (e) { state.me = null; }
+        try { await loadMe(); } catch (e) { state.me = null; }
         state.retry = Math.min(state.retry * 2, 60000);
         route();
       }, state.retry);
@@ -385,7 +422,10 @@ function tabs() {
 function alertBar() {
   const a = state.alert;
   if (!a) return null;
-  return h('div', { class: 'alertbar', role: 'alert' }, h('b', {}, t('alertBanner') + ' · '), a.text);
+  const dismiss = () => { store('dismissedAlert', a.id); state.alert = null; route(); };
+  return h('div', { class: 'alertbar', role: 'alert' },
+    h('span', { class: 'main' }, h('b', {}, t('alertBanner') + ' · '), a.text, ' ', h('span', { class: 'small' }, time(a.ts))),
+    h('button', { class: 'close', type: 'button', 'aria-label': t('dismiss'), title: t('dismiss'), onclick: dismiss }, '×'));
 }
 
 async function chats() {
@@ -394,7 +434,7 @@ async function chats() {
   try {
     [convs, dir] = await Promise.all([api('/api/conversations'), api('/api/directory')]);
   } catch (e) { if (e.status === 401) return logout(); }
-  for (const c of convs) if (c.last && c.last.alert && (!state.alert || c.last.ts.Wall > state.alert.ts.Wall)) state.alert = c.last;
+  for (const c of convs) if (c.last && c.last.alert) pickAlert(c.last);
   const keys = new Set(convs.map((c) => c.key));
   const rows = convs.map((c) => convRow(c.key, c.key === 'everyone' ? t('everyone') : c.name, c.last));
   if (!keys.has('everyone')) rows.unshift(convRow('everyone', t('everyone'), null));
@@ -525,8 +565,8 @@ async function people() {
     rows.push(h('div', { class: 'row' },
       h('span', { class: 'av' }, initials(g.name)),
       h('button', { class: 'main title plain', onclick: () => { state.conv = 'group:' + g.id; conversation(); } }, g.name),
-      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/join', { group: g.id }); people(); } }, t('join')),
-      h('button', { class: 'btn ghost', onclick: async () => { await api('/api/groups/leave', { group: g.id }); people(); } }, t('leave'))));
+      h('button', { class: 'btn ghost', onclick: () => act(async () => { await api('/api/groups/join', { group: g.id }); people(); }) }, t('join')),
+      h('button', { class: 'btn ghost', onclick: () => act(async () => { await api('/api/groups/leave', { group: g.id }); people(); }) }, t('leave'))));
   }
   show(h('header', {}, h('h1', {}, t('people'), h('span', { class: 'sub' }, t('everyoneIn')))), h('div', { class: 'grow' }, rows), tabs());
 }
@@ -539,11 +579,11 @@ const nextLang = { auto: 'en', en: 'de', de: 'auto' };
 
 async function settings() {
   const me = state.me;
-  const toggle = (field) => async () => {
+  const toggle = (field) => () => act(async () => {
     await api('/api/settings', { [field]: !me[field] });
-    state.me = await api('/api/me');
+    await loadMe();
     settings();
-  };
+  });
   const parts = [
     h('div', { class: 'section' }, t('you')),
     setRow(me.name + ' · ' + (me.house || state.house), null, t('signOut'), logout),
@@ -567,8 +607,8 @@ async function settings() {
     if (!pend.length) parts.push(h('div', { class: 'pad' }, h('p', { class: 'muted' }, t('noRequests'))));
     for (const p of pend) {
       parts.push(h('div', { class: 'row' }, h('span', { class: 'av' }, initials(p.name)), h('span', { class: 'main title' }, p.name),
-        h('button', { class: 'btn', onclick: async () => { await api('/api/admin/approve', { account: p.id }); settings(); } }, t('approve')),
-        h('button', { class: 'btn ghost', onclick: async () => { await api('/api/admin/deny', { account: p.id }); settings(); } }, t('deny'))));
+        h('button', { class: 'btn', onclick: () => act(async () => { await api('/api/admin/approve', { account: p.id }); settings(); }) }, t('approve')),
+        h('button', { class: 'btn ghost', onclick: () => act(async () => { await api('/api/admin/deny', { account: p.id }); settings(); }) }, t('deny'))));
     }
     const alertText = h('textarea', { rows: 2, maxlength: 2000, 'aria-label': t('alertEveryone') });
     const alertMsg = h('p', { class: 'muted', role: 'status' });

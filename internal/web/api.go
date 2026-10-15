@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"mime"
 	"net"
 	"net/http"
 	"regexp"
@@ -60,7 +61,22 @@ func handle(f func(w http.ResponseWriter, r *http.Request) (any, error)) http.Ha
 	}
 }
 
+// jsonOnly refuses a request whose body isn't declared as JSON (B24): a form
+// on another site can post text/plain across origins without a preflight,
+// which would let it sign a phone in or out; application/json can't be sent
+// that way.
+func jsonOnly(r *http.Request) error {
+	mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if mt != "application/json" {
+		return fail(http.StatusUnsupportedMediaType, "Send JSON.")
+	}
+	return nil
+}
+
 func decode(r *http.Request, v any) error {
+	if err := jsonOnly(r); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -157,7 +173,10 @@ func (s *Server) api(mux *http.ServeMux) {
 			return nil, err
 		}
 		now := s.cfg.Now()
-		key := strings.ToLower(strings.TrimSpace(in.Name))
+		// The lockout is per phone and name (B22): a stranger guessing at Anna's
+		// PIN locks only their own phone out, not Anna's.
+		addr, _, _ := net.SplitHostPort(r.RemoteAddr)
+		key := addr + "\x00" + strings.ToLower(strings.TrimSpace(in.Name))
 		if wait := s.lockout.Try(key, now); wait > 0 { // counts this attempt before checking, so parallel guesses can't slip through
 			return nil, &apiError{code: http.StatusTooManyRequests, msg: "Too many wrong PINs. Try again later.", wait: wait}
 		}
@@ -174,9 +193,15 @@ func (s *Server) api(mux *http.ServeMux) {
 				return map[string]string{"account": a.ID}, nil
 			}
 		}
+		if len(named) == 0 {
+			s.hashSlot(func() { auth.CheckPIN(dummyHash(), in.Pin) }) // the same work as a wrong PIN, so timing doesn't say whether the name exists (B23)
+		}
 		return nil, fail(http.StatusUnauthorized, "Name or PIN not recognised.")
 	}))
 	mux.HandleFunc("POST /api/logout", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		if err := jsonOnly(r); err != nil {
+			return nil, err
+		}
 		if ck, err := r.Cookie("batnet"); err == nil {
 			s.sessions.End(ck.Value)
 			s.hub.end(ck.Value)
@@ -192,8 +217,12 @@ func (s *Server) api(mux *http.ServeMux) {
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"account": a.ID, "name": a.Name, "house": s.cfg.State.HouseName(a.Home), "here": s.cfg.House,
-			"status": a.Status, "admin": a.Admin && a.Home == s.cfg.Author.ID(), "speaker": a.Speaker, "quietHours": a.QuietHours}, nil
+		me := map[string]any{"account": a.ID, "name": a.Name, "house": s.cfg.State.HouseName(a.Home), "here": s.cfg.House,
+			"status": a.Status, "admin": a.Admin && a.Home == s.cfg.Author.ID(), "speaker": a.Speaker, "quietHours": a.QuietHours}
+		if a.Status == "approved" {
+			me["alert"] = s.cfg.State.LatestAlert() // the banner, so a reloaded page shows it again
+		}
+		return me, nil
 	}))
 	mux.HandleFunc("POST /api/settings", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		a, err := s.member(r)
@@ -410,13 +439,19 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 			http.Error(w, "streaming unsupported", http.StatusInternalServerError)
 			return
 		}
+		ck, _ := r.Cookie("batnet")
+		l := s.hub.add(a.ID, ck.Value)
+		if l == nil {
+			handle(func(http.ResponseWriter, *http.Request) (any, error) {
+				return nil, fail(http.StatusTooManyRequests, "Too many open screens for this account. Close one and try again.")
+			})(w, r)
+			return
+		}
+		defer s.hub.remove(l)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-store")
 		w.WriteHeader(http.StatusOK)
 		fl.Flush()
-		ck, _ := r.Cookie("batnet")
-		l := s.hub.add(a.ID, ck.Value)
-		defer s.hub.remove(l)
 		ping := time.NewTicker(25 * time.Second)
 		defer ping.Stop()
 		for {

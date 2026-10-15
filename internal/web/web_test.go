@@ -490,3 +490,96 @@ func TestAppHasTheFullFeatures(t *testing.T) {
 		}
 	}
 }
+
+// B22: a stranger guessing at Anna's PIN from their own phone locks that
+// phone out, not Anna on hers.
+func TestLockoutIsPerPhone(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	guess := func(addr string) int {
+		req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{"name":"Anna","pin":"000000"}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = addr
+		rec := httptest.NewRecorder()
+		h.srv.Handler().ServeHTTP(rec, req)
+		return rec.Code
+	}
+	for i := 0; i < 6; i++ {
+		guess("10.0.0.9:4000")
+	}
+	if guess("10.0.0.9:4000") != http.StatusTooManyRequests {
+		t.Fatal("the guessing phone is not locked out")
+	}
+	req := httptest.NewRequest("POST", "/api/login", strings.NewReader(`{"name":"Anna","pin":"482915"}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "10.0.0.2:5000"
+	rec := httptest.NewRecorder()
+	h.srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != 200 {
+		t.Fatalf("Anna on her own phone got %d: someone else's guessing locked her out", rec.Code)
+	}
+}
+
+// B24: sign-in and sign-up take JSON only; a text/plain form (a cross-site
+// login attempt) is refused.
+func TestJSONOnly(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	for _, p := range []string{"/api/login", "/api/signup", "/api/logout"} {
+		resp, err := http.Post(h.ts.URL+p, "text/plain", strings.NewReader(`{"name":"Anna","pin":"482915"}`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusUnsupportedMediaType {
+			t.Errorf("%s with text/plain: %d, want 415", p, resp.StatusCode)
+		}
+	}
+}
+
+// B25: the page can't be framed, re-based or made to post elsewhere.
+func TestSecurityHeaders(t *testing.T) {
+	h := newHouse(t, "Miller")
+	resp, err := http.Get(h.ts.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	csp := resp.Header.Get("Content-Security-Policy")
+	for _, want := range []string{"frame-ancestors 'none'", "base-uri 'none'", "form-action 'self'", "default-src 'self'"} {
+		if !strings.Contains(csp, want) {
+			t.Errorf("CSP lacks %q: %s", want, csp)
+		}
+	}
+}
+
+// B26: one account can hold a few live streams, not thousands.
+func TestStreamsPerAccountAreCapped(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := &client{t: t, h: h}
+	anna.do("POST", "/api/login", map[string]string{"name": "Anna", "pin": "482915"})
+	var open []*http.Response
+	defer func() {
+		for _, r := range open {
+			r.Body.Close()
+		}
+	}()
+	for i := 0; i <= maxStreamsPerAccount; i++ {
+		req, _ := http.NewRequest("GET", h.ts.URL+"/api/events", nil)
+		for _, ck := range anna.jar {
+			req.AddCookie(ck)
+		}
+		resp, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		open = append(open, resp)
+		if i < maxStreamsPerAccount && resp.StatusCode != 200 {
+			t.Fatalf("stream %d refused: %d", i+1, resp.StatusCode)
+		}
+		if i == maxStreamsPerAccount && resp.StatusCode != http.StatusTooManyRequests {
+			t.Fatalf("stream %d opened: %d, want 429", i+1, resp.StatusCode)
+		}
+	}
+}

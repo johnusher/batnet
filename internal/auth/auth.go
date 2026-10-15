@@ -47,15 +47,18 @@ func HashPIN(pin string) (string, error) {
 	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s", argonMemKiB, argonTime, argonLanes, b64.EncodeToString(salt), b64.EncodeToString(h)), nil
 }
 
-// CheckPIN compares a PIN with an encoded hash in constant time.
+// CheckPIN compares a PIN with an encoded hash in constant time. Only hashes
+// made with this package's exact argon2 parameters are checked: the hash comes
+// from the log, and a rogue node's account must not make every sign-in here
+// spend a gigabyte on its cost settings (B21).
 func CheckPIN(encoded, pin string) bool {
 	parts := strings.Split(encoded, "$")
-	if len(parts) != 6 || parts[1] != "argon2id" {
+	if len(parts) != 6 || parts[1] != "argon2id" || parts[2] != "v=19" {
 		return false
 	}
 	var m, t uint32
 	var p uint8
-	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil || m > 1<<20 || t > 10 || p == 0 {
+	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &m, &t, &p); err != nil || m != argonMemKiB || t != argonTime || p != argonLanes {
 		return false
 	}
 	salt, err1 := b64.DecodeString(parts[4])
@@ -97,7 +100,19 @@ func (l *Lockout) Fail(account string, now time.Time) {
 // maxShift caps the doubling (1 min << 12 is about 68 h), so it can't overflow.
 const maxShift = 12
 
+// maxTracked bounds the table: past it, keys whose lockout has passed (or
+// that never reached one) are dropped, so made-up names can't grow it (B22).
+const maxTracked = 1000
+
 func (l *Lockout) fail(account string, now time.Time) {
+	if len(l.fails) >= maxTracked {
+		for k := range l.fails {
+			if !now.Before(l.until[k]) {
+				delete(l.fails, k)
+				delete(l.until, k)
+			}
+		}
+	}
 	l.fails[account]++
 	if n := l.fails[account]; n >= freeTries {
 		l.until[account] = now.Add(time.Minute << min(n-freeTries, maxShift))

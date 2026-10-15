@@ -21,12 +21,16 @@ type Choice string
 const hourUs = int64(3_600_000_000)
 
 // ForPost is a post's level: the choice, +1 for a direct message, -1 for a
-// public post or a resend; High never below 8, Alert always 9.
+// public post or a resend; High is always 8, Alert always 9. Nothing a
+// person chooses reaches 9: that level is the admin's Alert alone.
 func ForPost(c Choice, audience string, resend bool) Level {
 	if c == "alert" {
 		return Alert
 	}
-	base := map[Choice]int{"low": int(Low), "normal": int(Normal), "high": int(High), "": int(Normal)}[c]
+	if c == "high" {
+		return High
+	}
+	base := map[Choice]int{"low": int(Low), "normal": int(Normal), "": int(Normal)}[c]
 	if base == 0 {
 		base = int(Normal)
 	}
@@ -40,10 +44,8 @@ func ForPost(c Choice, audience string, resend bool) Level {
 		base--
 	}
 	switch {
-	case c == "high" && base < int(High):
-		base = int(High)
-	case base > int(Alert):
-		base = int(Alert)
+	case base >= int(High):
+		base = int(High) - 1
 	case base < 0:
 		base = 0
 	}
