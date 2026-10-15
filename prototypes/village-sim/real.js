@@ -133,6 +133,7 @@
     $('#rv-checks').innerHTML = (rep.Checks || []).map((c) => done
       ? `<li class="${c.Pass ? 'ok' : 'bad'}"><b>${c.Pass ? '✓' : '✗'} ${esc(c.Kind)}</b> ${esc(c.Detail)}</li>`
       : `<li><b>⋯ ${esc(c.Kind)}</b> judged when the scenario ends. So far: ${esc(c.Detail)}</li>`).join('') || '<li>No checks in this scenario.</li>';
+    if (rep.Expect === 'fail') $('#rv-checks').innerHTML = `<li class="bad"><b>Known problem.</b> ${esc(rep.Because)}</li>` + $('#rv-checks').innerHTML;
     $('#rv-posts').innerHTML = (state.posts || []).slice().reverse().slice(0, 12).map((p) => `<li><b>${esc(p.house)}</b> ${p.prio >= 8 ? '<span class="chip warn">High</span> ' : ''}${esc(p.text)} <span class="note">· at ${p.arrived} other house${p.arrived === 1 ? '' : 's'}</span></li>`).join('');
     const n = selected && state.nodes.find((x) => x.name === selected);
     $('#rv-house').innerHTML = n ? `<h3>${esc(n.name)}</h3><p class="meta">${n.kind === 'relay' ? 'Relay' : esc(n.pi) + ' · ' + esc(n.wifi) + ' · ' + n.people + ' people'} · holds ${n.entries} entries · ${n.on ? (n.group >= 0 ? 'WiFi group ' + (n.group + 1) : '') : 'no power'}</p>
