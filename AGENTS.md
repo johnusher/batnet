@@ -7,8 +7,8 @@ Instructions for coding agents (Claude Code, Codex, others) working in this repo
 batnet (working name) turns Raspberry Pis into grid-down community comms: a Pi
 per house with an open hotspot and a WhatsApp-like web app, houses linked by a
 batman-adv WiFi mesh and by Meshtastic LoRa. Start with
-[`knowledge/vision.md`](knowledge/vision.md). The project is in the **design
-phase**: no product code yet; specs go in `docs/specs/`.
+[`knowledge/vision.md`](knowledge/vision.md). The milestone 1 design is approved ([spec](docs/specs/2026-10-15-m1-design.md));
+implementation follows the plans in `docs/plans/`.
 
 ## Where things are
 
@@ -16,7 +16,9 @@ phase**: no product code yet; specs go in `docs/specs/`.
 |---|---|
 | `knowledge/` | The knowledge bundle (OKF v0.2): vision, decisions, research, hardware, security, skills. Read its `index.md` first. |
 | `prototypes/` | Throwaway design prototypes. `village-sim/`: the in-browser village model + web app mockup (`sim.js` runs in node too) |
-| `docs/specs/` | Design specs, one per milestone, written after the design is agreed |
+| `docs/specs/` | Design specs, one per milestone, written after the design is agreed. Milestone 1: `2026-10-15-m1-design.md` (approved) |
+| `docs/plans/` | Implementation plans, one per subsystem of a milestone |
+| `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` |
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |

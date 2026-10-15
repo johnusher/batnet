@@ -35,3 +35,15 @@ page and come from [LoRa airtime](/research/lora-airtime-eu868.md) and
   are cut off. The installer should warn when a group has none.
 * The model's queue had a head-of-line bug (one blocked radio stalled all others);
   batnetd's LoRa scheduler must keep a queue per radio.
+
+# Added 2026-10-15
+
+* **Priority** ([0015](/decisions/0015-message-priority.md)): stress scenario,
+  6 h, 5% of messages High and 12.5% Low: slowest 5% of LoRa deliveries 21 min
+  for High against 131 min for Normal. In quiet villages every level arrives in
+  about 2 s; priority cannot create airtime.
+* **Meshtastic users** now hear every packet in range: they read public posts
+  and pass batnet's encrypted packets on. In the 12-house village over 6 h each
+  heard about 40 public posts and relayed about 680 batnet packets.
+* About one message in six is a voice message (M2 preview); over LoRa it costs
+  the same as its transcript.

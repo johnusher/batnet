@@ -60,6 +60,8 @@ deployment is a village, houses 150 m to 1 km apart.
 | **M4** | Radio scanner: SDR sweep, human-comms detection, band-plan labels, village "on air" view, Meshtastic preset sweep |
 | Later | Video calls, sensor and camera nodes, solar/battery monitoring, announcer speaker |
 
+Milestone 1 is specified in the [milestone 1 spec](https://github.com/johnusher/batnet/blob/main/docs/specs/2026-10-15-m1-design.md) (approved 2026-10-15).
+
 # Milestone 1 is done when
 
 1. Phone A on house 1 sends text; phone B at a LoRa-only house receives it.

@@ -1,10 +1,11 @@
 ---
 type: Decision
-title: "0012: Pocket node for portable use (draft)"
+title: "0012: Pocket node for portable use"
 description: A Pi Zero 2 W with a LoRa HAT and a power bank serves a few phones on its hotspot and links to other nodes over LoRa, for festivals, camps and hikes.
 tags: [portable, pi-zero, festival, hardware]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-15T05:33:29Z }
+verified: { by: human:johnusher, at: 2026-10-15T06:27:44Z }
 ---
 
 # Context
@@ -14,7 +15,7 @@ Glastonbury), camps, hikes. A house Pi (Pi 4/5 with two WiFi radios, decision
 [0003](/decisions/0003-house-node-browser-app.md)) needs mains or a big battery
 and a case of its own. People should be able to carry a node.
 
-# Decision (proposed)
+# Decision
 
 A **pocket node** is the `house` role on a Pi Zero 2 W:
 

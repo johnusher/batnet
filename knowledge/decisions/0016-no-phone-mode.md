@@ -1,10 +1,11 @@
 ---
 type: Decision
-title: "0016: No-phone mode on the Pi's own screen (draft)"
+title: "0016: No-phone mode on the Pi's own screen"
 description: With a screen and keyboard plugged in, a Pi 4/5 shows the same web app full-screen as a shared terminal or a notice board; a Pi Zero or 3 gets a text-only terminal app later.
 tags: [kiosk, hdmi, accessibility, shared-device, notice-board]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-15T06:18:29Z }
+verified: { by: human:johnusher, at: 2026-10-15T06:27:44Z }
 ---
 
 # Context
@@ -17,7 +18,7 @@ It also covers a Pi whose WiFi can't serve phones: a Pi with one WiFi radio
 spent on the batman-adv mesh (no dongle), or a weak built-in radio. Such a Pi
 is still a full member of the village through its own screen (user, 2026-10-15).
 
-# Decision (proposed)
+# Decision
 
 * **Pi 4/5 with a screen at boot:** start a full-screen browser (Chromium under
   the cage kiosk compositor, Wayland, no desktop) on the **same web app**, served

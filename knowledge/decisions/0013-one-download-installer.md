@@ -1,10 +1,11 @@
 ---
 type: Decision
-title: "0013: One download to install (draft)"
+title: "0013: One download to install"
 description: People get batnet as one zip from a fixed link, no GitHub account needed; scripts inside open Raspberry Pi Imager on the batnet image. A one-line install covers Pis that already run Raspberry Pi OS.
 tags: [installer, setup, release, usability]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-15T05:46:54Z }
+verified: { by: human:johnusher, at: 2026-10-15T06:27:44Z }
 ---
 
 # Context
@@ -13,7 +14,7 @@ The README is for the general public: most readers have never used GitHub or a
 Raspberry Pi (user, 2026-10-15). Cloning a repo or typing commands on a Pi loses
 them. Writing an SD card by hand (dd, picking a disk) can wipe the wrong drive.
 
-# Decision (proposed)
+# Decision
 
 * **Path A, download and install** (the default in the README): a release asset
   at a link that never changes,

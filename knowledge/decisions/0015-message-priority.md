@@ -1,10 +1,11 @@
 ---
 type: Decision
-title: "0015: Message priority - High, Normal, Low on a 0-9 scale (draft)"
+title: "0015: Message priority - High, Normal, Low on a 0-9 scale"
 description: People pick High, Normal or Low (admins also Alert); the network turns that into 0-9 for the radio queue, notifications and speech work. High is rate-limited.
 tags: [priority, lora, queue, alerts, ui]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-15T06:12:37Z }
+verified: { by: human:johnusher, at: 2026-10-15T06:27:44Z }
 sources:
   - id: mesh-proto
     resource: https://github.com/meshtastic/protobufs/blob/master/meshtastic/mesh.proto
@@ -22,7 +23,7 @@ ACK 120) but it orders one radio's own queue and is **never sent over the
 air**.[^mesh-proto] batnet must carry priority in its own envelope so every
 batnet gateway on the way applies it.
 
-# Decision (proposed)
+# Decision
 
 **What people see:** a ❗ button beside the message box. Normal by default;
 **High** ("goes first over the radio and alerts people"), **Low** ("can wait,
