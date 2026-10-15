@@ -260,3 +260,44 @@ func (h *hub) state() {
 
 // State is the house's view of the village (the simulator and tests read it).
 func (s *Server) State() *state.State { return s.cfg.State }
+
+// NewSession signs a person in without a PIN. The simulator uses it to pick a
+// persona; nothing reachable over the network calls it.
+func (s *Server) NewSession(account string) string { return s.sessions.New(account, s.cfg.Now()) }
+
+// Event is one item of a session's live stream.
+type Event struct {
+	Name string `json:"name"`
+	Data string `json:"data"`
+}
+
+// Subscribe opens a live stream for a session without HTTP (the simulator
+// polls it). drain returns what arrived since the last call; stop ends it.
+func (s *Server) Subscribe(token string) (drain func() []Event, stop func(), err error) {
+	id, ok := s.sessions.Get(token, s.cfg.Now())
+	if !ok || !s.cfg.State.Approved(id) {
+		return nil, nil, fmt.Errorf("web: no approved session")
+	}
+	l := s.hub.add(id, token)
+	drain = func() []Event {
+		var out []Event
+		for {
+			select {
+			case b := <-l.ch:
+				name, data := "", ""
+				for _, line := range strings.Split(string(b), "\n") {
+					if v, ok := strings.CutPrefix(line, "event: "); ok {
+						name = v
+					}
+					if v, ok := strings.CutPrefix(line, "data: "); ok {
+						data = v
+					}
+				}
+				out = append(out, Event{Name: name, Data: data})
+			default:
+				return out
+			}
+		}
+	}
+	return drain, func() { s.hub.remove(l) }, nil
+}

@@ -3,9 +3,14 @@ package sim
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"time"
 
 	"github.com/johnusher/batnet/internal/lora"
+	"github.com/johnusher/batnet/internal/web"
 )
 
 // API is what the simulator page calls through WebAssembly.
@@ -14,6 +19,7 @@ type API struct {
 	v       *Village
 	frames  []frameJSON
 	packets []packetJSON
+	subs    map[string]func() []web.Event // live streams of the page's phone sessions
 }
 
 type packetJSON struct {
@@ -39,7 +45,7 @@ func (a *API) Load(scenarioJSON []byte) error {
 	if err != nil {
 		return err
 	}
-	a.sc, a.v, a.frames, a.packets = sc, v, nil, nil
+	a.sc, a.v, a.frames, a.packets, a.subs = sc, v, nil, nil, nil
 	v.LoRa.OnTransmit = func(from string, at, dur int64, heard []string) {
 		if len(a.packets) < 300 {
 			a.packets = append(a.packets, packetJSON{From: from, At: at, Dur: dur, Heard: heard})
@@ -179,5 +185,117 @@ func (a *API) Report() []byte {
 		return []byte(`{"error":"no scenario loaded"}`)
 	}
 	b, _ := json.Marshal(Judge(a.sc, a.v))
+	return b
+}
+
+// People lists every house's approved people, for the page's persona picker.
+func (a *API) People() []byte {
+	type person struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Admin bool   `json:"admin"`
+	}
+	type house struct {
+		House  string   `json:"house"`
+		People []person `json:"people"`
+	}
+	out := []house{}
+	if a.v != nil {
+		for _, n := range a.v.Nodes {
+			if n.Web == nil {
+				continue
+			}
+			h := house{House: n.Name, People: []person{}}
+			for _, d := range n.Web.State().Directory() {
+				if d.Name != n.Name {
+					continue
+				}
+				for _, p := range d.People {
+					h.People = append(h.People, person{ID: p.ID, Name: p.Name, Admin: p.Admin})
+				}
+			}
+			out = append(out, h)
+		}
+	}
+	b, _ := json.Marshal(out)
+	return b
+}
+
+func (a *API) house(name string) (*Node, error) {
+	if a.v == nil {
+		return nil, errNotLoaded
+	}
+	n := a.v.Node(name)
+	if n == nil || n.Web == nil {
+		return nil, fmt.Errorf("sim: no house %q", name)
+	}
+	return n, nil
+}
+
+// Login signs a person in at a house without a PIN and returns the session token.
+func (a *API) Login(house, account string) (string, error) {
+	n, err := a.house(house)
+	if err != nil {
+		return "", err
+	}
+	if !n.Web.State().Approved(account) {
+		return "", fmt.Errorf("sim: no approved account %q", account)
+	}
+	return n.Web.NewSession(account), nil
+}
+
+// HTTP runs one request against a house's real server, in process.
+func (a *API) HTTP(house, method, path, body, token string) (int, string, string) {
+	n, err := a.house(house)
+	if err != nil {
+		return 400, token, `{"error":"` + err.Error() + `"}`
+	}
+	if strings.HasPrefix(path, "/api/events") {
+		return 400, token, `{"error":"use events() in the simulator"}`
+	}
+	req := httptest.NewRequest(method, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.RemoteAddr = "10.0.0.2:5000" // a phone on the house hotspot
+	if token != "" {
+		req.AddCookie(&http.Cookie{Name: "batnet", Value: token})
+	}
+	rec := httptest.NewRecorder()
+	n.Web.Handler().ServeHTTP(rec, req)
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "batnet" {
+			token = c.Value
+			if c.MaxAge < 0 {
+				token = ""
+			}
+		}
+	}
+	return rec.Code, token, rec.Body.String()
+}
+
+// Events returns what a session's live stream received since the last call;
+// the first call subscribes and returns nothing.
+func (a *API) Events(house, token string) []byte {
+	n, err := a.house(house)
+	if err != nil || token == "" {
+		return []byte("[]")
+	}
+	if a.subs == nil {
+		a.subs = map[string]func() []web.Event{}
+	}
+	k := house + "\x00" + token
+	drain, ok := a.subs[k]
+	if !ok {
+		d, _, err := n.Web.Subscribe(token)
+		if err != nil {
+			return []byte("[]")
+		}
+		a.subs[k] = d
+		return []byte("[]")
+	}
+	out := drain()
+	if out == nil {
+		out = []web.Event{}
+	}
+	b, _ := json.Marshal(out)
 	return b
 }
