@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-15
+* **Creation**: Draft decision [0016 No-phone mode](/decisions/0016-no-phone-mode.md) and a no-phone section in the [vision](/vision.md); design sections 3 (web app) and 4 (set-up, keys, QR join) approved.
 * **Creation**: Draft decision [0015 Message priority](/decisions/0015-message-priority.md), modelled in the village simulator.
 * **Creation**: Draft decision [0014 Speech pipeline](/decisions/0014-speech-pipeline.md); 0012 updated on speech for the Zero 2 W.
 * **Creation**: Research note [Speech pipeline](/research/speech-pipeline.md): VAD, denoiser, speech-to-text and text-to-speech per board, with sources; finds that denoising before speech-to-text hurts accuracy and that Moonshine Tiny may fit a Zero 2 W.

@@ -17,3 +17,4 @@ Architecture decision records. `draft` = proposed, not yet agreed.
 * [0013 One download to install (draft)](0013-one-download-installer.md) - one zip from a fixed link with Imager-based install scripts; one command for existing Pis
 * [0014 Speech pipeline (draft)](0014-speech-pipeline.md) - Moonshine on the raw audio, denoise only what people hear, the phone's own voice reads text aloud
 * [0015 Message priority (draft)](0015-message-priority.md) - High, Normal, Low (and admin Alert) mapped to 0-9 for the radio queue; High rate-limited
+* [0016 No-phone mode (draft)](0016-no-phone-mode.md) - screen and keyboard on a Pi 4/5: the same app full-screen as a shared terminal or notice board

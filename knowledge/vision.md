@@ -28,6 +28,13 @@ own (Zero, Zero 2, 3, 4, 5), and simple enough for others to set up.
   meshes, walkie-talkie and ham bands, any 868 MHz LoRa, anything that looks
   like human comms (activity only, never content).
 
+# No-phone mode
+
+A node must also work with no phone at all (user, 2026-10-15): plug a screen
+and keyboard (or the official touchscreen) into the Pi and use batnet on it
+directly, like a shared household computer or a notice board in a village
+hall. See [decision 0016](/decisions/0016-no-phone-mode.md).
+
 # Portable use
 
 The same kit travels (user, 2026-10-15): festivals such as Burning Man and
