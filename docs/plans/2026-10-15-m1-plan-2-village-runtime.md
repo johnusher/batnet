@@ -707,7 +707,7 @@ type AirNode struct {
 // SetDeliver sets what happens when a broadcast arrives (the Village calls the Syncer).
 func (n *AirNode) SetDeliver(f func(meshsync.Packet)) { n.deliver = f }
 
-func (n *AirNode) Addr_() string { return n.Name }
+func (n *AirNode) Addr() string { return n.Name }
 
 func (n *AirNode) Broadcast(pkt []byte) error {
 	if n.On {
