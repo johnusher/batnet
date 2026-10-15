@@ -5,21 +5,21 @@
   "duration": "30m",
   "start": "02:00",
   "houses": [
-    {"name": "Miller", "x": 0, "y": 0, "pi": "Pi 4", "wifi": "dongle", "people": 3},
-    {"name": "Fern", "x": 200, "y": 40, "pi": "Pi 4", "wifi": "dongle", "people": 2},
-    {"name": "Okafor", "x": 400, "y": 0, "pi": "Pi 5", "wifi": "dongle", "people": 5},
-    {"name": "Novak", "x": 600, "y": 60, "pi": "Pi 3", "wifi": "dongle", "people": 2},
-    {"name": "Haddad", "x": 800, "y": 0, "pi": "Pi 4", "wifi": "dongle", "people": 4},
-    {"name": "Brandt", "x": 1000, "y": 30, "pi": "Pi 4", "wifi": "dongle", "people": 3},
-    {"name": "Kowalski", "x": 1200, "y": 0, "pi": "Pi 5", "wifi": "dongle", "people": 2},
+    {"name": "Usher", "x": 0, "y": 0, "pi": "Pi 4", "wifi": "dongle", "people": 3},
+    {"name": "Shemie", "x": 200, "y": 40, "pi": "Pi 4", "wifi": "dongle", "people": 2},
+    {"name": "Dittrich", "x": 400, "y": 0, "pi": "Pi 5", "wifi": "dongle", "people": 5},
+    {"name": "Green", "x": 600, "y": 60, "pi": "Pi 3", "wifi": "dongle", "people": 2},
+    {"name": "Willett", "x": 800, "y": 0, "pi": "Pi 4", "wifi": "dongle", "people": 4},
+    {"name": "Seigner", "x": 1000, "y": 30, "pi": "Pi 4", "wifi": "dongle", "people": 3},
+    {"name": "Chasserot", "x": 1200, "y": 0, "pi": "Pi 5", "wifi": "dongle", "people": 2},
     {"name": "Moreau", "x": 1400, "y": 50, "pi": "Pi 4", "wifi": "dongle", "people": 3}
   ],
   "traffic": {"perPersonPerHour": 4},
   "events": [
-    {"at": "3m", "kind": "power", "house": "Okafor", "on": false, "for": "8m"},
-    {"at": "6m", "kind": "power", "house": "Haddad", "on": false, "for": "10m"},
-    {"at": "7m", "kind": "post", "house": "Miller", "text": "Tree down on the low road", "prio": 8},
-    {"at": "12m", "kind": "power", "house": "Fern", "on": false, "for": "5m"}
+    {"at": "3m", "kind": "power", "house": "Dittrich", "on": false, "for": "8m"},
+    {"at": "6m", "kind": "power", "house": "Willett", "on": false, "for": "10m"},
+    {"at": "7m", "kind": "post", "house": "Usher", "text": "Tree down on the low road", "prio": 8},
+    {"at": "12m", "kind": "power", "house": "Shemie", "on": false, "for": "5m"}
   ],
   "checks": [{"kind": "converged"}, {"kind": "delivered", "within": "1m"}]
 }

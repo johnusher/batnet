@@ -5,7 +5,7 @@
   "start": "20:00",
   "houses": [
     {
-      "name": "Miller",
+      "name": "Usher",
       "x": 0,
       "y": 0,
       "pi": "Pi 4",
@@ -13,7 +13,7 @@
       "people": 3
     },
     {
-      "name": "Fern",
+      "name": "Shemie",
       "x": 250,
       "y": 0,
       "pi": "Pi 4",
@@ -21,7 +21,7 @@
       "people": 2
     },
     {
-      "name": "Okafor",
+      "name": "Dittrich",
       "x": 500,
       "y": 0,
       "pi": "Pi 5",
@@ -36,14 +36,14 @@
     {
       "at": "1m",
       "kind": "post",
-      "house": "Fern",
+      "house": "Shemie",
       "text": "Bread at the bakery",
       "prio": 8
     },
     {
       "at": "2m",
       "kind": "power",
-      "house": "Okafor",
+      "house": "Dittrich",
       "on": false,
       "for": "3m"
     },

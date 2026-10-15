@@ -422,8 +422,9 @@ func (v *Village) ConnectedFrom(a, b string, from int64) (int64, bool) {
 // RunFor advances virtual time by d.
 func (v *Village) RunFor(d int64) { v.Sch.RunUntil(v.Sch.Now() + d) }
 
-// peopleNames are placeholder first names for seeded accounts.
-var peopleNames = []string{"Anna", "Ben", "Cleo", "Dan", "Eva", "Finn", "Greta", "Hugo", "Ida", "Jonas", "Kira", "Leo", "Mila", "Noah", "Olga", "Paul"}
+// peopleNames are the seeded accounts' names, the same as the JavaScript model's:
+// ten from Hitchcock films, then Bond villains and British prime ministers, alternating.
+var peopleNames = []string{"Norman Bates", "Marion Crane", "Scottie Ferguson", "Madeleine Elster", "Roger Thornhill", "Eve Kendall", "L.B. Jefferies", "Lisa Fremont", "Mrs Danvers", "Melanie Daniels", "Auric Goldfinger", "Robert Walpole", "Ernst Blofeld", "William Pitt", "Dr. No", "Robert Peel", "Rosa Klebb", "Benjamin Disraeli", "Emilio Largo", "William Gladstone", "Red Grant", "Lord Salisbury", "Scaramanga", "Arthur Balfour", "Oddjob", "Herbert Asquith", "Karl Stromberg", "Lloyd George", "Jaws", "Stanley Baldwin", "Hugo Drax", "Ramsay MacDonald", "Kamal Khan", "Neville Chamberlain", "Max Zorin", "Winston Churchill", "Franz Sanchez", "Clement Attlee", "Alec Trevelyan", "Anthony Eden", "Xenia Onatopp", "Harold Macmillan", "Elliot Carver", "Harold Wilson", "Elektra King", "Edward Heath", "Renard", "James Callaghan", "Gustav Graves", "Margaret Thatcher", "Le Chiffre", "John Major", "Dominic Greene", "Tony Blair", "Raoul Silva", "Gordon Brown", "Mr. Big", "Theresa May", "Lyutsifer Safin", "Keir Starmer"}
 
 // Seed makes the village an established one: every house announced, with an
 // approved admin and its people as approved accounts, and the groups Medical
@@ -447,6 +448,7 @@ func (v *Village) Seed() error {
 		return e, err
 	}
 	first := true
+	k := 0 // names run on across the village, so each house has different people
 	for _, n := range v.Nodes {
 		if n.Kind != "house" {
 			continue
@@ -454,12 +456,12 @@ func (v *Village) Seed() error {
 		if _, err := write(n, ledger.TypeNodeAnnounce, map[string]string{"house": n.Name}); err != nil {
 			return err
 		}
-		names := append([]string{"Admin"}, peopleNames...)
 		for i := 0; i <= n.House.People; i++ {
-			name := names[i%len(names)]
-			if i >= len(names) {
-				name = fmt.Sprintf("%s %d", name, i/len(names)+1)
+			name := peopleNames[k%len(peopleNames)]
+			if k >= len(peopleNames) {
+				name = fmt.Sprintf("%s %d", name, k/len(peopleNames)+1)
 			}
+			k++
 			r, err := write(n, ledger.TypeAccountRequest, map[string]any{"name": name, "pinHash": pin, "admin": i == 0})
 			if err != nil {
 				return err

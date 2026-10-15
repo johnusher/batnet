@@ -9,7 +9,7 @@
   "preset": "LongFast",
   "houses": [
     {
-      "name": "Miller",
+      "name": "Usher",
       "x": 0,
       "y": 0,
       "pi": "Pi 4",
@@ -18,7 +18,7 @@
       "people": 2
     },
     {
-      "name": "Fern",
+      "name": "Shemie",
       "x": 2100,
       "y": 300,
       "pi": "Pi 4",
@@ -27,7 +27,7 @@
       "people": 2
     },
     {
-      "name": "Okafor",
+      "name": "Dittrich",
       "x": 4000,
       "y": 0,
       "pi": "Pi 4",
@@ -36,7 +36,7 @@
       "people": 2
     },
     {
-      "name": "Novak",
+      "name": "Green",
       "x": 1000,
       "y": 2000,
       "pi": "Pi 4",
@@ -45,7 +45,7 @@
       "people": 2
     },
     {
-      "name": "Haddad",
+      "name": "Willett",
       "x": 3000,
       "y": 2100,
       "pi": "Pi 4",
@@ -54,7 +54,7 @@
       "people": 2
     },
     {
-      "name": "Brandt",
+      "name": "Seigner",
       "x": 5000,
       "y": 2000,
       "pi": "Pi 4",
@@ -63,7 +63,7 @@
       "people": 2
     },
     {
-      "name": "Kowalski",
+      "name": "Chasserot",
       "x": 2000,
       "y": 4000,
       "pi": "Pi 4",
@@ -95,7 +95,7 @@
     {
       "at": "30m",
       "kind": "post",
-      "house": "Miller",
+      "house": "Usher",
       "text": "Cow loose on the north road",
       "prio": 8
     }
