@@ -193,7 +193,31 @@ func (s *Server) api(mux *http.ServeMux) {
 			return nil, err
 		}
 		return map[string]any{"account": a.ID, "name": a.Name, "house": s.cfg.State.HouseName(a.Home), "here": s.cfg.House,
-			"status": a.Status, "admin": a.Admin && a.Home == s.cfg.Author.ID()}, nil
+			"status": a.Status, "admin": a.Admin && a.Home == s.cfg.Author.ID(), "speaker": a.Speaker, "quietHours": a.QuietHours}, nil
+	}))
+	mux.HandleFunc("POST /api/settings", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
+		a, err := s.member(r)
+		if err != nil {
+			return nil, err
+		}
+		var in struct {
+			Speaker    *bool `json:"speaker"`
+			QuietHours *bool `json:"quietHours"`
+		}
+		if err := decode(r, &in); err != nil {
+			return nil, err
+		}
+		body := map[string]any{"account": a.ID}
+		if in.Speaker != nil {
+			body["speaker"] = *in.Speaker
+		}
+		if in.QuietHours != nil {
+			body["quietHours"] = *in.QuietHours
+		}
+		if _, err := s.Write(ledger.TypeAccountUpdate, prio.Housekeeping, body); err != nil {
+			return nil, err
+		}
+		return map[string]bool{"ok": true}, nil
 	}))
 	mux.HandleFunc("GET /api/admin/pending", handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
 		if _, err := s.admin(r); err != nil {

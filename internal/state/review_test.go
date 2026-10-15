@@ -78,3 +78,18 @@ func TestClientIDOnce(t *testing.T) {
 		t.Fatal("FindClient missed it")
 	}
 }
+
+func TestSettingsLatestWins(t *testing.T) {
+	all, miller, _, anna, _, _ := village(t)
+	miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": anna, "speaker": true})
+	miller.write(t, ledger.TypeAccountUpdate, map[string]any{"account": anna, "speaker": false, "quietHours": false})
+	es := append([]*ledger.Entry(nil), *all...)
+	es[len(es)-1], es[len(es)-2] = es[len(es)-2], es[len(es)-1] // reversed arrival
+	a := apply(es).Account(anna)
+	if a.Speaker || a.QuietHours {
+		t.Fatalf("speaker %v quiet %v; want both off", a.Speaker, a.QuietHours)
+	}
+	if b := apply(*all).Account(anna); b.Speaker {
+		t.Fatal("in order: speaker should be off")
+	}
+}

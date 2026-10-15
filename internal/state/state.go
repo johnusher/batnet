@@ -34,8 +34,12 @@ type Account struct {
 	Groups  map[string]bool `json:"-"`
 	Since   hlc.Timestamp   `json:"-"`
 
+	Speaker    bool `json:"speaker"`    // announce this person's messages on the house speaker (decision 0018)
+	QuietHours bool `json:"quietHours"` // silence the speaker at night, except High and Alert
+
 	verdictTS hlc.Timestamp            // the verdict in force: the latest valid one wins
 	groupTS   map[string]hlc.Timestamp // per group, the latest join or leave wins
+	settingTS map[string]hlc.Timestamp // per setting, the latest change wins
 }
 
 // clone copies an account so callers never share its maps with the state.
@@ -45,7 +49,7 @@ func (a *Account) clone() *Account {
 	for g, in := range a.Groups {
 		c.Groups[g] = in
 	}
-	c.groupTS = nil
+	c.groupTS, c.settingTS = nil, nil
 	return &c
 }
 
@@ -104,8 +108,9 @@ type verdict struct {
 }
 
 type membership struct {
-	join, leave []string
-	ts          hlc.Timestamp
+	join, leave         []string
+	speaker, quietHours *bool
+	ts                  hlc.Timestamp
 }
 
 // New returns an empty state.
@@ -143,7 +148,8 @@ func (s *State) Apply(e *ledger.Entry) {
 			return
 		}
 		id := AccountID(e.Key)
-		a := &Account{ID: id, Name: b.Name, PinHash: b.PinHash, Home: e.Key.Origin, Admin: b.Admin, Status: "pending", Groups: map[string]bool{}, Since: e.TS, groupTS: map[string]hlc.Timestamp{}}
+		a := &Account{ID: id, Name: b.Name, PinHash: b.PinHash, Home: e.Key.Origin, Admin: b.Admin, Status: "pending", Groups: map[string]bool{}, Since: e.TS,
+			QuietHours: true, groupTS: map[string]hlc.Timestamp{}, settingTS: map[string]hlc.Timestamp{}}
 		s.accounts[id] = a
 		for _, v := range s.verdicts[id] {
 			s.decide(a, v)
@@ -168,11 +174,13 @@ func (s *State) Apply(e *ledger.Entry) {
 		var b struct {
 			Account     string
 			Join, Leave []string
+			Speaker     *bool `json:"speaker"`
+			QuietHours  *bool `json:"quietHours"`
 		}
 		if json.Unmarshal(e.Body, &b) != nil {
 			return
 		}
-		u := membership{join: b.Join, leave: b.Leave, ts: e.TS}
+		u := membership{join: b.Join, leave: b.Leave, speaker: b.Speaker, quietHours: b.QuietHours, ts: e.TS}
 		if a := s.accounts[b.Account]; a != nil {
 			s.member(a, u)
 		} else {
@@ -254,6 +262,18 @@ func (s *State) member(a *Account, u membership) {
 	for _, g := range u.leave {
 		set(g, false)
 	}
+	setting := func(name string, v *bool, field *bool) {
+		if v == nil {
+			return
+		}
+		if last, ok := a.settingTS[name]; ok && !last.Less(u.ts) {
+			return
+		}
+		a.settingTS[name] = u.ts
+		*field = *v
+	}
+	setting("speaker", u.speaker, &a.Speaker)
+	setting("quietHours", u.quietHours, &a.QuietHours)
 }
 
 // Account returns an account or nil.

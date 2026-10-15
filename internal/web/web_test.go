@@ -446,3 +446,19 @@ func TestClientIDDedup(t *testing.T) {
 		t.Fatalf("a malformed clientId: %d", code)
 	}
 }
+
+// Review focus 2.
+func TestSettingsOwnOnly(t *testing.T) {
+	h := newHouse(t, "Miller")
+	h.srv.Bootstrap("Anna", "482915", nil)
+	anna := signedIn(t, h, "Anna", "482915")
+	if code, _ := anna.do("POST", "/api/settings", map[string]any{"speaker": true}); code != 200 {
+		t.Fatalf("settings: %d", code)
+	}
+	if _, me := anna.do("GET", "/api/me", nil); me["speaker"] != true || me["quietHours"] != true {
+		t.Fatalf("me: %v", me)
+	}
+	if code, _ := anna.do("POST", "/api/settings", map[string]any{"account": "someone-else", "speaker": true}); code != 400 {
+		t.Fatalf("a body naming another account: %d", code)
+	}
+}
