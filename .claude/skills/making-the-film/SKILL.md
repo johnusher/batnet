@@ -30,6 +30,15 @@ video editor. Read `video/README.md` first.
    `.../raw/film/preview.gif` (GitHub's README cannot embed a video from a
    branch, so the GIF with its play button is the clickable preview).
    Never on `main`.
+   **YouTube**: the film is on the owner's personal channel
+   (https://youtu.be/zk5At_n8p_c, uploaded by hand on 2026-10-15; the README
+   links it and the preview GIF opens it). `video/upload_youtube.py` can
+   upload and set title, description with chapters from the timeline, and
+   tags, but it needs a consent through the Google OAuth client in
+   `~/.config/google/`, whose consent screen is Internal to the Workspace
+   account, not the personal channel; until that is changed, upload a new
+   cut by hand and paste the description the script prints
+   (`python3 -c "import sys; sys.path.insert(0,'video'); import upload_youtube as u; print(u.DESCRIPTION.replace('{chapters}', u.chapters()))"`).
    A GitHub release (`gh release create film-vN video/out/batnet.mp4`) is the
    better home once the `gh` token has "Contents: write" on the repo; the
    fine-grained token of 2026-10-15 got HTTP 403 creating one.

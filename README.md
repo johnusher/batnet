@@ -6,9 +6,11 @@ and no account with any company.
 
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
-### [🎬 Watch the film (four and a half minutes)](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
+### [🎬 Watch the film (five minutes)](https://youtu.be/zk5At_n8p_c)
 
-[![A few seconds of the film: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang. Click to watch the whole film.](https://github.com/johnusher/batnet/raw/film/preview.gif)](https://github.com/johnusher/batnet/raw/film/batnet.mp4)
+[![A few seconds of the film: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang. Click to watch it on YouTube.](https://github.com/johnusher/batnet/raw/film/preview.gif)](https://youtu.be/zk5At_n8p_c)
+
+[Watch on YouTube](https://youtu.be/zk5At_n8p_c) · [Download the MP4](https://github.com/johnusher/batnet/raw/film/batnet.mp4) (1080p, 43 MB)
 
 batnet turns small, cheap computers into a local chat network for a house, a
 street, a village, a festival camp or a group on a hike. New to words like
@@ -670,13 +672,15 @@ Developers: the full list of technical terms is in
 
 ## The film
 
-**[Watch the film, four and a half minutes](https://github.com/johnusher/batnet/raw/film/batnet.mp4)**
-(MP4, 1080p; on the `film` branch, so the code branch stays small): a Berlin blackout, how a house node works, why it has two radios
-and what it costs, the questions people ask, Glastonbury with a lost child and a bang that
-everyone reports, and the simulator that runs the real code. The narrator's German accent is
-part of the act. The film is made from code in [`video/`](video/), so it can be
-re-cut as batnet changes; every number in it comes from the repo or the
-public record.
+**[Watch the film on YouTube](https://youtu.be/zk5At_n8p_c)** (five minutes), or
+[download the MP4](https://github.com/johnusher/batnet/raw/film/batnet.mp4) (1080p,
+43 MB; it lives on the `film` branch, so the code branch stays small): a Berlin
+blackout on the real map, how a house node works, why it has two radios and
+what it costs, the questions people ask, Glastonbury with a lost child and a
+bang that everyone reports, and the simulator that runs the real code. The
+narrator's German accent is part of the act. The film is made from code in
+[`video/`](video/), so it can be re-cut as batnet changes; every number in it
+comes from the repo or the public record.
 
 ## Try the simulator
 
