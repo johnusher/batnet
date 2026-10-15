@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-10-15
+* **Creation**: Decision [0011 MIT licence](/decisions/0011-mit-licence.md), as the repository went public.
+
 ## 2026-10-14
 * **Creation**: Built the village simulator prototype and recorded its [findings](/research/village-sim-findings.md).
 * **Update**: Baseline-tested a `capturing-knowledge` skill and found it unnecessary (see the [skill catalog](/skills/catalog.md)); added the `Test Report` type and the [tests](/tests/) section; marked planned skills as not yet existing.

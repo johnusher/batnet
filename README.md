@@ -127,4 +127,4 @@ cd tools/okflint && go run . ../../knowledge  # check the knowledge bundle by ha
 This repository is public, so never commit keys, passwords, real names or
 precise locations. See [secret hygiene](knowledge/security/secret-hygiene.md).
 
-**Licence:** to be decided before the first release.
+**Licence:** [MIT](LICENSE). You're free to use, copy, change and share batnet.

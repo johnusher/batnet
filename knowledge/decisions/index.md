@@ -12,3 +12,4 @@ Architecture decision records. `draft` = proposed, not yet agreed.
 * [0008 LongFast, one radio (draft)](0008-longfast-single-radio.md) - both channels on one HAT at LongFast; a second faster radio as an upgrade
 * [0009 Scanner reports activity only](0009-scanner-activity-only.md) - frequency, strength, time and label, never content
 * [0010 Milestone order](0010-milestone-order.md) - text first, then voice messages, calls, scanner
+* [0011 MIT licence](0011-mit-licence.md) - the whole repository is MIT-licensed
