@@ -16,3 +16,4 @@ Architecture decision records. `draft` = proposed, not yet agreed.
 * [0012 Pocket node (draft)](0012-pocket-node.md) - Pi Zero 2 W + LoRa HAT + power bank for festivals, camps and hikes
 * [0013 One download to install (draft)](0013-one-download-installer.md) - one zip from a fixed link with Imager-based install scripts; one command for existing Pis
 * [0014 Speech pipeline (draft)](0014-speech-pipeline.md) - Moonshine on the raw audio, denoise only what people hear, the phone's own voice reads text aloud
+* [0015 Message priority (draft)](0015-message-priority.md) - High, Normal, Low (and admin Alert) mapped to 0-9 for the radio queue; High rate-limited

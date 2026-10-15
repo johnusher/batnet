@@ -229,7 +229,7 @@
     // ----- the replicated log -----
     function recordDelivery(m, house, t, path) {
       m.deliv.set(house.id, { t, path });
-      if (house.id !== m.fromHouse) S.deliveries.push({ t, lat: t - m.t, path });
+      if (house.id !== m.fromHouse) S.deliveries.push({ t, lat: t - m.t, path, prio: m.prio || 'normal' });
     }
     function arrive(entry, m, t, path) {
       const cl = S.clusters[entry.cluster];
@@ -308,9 +308,30 @@
       for (const e of node.air) { used -= e.dur; if (used + dur <= DUTY_LIMIT_MS) return e.t + HOUR; }
       return S.now + HOUR;
     }
+    // Priority 0-9 for the radio queue. People pick Low / Normal / High (house admins also Alert);
+    // the network adds: direct messages +1, public posts -1, resends -1, and waiting raises a message
+    // one step per 20 minutes, never past 7, so Normal can't age into High but Low can't starve.
+    const PRIO_BASE = { low: 2, normal: 5, high: 8, alert: 9 };
+    function effPrio(it) {
+      let p;
+      if (it.kind === 'msg') {
+        const m = it.m;
+        p = PRIO_BASE[m.prio || 'normal'] + (m.kind === 'dm' ? 1 : 0) - (m.kind === 'public' ? 1 : 0) - (it.retry ? 1 : 0);
+        if (m.prio === 'high' || m.prio === 'alert') return Math.min(9, Math.max(8, p));
+        p = Math.min(p, 7);
+      } else p = it.kind === 'beacon' ? 6 : 1; // sync beacons keep recovery working; directory and housekeeping can wait
+      const aged = p + Math.floor((S.now - it.t) / (20 * MIN));
+      return Math.max(0, Math.min(Math.max(p, 7), aged));
+    }
+    S.effPrio = effPrio;
     function pump() {
       if (S.chan.busyUntil > S.now) return;
-      // Each radio keeps its own order; a radio at its duty limit must not hold up the others.
+      // Each radio sends its own highest-priority item first (oldest first within a level);
+      // a radio at its duty limit must not hold up the others.
+      if (S.queue.length > 1) {
+        for (const it of S.queue) it.ep = effPrio(it);
+        S.queue.sort((a, b) => b.ep - a.ep || a.t - b.t);
+      }
       let wake = Infinity;
       const blocked = new Set();
       for (let i = 0; i < S.queue.length; i++) {
@@ -396,7 +417,7 @@
       if (kind === 'everyone' && rnd() < 0.06) { while (t.length < 700) t += ' ' + pick(PHRASES.everyone); }
       return t;
     }
-    function send(personId, kind, to, text) {
+    function send(personId, kind, to, text, prio) {
       const p = S.personById.get(personId);
       const house = nodeById.get(p.houseId);
       if (!house.online) return null;
@@ -404,7 +425,7 @@
       if (kind === 'dm') { const q = S.personById.get(to); targets.add(q.houseId); targets.add(p.houseId); }
       else if (kind === 'group') { const g = S.groups.find((x) => x.id === to); for (const pid of g.members) targets.add(S.personById.get(pid).houseId); targets.add(p.houseId); }
       else for (const h of S.houses) targets.add(h.id);
-      const m = { id: S.nextMsgId++, t: S.now, from: personId, fromHouse: house.id, kind, to, text, targets, deliv: new Map(), loraBy: new Set(), inQueue: new Set(), truncated: false, via: null };
+      const m = { id: S.nextMsgId++, t: S.now, from: personId, fromHouse: house.id, kind, to, text, prio: prio || 'normal', targets, deliv: new Map(), loraBy: new Set(), inQueue: new Set(), truncated: false, via: null };
       S.msgs.push(m); S.msgById.set(m.id, m); S.counters.sent++;
       m.deliv.set(house.id, { t: S.now, path: 'local' });
       arrive(house, m, S.now, 'local');
@@ -428,16 +449,18 @@
       const online = S.people.filter((p) => nodeById.get(p.houseId).online);
       if (online.length && cfg.chat > 0) {
         const p = pick(online);
+        // people mark about 1 message in 20 High and 1 in 8 Low
+        const r2 = rnd(), prio = r2 < 0.05 ? 'high' : r2 < 0.175 ? 'low' : 'normal';
         const r = rnd();
         if (r < 0.55) {
           let q = pick(S.people), guard = 0;
           while ((q === p || (q.houseId === p.houseId && rnd() < 0.7)) && guard++ < 20) q = pick(S.people);
-          if (q !== p) send(p.id, 'dm', q.id, makeText('dm'));
+          if (q !== p) send(p.id, 'dm', q.id, makeText('dm'), prio);
         } else if (r < 0.85 && p.groups.size) {
           const g = pick([...p.groups]);
-          send(p.id, 'group', g, makeText(g));
+          send(p.id, 'group', g, makeText(g), prio);
         } else if (rnd() < 0.2) send(p.id, 'public', null, makeText('public'));
-        else send(p.id, 'everyone', null, makeText('everyone'));
+        else send(p.id, 'everyone', null, makeText('everyone'), prio);
       }
       // about one message in six is spoken: a voice message whose transcript is what travels by radio
       const last = S.msgs[S.msgs.length - 1];
@@ -526,6 +549,7 @@
         sentHour, within10: tot ? ok / tot : null,
         wifiP50: pct(wifi, 0.5), wifiP95: pct(wifi, 0.95), loraP50: pct(lora, 0.5), loraP95: pct(lora, 0.95), syncN: sync.length,
         loraN: lora.length, wifiN: wifi.length,
+        loraByPrio: Object.fromEntries(['high', 'normal', 'low'].map((k) => { const xs = recent.filter((d) => d.path === 'lora' && d.prio === k).map((d) => d.lat); return [k, { n: xs.length, p50: pct(xs, 0.5), p95: pct(xs, 0.95) }]; })),
         util: busyFraction(10 * MIN), queue: S.queue.filter((q) => q.kind === 'msg').length, pending: pendingCount(),
       };
     }

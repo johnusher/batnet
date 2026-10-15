@@ -220,6 +220,25 @@ details.assume li { margin: 4px 0; color: var(--muted); font-size: 13.5px; max-w
 .review .who { color: var(--app-sub); }
 .review .row { display: flex; gap: 8px; }
 .review .row button { flex: 1; padding: 9px; font-size: 15px; }
+/* message priority */
+.priobtn { border: 0; height: 40px; min-width: 40px; padding: 0 10px; border-radius: 20px; background: var(--app-chip); color: var(--app-sub); font-weight: 800; font-size: 13px; flex: none; }
+.priobtn.high { background: #c62f2f; color: #fff; }
+.priobtn.low { color: var(--app-sub); }
+.priomenu { margin: 0 10px 6px; border: 1px solid var(--app-line); border-radius: 14px; background: var(--app-bg); overflow: hidden; }
+.priomenu button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid var(--app-line); background: none; padding: 10px 12px; color: var(--app-fg); }
+.priomenu button:last-child { border-bottom: 0; }
+.priomenu b { display: block; font-size: 15px; }
+.priomenu span { font-size: 12.5px; color: var(--app-sub); }
+.priomenu button[aria-pressed="true"] { background: var(--app-chip); }
+.priomenu button[disabled] { opacity: .45; }
+.bubble.high { box-shadow: inset 3px 0 0 #c62f2f; }
+.bubble.low { opacity: .8; }
+.bubble.alert { background: #c62f2f; color: #fff; max-width: 100%; align-self: stretch; }
+.bubble.alert .who, .bubble.alert .meta, .bubble.alert .meta span { color: #fff; }
+.ptag { font-weight: 800; letter-spacing: .03em; }
+.ptag.high { color: #c62f2f; }
+.alertbar { margin: 8px 12px 0; padding: 10px 12px; border-radius: 12px; background: #c62f2f; color: #fff; font-size: 14px; }
+.alertbar b { display: block; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
 .compose { display: flex; gap: 8px; padding: 8px 10px 10px; border-top: 1px solid var(--app-line); align-items: center; }
 .compose input { flex: 1; min-width: 0; border-radius: 20px; }
 .iconbtn { border: 0; background: var(--app-chip); width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: var(--app-fg); flex: none; }
@@ -368,7 +387,7 @@ let selectedId = null;
 const pulses = [];
 const beams = []; // packet from one radio to each radio that heard it
 let lastFrame = performance.now();
-const app = { rec: null, persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
+const app = { prio: 'normal', prioOpen: false, rec: null, persona: null, screen: 'portal', tab: 'chats', conv: null, signupName: '', lastRead: new Map(), calling: null, draft: '' };
 
 function cfgFromForm() {
   return {
@@ -590,7 +609,7 @@ function renderTiles() {
     ['Messages sent', st.sentHour, 'in the last hour'],
     ['Arrived within 10 min', st.within10 == null ? '–' : Math.round(st.within10 * 100) + '%', 'of house deliveries'],
     ['WiFi delivery', dur(st.wifiP50), 'median · slowest 5% ' + dur(st.wifiP95)],
-    ['LoRa delivery', dur(st.loraP50), 'median · slowest 5% ' + dur(st.loraP95)],
+    ['LoRa delivery', dur(st.loraP50), 'median · slowest 5% ' + dur(st.loraP95) + (st.loraByPrio.high.n ? ' · High: ' + dur(st.loraByPrio.high.p95) : '')],
     ['Still on the way', st.pending, 'house deliveries not yet arrived'],
     ['LoRa channel busy', Math.round(st.util * 100) + '%', congested ? '<span class="chip warn">Congested</span>' : 'last 10 minutes'],
   ];
@@ -872,11 +891,12 @@ function netSummary(me) {
   if (!h.online) return 'This house has no power';
   const wifiH = S.houses.filter((x) => x !== h && x.online && x.cluster === h.cluster).length;
   const loraH = S.houses.filter((x) => x !== h && reachBetween(h, x) === 'lora').length;
-  return `${wifiH} houses by WiFi · ${loraH} by LoRa`;
+  return `${wifiH} house${wifiH === 1 ? '' : 's'} by WiFi · ${loraH} by LoRa`;
 }
 function screenChats(me) {
   const convs = conversations(me);
-  return `<div class="ap-head"><h2>Chats<span class="sub">${esc(netSummary(me))}</span></h2></div>
+  const alert = S.msgs.filter((m) => m.prio === 'alert' && visibleTo(m, me) && m.t > S.now - 2 * 3600000).pop();
+  return `<div class="ap-head"><h2>Chats<span class="sub">${esc(netSummary(me))}</span></h2></div>${alert ? `<button class="alertbar" data-conv="everyone" style="border:0;text-align:left"><b>⚠ Alert · ${esc(senderName(alert))} · ${hhmm(alert.t)}</b>${esc(alert.text)}</button>` : ''}
   <div class="ap-body">${convs.map((c) => {
     const nm = convName(c.key);
     const last = c.last ? (c.last.from === me.id ? 'You: ' : c.last.kind === 'dm' ? '' : senderName(c.last).split(' · ')[0] + ': ') + c.last.text : (c.key === 'public' ? 'Nothing heard on the public channel yet' : 'No messages yet');
@@ -911,6 +931,21 @@ function recipientsSplit(me) {
   const none = houses.length - wifi - radio;
   return { wifi, radio, none };
 }
+const HIGH_PER_HOUR = 3; // a house admin could change this
+function highLeft(me) { return HIGH_PER_HOUR - S.msgs.filter((m) => m.from === me.id && m.prio === 'high' && m.t > S.now - 3600000).length; }
+function prioMenu(me) {
+  if (!app.prioOpen) return '';
+  const left = highLeft(me);
+  const opt = (v, title, sub, dis) => `<button data-prio="${v}" aria-pressed="${app.prio === v}" ${dis ? 'disabled' : ''}><b>${title}</b><span>${sub}</span></button>`;
+  return `<div class="priomenu" role="group" aria-label="Message priority">
+    ${opt('high', '❗ High', `Goes first over the radio and alerts people. ${left > 0 ? left + ' left this hour' : 'None left this hour'}.`, left <= 0)}
+    ${opt('normal', 'Normal', 'Most messages.')}
+    ${opt('low', 'Low', 'Can wait. Sent when the radio is quiet.')}</div>`;
+}
+function prioButton() {
+  const p = app.prio;
+  return `<button type="button" class="priobtn ${p}" data-act="prioToggle" aria-label="Priority: ${p}" title="Priority">${p === 'high' ? '❗ High' : p === 'low' ? 'Low' : '!'}</button>`;
+}
 function composeArea(me, key) {
   const r = app.rec;
   if (r && !r.review) {
@@ -926,7 +961,7 @@ function composeArea(me, key) {
       <span class="who">${esc(who || 'Only your house')}</span>
       <div class="row"><button class="ap-btn ghost" data-act="recDiscard">Discard</button><button class="ap-btn" data-act="recSend">Send</button></div></div>`;
   }
-  return `<form class="compose" data-form="send"><button type="button" class="iconbtn" data-act="recStart" title="Record a voice message" aria-label="Record a voice message">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
+  return `${prioMenu(me)}<form class="compose" data-form="send">${key === 'public' ? '' : prioButton()}<button type="button" class="iconbtn" data-act="recStart" title="Record a voice message" aria-label="Record a voice message">${ICON.mic}</button><input class="ap-input" id="draft" autocomplete="off" placeholder="${key === 'public' ? 'Post publicly…' : 'Message'}" value="${esc(app.draft)}"><button class="iconbtn go" type="submit" aria-label="Send">${ICON.send}</button></form>`;
 }
 function screenConv(me) {
   const key = app.conv;
@@ -942,7 +977,7 @@ function screenConv(me) {
     if (callReason) banner = `<div class="banner ${r === 'lora' ? 'lora' : ''}">${esc(callReason)}</div>`;
   }
   if (key === 'public') banner = '<div class="banner lora">Public Meshtastic channel. Anyone with a Meshtastic radio can read this.</div>';
-  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''}">${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${m.voice ? voiceBubble(m, me) : esc(m.text)}<div class="meta"><span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
+  const items = list.map((m) => `<div class="bubble ${m.from === me.id ? 'me' : ''} ${m.prio && m.prio !== 'normal' ? m.prio : ''}">${m.prio === 'alert' ? '<div class="who">⚠ Alert from the house admin</div>' : ''}${m.from !== me.id && m.kind !== 'dm' ? `<div class="who">${esc(senderName(m))}</div>` : ''}${m.voice ? voiceBubble(m, me) : esc(m.text)}<div class="meta">${m.prio === 'high' ? '<span class="ptag high">❗ High</span>' : m.prio === 'low' ? '<span class="ptag">Low</span>' : ''}<span>${hhmm(m.t)}</span>${deliveryLine(m, me)}</div></div>`).join('');
   return `<div class="ap-head"><button class="ap-back" data-act="toApp" aria-label="Back">‹</button><h2>${esc(convName(key))}<span class="sub">${esc(convSub(key, me))}</span></h2>${key.startsWith('dm:') ? `<button class="iconbtn" data-act="call" ${canCall ? '' : 'disabled'} title="${canCall ? 'Call over the WiFi mesh' : esc(callReason)}" aria-label="Call">${ICON.call}</button>` : ''}</div>
   ${banner}
   <div class="ap-body" id="msglist"><div class="msgs">${items || '<p class="ap-p" style="text-align:center;padding:24px 0">No messages yet. Say hello.</p>'}</div></div>
@@ -980,6 +1015,10 @@ function screenAdmin(me) {
   const rows = reqs.slice(-12).reverse().map((s) => `<div class="ap-row"><span class="av">${initials(s.name)}</span><span class="main"><span class="title"><span>${esc(s.name)}</span><time>${hhmm(s.t)}</time></span><span class="last">${s.state === 'waiting' ? 'Asked to join' : s.state === 'approved' ? 'Approved' : 'Declined'}</span></span>${s.state === 'waiting' ? `<span style="display:flex;gap:6px"><button class="iconbtn" data-deny="${s.id}" aria-label="Decline">✕</button><button class="iconbtn go" data-approve="${s.id}" aria-label="Approve">✓</button></span>` : ''}</div>`).join('');
   return `<div class="ap-head"><h2>Admin<span class="sub">${esc(h.name)} House · ${h.people.length} accounts</span></h2></div>
   <div class="ap-body"><div class="ap-section"><span>Join requests</span></div>${rows || '<p class="ap-p" style="padding:4px 16px">No requests yet.</p>'}
+  <div class="ap-section"><span>Alert everyone</span></div>
+  <div class="ap-pad" style="padding-top:4px"><p class="ap-p">For emergencies only. It goes ahead of everything else, over WiFi and the radio, and shows at the top of every phone.</p>
+  <textarea id="alert-text" class="ap-input" rows="2" style="font:inherit" placeholder="e.g. Flood water rising on the low road. Move cars up the hill."></textarea>
+  <button class="ap-btn" data-act="sendAlert" style="background:#c62f2f;color:#fff">${app.alertSent ? 'Sent. Send another alert' : 'Send alert to everyone'}</button></div>
   <div class="ap-section"><span>This house</span></div><p class="ap-p" style="padding:4px 16px 16px">${h.pi} · ${h.wifi === 'builtin' ? 'one WiFi radio' : 'two WiFi radios'}${h.lora ? ' · LoRa radio' : ''}. Village key shared by QR code with other houses' admins.</p></div>${tabBar(me)}`;
 }
 function screenCall(me) {
@@ -1026,13 +1065,15 @@ function renderPhone(force) {
   if (nl && (atBottom || force)) nl.scrollTop = nl.scrollHeight;
 }
 $('#screen').addEventListener('click', (e) => {
+  const prioBtn = e.target.closest('[data-prio]');
+  if (prioBtn) { app.prio = prioBtn.dataset.prio; app.prioOpen = false; renderPhone(true); return; }
   const sayBtn = e.target.closest('[data-say]');
   if (sayBtn) { const m = S.msgById.get(+sayBtn.dataset.say); if (m) sayAloud(m.text); return; }
   const t = e.target.closest('[data-act],[data-tab],[data-conv],[data-dm],[data-approve],[data-deny]');
   if (!t) return;
   const me = currentPerson();
   if (t.dataset.tab) { app.tab = t.dataset.tab; app.conv = null; }
-  else if (t.dataset.conv) { app.conv = t.dataset.conv; app.draft = ''; app.rec = null; }
+  else if (t.dataset.conv) { app.conv = t.dataset.conv; app.draft = ''; app.rec = null; app.prio = 'normal'; app.prioOpen = false; }
   else if (t.dataset.dm) { app.conv = 'dm:' + t.dataset.dm; app.draft = ''; }
   else if (t.dataset.approve || t.dataset.deny) { const p = sim.approve(t.dataset.approve || t.dataset.deny, !!t.dataset.approve); if (p) fillPersonas(); }
   else {
@@ -1049,6 +1090,8 @@ $('#screen').addEventListener('click', (e) => {
     if (a === 'enterApproved') { const s = S.signups.find((x) => x.id === app.persona.signupId); const pid = homeHouse().people.find((id) => S.personById.get(id).name === s.name.split(' ')[0]); if (pid) { fillPersonas(); setPersona(pid); } return; }
     if (a === 'call' && me) { app.calling = app.conv.slice(3); }
     if (a === 'hangup') app.calling = null;
+    if (a === 'prioToggle') app.prioOpen = !app.prioOpen;
+    if (a === 'sendAlert' && me) { const txt = ($('#alert-text').value || '').trim(); if (txt) { sim.send(me.id, 'everyone', null, txt, 'alert'); app.alertSent = true; } }
     if (a === 'recStart') app.rec = { t0: performance.now() };
     if (a === 'recCancel' || a === 'recDiscard') app.rec = null;
     if (a === 'recStop') { const sec = Math.max(2, Math.min(59, (performance.now() - app.rec.t0) / 1000)); app.rec = { review: true, secs: sec, text: VOICE_PHRASES[Math.floor(Math.random() * VOICE_PHRASES.length)] }; }
@@ -1057,8 +1100,9 @@ $('#screen').addEventListener('click', (e) => {
       if (text) {
         const k = app.conv;
         const kind = k === 'everyone' ? 'everyone' : k === 'public' ? 'public' : k.startsWith('g:') ? 'group' : 'dm';
-        const m = sim.send(me.id, kind, kind === 'group' ? k : kind === 'dm' ? k.slice(3) : null, text);
+        const m = sim.send(me.id, kind, kind === 'group' ? k : kind === 'dm' ? k.slice(3) : null, text, kind === 'public' ? 'normal' : app.prio);
         if (m) m.voice = { secs: app.rec.secs };
+        app.prio = 'normal';
       }
       app.rec = null;
     }
@@ -1082,11 +1126,12 @@ $('#screen').addEventListener('submit', (e) => {
   if (f === 'send') {
     const me = currentPerson(); const text = $('#draft').value.trim(); if (!text || !me) return;
     const k = app.conv;
-    if (k === 'everyone') sim.send(me.id, 'everyone', null, text);
-    else if (k === 'public') sim.send(me.id, 'public', null, text);
-    else if (k.startsWith('g:')) sim.send(me.id, 'group', k, text);
-    else sim.send(me.id, 'dm', k.slice(3), text);
-    app.draft = '';
+    const pr = k === 'public' ? 'normal' : app.prio;
+    if (k === 'everyone') sim.send(me.id, 'everyone', null, text, pr);
+    else if (k === 'public') sim.send(me.id, 'public', null, text, pr);
+    else if (k.startsWith('g:')) sim.send(me.id, 'group', k, text, pr);
+    else sim.send(me.id, 'dm', k.slice(3), text, pr);
+    app.draft = ''; app.prio = 'normal'; app.prioOpen = false;
   }
   renderPhone(true);
 });
