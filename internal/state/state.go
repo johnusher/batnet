@@ -406,3 +406,15 @@ func (s *State) convName(k string) string {
 	}
 	return k
 }
+
+// MessageByID returns a message or nil.
+func (s *State) MessageByID(id string) *Message {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for i := len(s.messages) - 1; i >= 0; i-- {
+		if s.messages[i].ID == id {
+			return s.messages[i]
+		}
+	}
+	return nil
+}
