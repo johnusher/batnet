@@ -347,7 +347,7 @@ git commit -m "sim: a discrete-event scheduler in virtual microseconds"
   func (a *Air) Add(addr string, x, y, rng float64) *AirNode
   func (a *Air) Linked(p, q *AirNode) bool
   func (a *Air) Groups() [][]*AirNode   // powered nodes, by WiFi group, deterministic order
-  type AirNode struct{ Addr string; X, Y, Range float64; On bool; /* … */ }
+  type AirNode struct{ Name string; X, Y, Range float64; On bool; /* … */ }
   func (n *AirNode) SetDeliver(f func(meshsync.Packet))
   // *AirNode implements meshsync.Link
   ```
@@ -551,7 +551,7 @@ func NewAir(s *Scheduler, seed int64) *Air {
 
 // Add puts a node at (x, y) metres with a mesh range in metres, powered on.
 func (a *Air) Add(addr string, x, y, rng float64) *AirNode {
-	n := &AirNode{air: a, Addr: addr, X: x, Y: y, Range: rng, On: true}
+	n := &AirNode{air: a, Name: addr, X: x, Y: y, Range: rng, On: true}
 	a.nodes = append(a.nodes, n)
 	a.byAddr[addr] = n
 	return n
@@ -627,10 +627,10 @@ func (a *Air) channelFor(n *AirNode, others []*AirNode) *channel {
 			first = x
 		}
 	}
-	c := a.channels[first.Addr]
+	c := a.channels[first.Name]
 	if c == nil {
 		c = &channel{}
-		a.channels[first.Addr] = c
+		a.channels[first.Name] = c
 	}
 	return c
 }
@@ -679,35 +679,35 @@ func (a *Air) broadcast(n *AirNode, pkt []byte) {
 			a.Stats.Lost++
 			continue
 		}
-		to = append(to, r.Addr)
+		to = append(to, r.Name)
 		r := r
 		data := append([]byte(nil), pkt...)
 		a.sch.At(start+frame*int64(hops[r]), func() {
 			if r.On && r.deliver != nil {
 				a.Stats.Delivered++
-				r.deliver(meshsync.Packet{From: n.Addr, Data: data})
+				r.deliver(meshsync.Packet{From: n.Name, Data: data})
 			}
 		})
 	}
 	if a.OnBroadcast != nil {
-		a.OnBroadcast(n.Addr, to, start)
+		a.OnBroadcast(n.Name, to, start)
 	}
 }
 
 // AirNode is one node's radio in the Air; it implements meshsync.Link.
 type AirNode struct {
-	Addr         string
-	X, Y, Range  float64
-	On           bool
-	air          *Air
-	deliver      func(meshsync.Packet)
-	handler      func(from string, req []byte) []byte
+	Name        string
+	X, Y, Range float64
+	On          bool
+	air         *Air
+	deliver     func(meshsync.Packet)
+	handler     func(from string, req []byte) []byte
 }
 
 // SetDeliver sets what happens when a broadcast arrives (the Village calls the Syncer).
 func (n *AirNode) SetDeliver(f func(meshsync.Packet)) { n.deliver = f }
 
-func (n *AirNode) Addr_() string { return n.Addr }
+func (n *AirNode) Addr_() string { return n.Name }
 
 func (n *AirNode) Broadcast(pkt []byte) error {
 	if n.On {
@@ -726,7 +726,7 @@ func (n *AirNode) Request(ctx context.Context, to string, req []byte) ([]byte, e
 	} else if _, ok := h[t]; !ok {
 		return nil, errUnreachable
 	}
-	return t.handler(n.Addr, append([]byte(nil), req...)), nil
+	return t.handler(n.Name, append([]byte(nil), req...)), nil
 }
 
 func (n *AirNode) Inbox() <-chan meshsync.Packet { return nil }
@@ -734,13 +734,6 @@ func (n *AirNode) Inbox() <-chan meshsync.Packet { return nil }
 func (n *AirNode) SetHandler(h func(from string, req []byte) []byte) { n.handler = h }
 ```
 
-The interface needs `Addr() string`, but `Addr` is also the exported field the tests and the Village read. Rename the field to `Name` and keep the method: in the code above replace the field `Addr string` with `Name string`, every `n.Addr`/`r.Addr`/`first.Addr`/`x.Addr` field use with `.Name`, `&AirNode{air: a, Addr: addr, …}` with `Name: addr`, delete `Addr_()`, and add
-
-```go
-func (n *AirNode) Addr() string { return n.Name }
-```
-
-The tests above use `p.From`, `air.Add(...)` and `Groups()` only, so they are unaffected.
 
 - [ ] **Step 4: Run to see it pass**
 
@@ -2528,6 +2521,6 @@ git commit -m "Docs: the real-code engine, scenarios and how to run them; first 
 
 **Spec coverage (§14a):** virtual time → Tasks 1–2; Go world model → Task 3 (WiFi; LoRa joins in plan 3); scenarios with events and checks → Tasks 5–6; headless runner and CI → Task 7; WebAssembly in the page with both engines → Tasks 8–9; docs → Task 10. §13 power cuts and splits are exercised by `storm` and the village tests.
 
-**Placeholders:** none. Task 3 writes the `AirNode` with an `Addr` field and then renames it to `Name` because the `Link` interface needs an `Addr()` method; the rename is spelled out.
+**Placeholders:** none.
 
-**Type consistency:** `HouseSpec`, `RelaySpec`, `Node`, `Post`, `Village`, `Scenario`, `Duration`, `Report`, `CheckResult`, `API` are used with the fields and signatures defined in their tasks; `AirNode.Name` is the field after Task 3's rename.
+**Type consistency:** `HouseSpec`, `RelaySpec`, `Node`, `Post`, `Village`, `Scenario`, `Duration`, `Report`, `CheckResult`, `API` are used with the fields and signatures defined in their tasks; `AirNode.Name` is the node's name and `Addr()` returns it (the `Link` interface).
