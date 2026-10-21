@@ -75,7 +75,7 @@ func NewLogbook(dir string, radio *meshtastic.Client, persist func(bool) error) 
 	return &Logbook{dir: dir, radio: radio, persist: persist, boot: strings.TrimSpace(string(b)), every: HelloEvery, heard: map[string]bool{}}
 }
 
-// SetHelloEvery sets the time between hellos; 0 stops them. Call it before Run.
+// SetHelloEvery sets the time between hellos; 0 stops them.
 func (l *Logbook) SetHelloEvery(d time.Duration) {
 	l.mu.Lock()
 	l.every = d

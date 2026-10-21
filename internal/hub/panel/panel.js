@@ -1,4 +1,4 @@
-// batnet hub panel: polls /hub/api/status (and api/traffic) and draws them. Plain JS, no build step.
+// lorabatnet hub panel: polls /hub/api/status (and api/traffic) and draws them. Plain JS, no build step.
 "use strict";
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +10,7 @@ let last = null;
 let pin = "";
 try { pin = sessionStorage.getItem("hubPIN") || ""; } catch (e) { /* private window */ }
 
-// Per-viewer conveniences only: what was read, the traffic window.
+// Per-viewer conveniences only: what was read, the traffic window, the colours.
 function load(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
 function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* fine */ } }
 
@@ -18,6 +18,18 @@ const MODE_HELP = {
   off: "This hub works alone: the house app runs, nothing is shared over WiFi.",
   mock: "Four pretend houses run inside this hub and post now and then, so you can try the app without other Pis. Nothing is saved.",
   real: "batman-adv runs on the USB WiFi stick and the log syncs with other batnet Pis in range.",
+};
+
+// What each preset is for (EU, 250 kHz unless said). Rates and link budgets: Meshtastic's blog, April 2025.
+const PRESETS = {
+  LongSlow: { what: "Furthest and slowest. Few people use it.", rate: "125 kHz" },
+  LongModerate: { what: "Far and slow.", rate: "125 kHz" },
+  LongFast: { what: "Meshtastic's default. Far, but a message takes about a second on the air, so a busy mesh clogs.", rate: "1.07 kbit/s, 153 dB" },
+  MediumSlow: { what: "A middle way.", rate: "1.95 kbit/s, 150.5 dB" },
+  MediumFast: { what: "What Berlin's mesh uses. Three times faster than LongFast, a little less range.", rate: "3.52 kbit/s, 148 dB" },
+  ShortSlow: { what: "Short range, fast: very dense meshes.", rate: "6.25 kbit/s, 145.5 dB" },
+  ShortFast: { what: "Short range, faster: events, a few streets.", rate: "10.94 kbit/s, 143 dB" },
+  ShortTurbo: { what: "Fastest and shortest, 500 kHz wide.", rate: "21.88 kbit/s, 140 dB" },
 };
 
 function el(tag, attrs, ...kids) {
@@ -37,16 +49,22 @@ function ago(t) {
   if (d < 86400) return Math.round(d / 3600) + " h ago";
   return Math.round(d / 86400) + " days ago";
 }
-
-function clock(t) { return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
-function clockSec(t) { return new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }); }
-
+const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const clockSec = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 function duration(s) {
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
   return d ? `${d} d ${h} h` : h ? `${h} h ${m} min` : `${m} min`;
 }
+const minus = (x) => String(x).replace("-", "−");
+const db = (x) => `${minus((x || 0).toFixed(1))} dB`;
+const km = (m) => (m >= 1000 ? `${(m / 1000).toFixed(m >= 10000 ? 0 : 1)} km` : `${Math.round(m)} m`);
+function distance(a, b) {
+  const R = 6371000, r = Math.PI / 180;
+  const h = Math.sin((b.lat - a.lat) * r / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin((b.lon - a.lon) * r / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
 
-// Signal strength in four bars from LoRa SNR (dB): LoRa decodes down to about -20.
+// Signal strength in four bars from LoRa SNR (dB).
 function bars(snr) {
   const n = snr >= 5 ? 4 : snr >= -2 ? 3 : snr >= -10 ? 2 : 1;
   const b = el("span", { class: "bars", "aria-hidden": "true" });
@@ -55,22 +73,23 @@ function bars(snr) {
 }
 
 const hex8 = (n) => (n >>> 0).toString(16).padStart(8, "0");
-function nodeName(n) { return n.longName || n.shortName || n.id; }
+const nodeName = (n) => n.longName || n.shortName || n.id;
 function hash(s) { let h = 2166136261; for (const c of s) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
-const minus = (x) => String(x).replace("-", "−");
-
-// Who a node number or ID is, from the last status.
-function byNum(num) { return ((last && last.radio && last.radio.nodes) || []).find((n) => n.num === num); }
+const nodes = () => (last && last.radio && last.radio.nodes) || [];
+const byNum = (num) => nodes().find((n) => n.num === num);
 function nameOfNum(num) { const n = byNum(num); return n ? nodeName(n) : "!" + hex8(num); }
 function nameOfID(id) {
   if (!id || id === "everyone") return "everyone";
   const n = byNum(parseInt(id.slice(1), 16));
-  return n && (n.longName || n.shortName) ? (n.longName || n.shortName) : id;
+  return n ? nodeName(n) : id;
 }
+const where = () => (last && last.settings && last.settings.where) || null;
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function setNote(id, msg, bad) { $(id).textContent = msg; $(id).className = "note" + (bad ? " bad" : ""); }
 
 // ---- views ----
-const VIEWS = ["radios", "messages", "traffic"];
-let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "radios";
+const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings"];
+let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
 
 function setView(v) {
   view = v;
@@ -80,26 +99,29 @@ function setView(v) {
     $("tab-" + x).tabIndex = x === v ? 0 : -1;
   }
   history.replaceState(null, "", location.search + "#" + v);
+  if (v === "settings") formsDirty.clear();
+  homeSig = ""; threadSig = "";
   if (last) render(last);
   if (v === "traffic") drawTraffic();
+  if (v === "map") showMap();
 }
 for (const v of VIEWS) $("tab-" + v).addEventListener("click", () => setView(v));
+for (const b of document.querySelectorAll("[data-go]")) b.addEventListener("click", () => setView(b.dataset.go));
 
-// ---- the air ----
+// ---- the radar: rings by relays ----
 const SVGNS = "http://www.w3.org/2000/svg";
 function svg(tag, attrs) { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; }
 const RINGS = [{ r: 52, label: "direct" }, { r: 96, label: "1 relay" }, { r: 140, label: "2+ relays" }];
 
-function drawAir(nodes) {
-  const p = $("plot");
+function drawAir(p, list) {
+  const pulsing = p.querySelector(".pulse.go");
   p.replaceChildren();
   for (const ring of RINGS) {
     p.append(svg("circle", { class: "ring", r: ring.r }));
     const t = svg("text", { class: "ringlabel", x: 4, y: -ring.r + 11 }); t.textContent = ring.label; p.append(t);
   }
-  const pulse = svg("circle", { class: "pulse", r: 6, id: "pulse" });
-  p.append(pulse, svg("circle", { class: "hubdot", r: 6 }));
-  for (const n of nodes.filter((n) => !n.self)) {
+  p.append(pulsing || svg("circle", { class: "pulse", r: 6 }), svg("circle", { class: "hubdot", r: 6 }));
+  for (const n of list.filter((n) => !n.self)) {
     const ring = n.hops < 0 ? 2 : Math.min(n.hops, 2);
     const base = RINGS[ring].r - 22;
     // A stable angle per radio; inside its band, a stronger signal sits further in.
@@ -109,31 +131,135 @@ function drawAir(nodes) {
     const x = Math.cos(a) * r, y = Math.sin(a) * r;
     const stale = Date.now() - new Date(n.lastHeard).getTime() > 2 * 3600e3;
     const cls = "node" + (n.batnet ? " bn" : ring > 0 ? " relayed" : "") + (stale ? " stale" : "");
-    let shape;
+    const g = svg("g", { class: "hit", tabindex: "0", role: "button", "aria-label": `${nodeName(n)}, ${ago(n.lastHeard)}` });
+    g.append(svg("circle", { class: "target", cx: x.toFixed(1), cy: y.toFixed(1), r: 12 }));
     if (n.batnet) {
       const s = 7, pts = [];
       for (let i = 0; i < 6; i++) pts.push(`${(x + s * Math.cos(i * Math.PI / 3)).toFixed(1)},${(y + s * Math.sin(i * Math.PI / 3)).toFixed(1)}`);
-      shape = svg("polygon", { class: cls, points: pts.join(" ") });
+      g.append(svg("polygon", { class: cls, points: pts.join(" ") }));
     } else {
-      shape = svg("circle", { class: cls, cx: x.toFixed(1), cy: y.toFixed(1), r: 5 });
+      g.append(svg("circle", { class: cls, cx: x.toFixed(1), cy: y.toFixed(1), r: 5 }));
     }
-    const title = svg("title"); title.textContent = `${nodeName(n)}, ${ago(n.lastHeard)}`;
-    shape.append(title);
     const lbl = svg("text", { class: "lbl", x: (x + 9).toFixed(1), y: (y + 3.5).toFixed(1) });
     lbl.textContent = n.shortName || n.id.slice(-4);
-    p.append(shape, lbl);
+    const title = svg("title"); title.textContent = nodeName(n);
+    g.append(lbl, title);
+    g.addEventListener("click", () => showRadio(n.num));
+    g.addEventListener("keydown", (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); showRadio(n.num); } });
+    p.append(g);
   }
+}
+
+// ---- details: a radio, or one packet ----
+let detailNum = null, detailPos = null;
+function openDetail(title, sayText, facts, { num = null, pos = null } = {}) {
+  $("detail-title").textContent = title;
+  $("detail-says").textContent = sayText || "";
+  $("detail-says").hidden = !sayText;
+  $("detail-facts").replaceChildren(...facts.filter(([, v]) => v != null && v !== "").flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: String(v) })]));
+  detailNum = num; detailPos = pos;
+  $("detail-msg").hidden = num == null;
+  $("detail-map").hidden = !pos;
+  const d = $("detail");
+  if (!d.open) d.showModal();
+}
+$("detail-msg").addEventListener("click", () => { $("detail").close(); openConv(String(detailNum)); });
+$("detail-map").addEventListener("click", () => {
+  $("detail").close();
+  const p = detailPos;
+  setView("map");
+  setTimeout(() => { if (map && p) { mapFitted = true; map.setView([p.lat, p.lon], Math.max(map.getZoom(), 14)); } }, 50);
+});
+
+function placeText(p) {
+  if (!p) return "";
+  let s = `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
+  if (p.accuracyM) s += `, within about ${km(p.accuracyM)}`;
+  const w = where();
+  if (w) s += `; ${km(distance(w, p))} from this hub`;
+  return s;
+}
+
+function showRadio(num) {
+  const n = byNum(num);
+  if (!n) return;
+  openDetail(nodeName(n), [n.shortName, n.hardware, n.role].filter(Boolean).join(", "), [
+    ["ID", n.id],
+    ["Signal", n.self ? "" : `${db(n.snr)}${n.rssi ? `, ${minus(n.rssi)} dBm` : ""}`],
+    ["Relays", n.self ? "" : n.hops < 0 ? "not known" : n.hops === 0 ? "none: heard directly" : String(n.hops)],
+    ["Last heard", n.self ? "" : ago(n.lastHeard)],
+    ["Packets heard", n.self ? "" : n.packets],
+    ["Battery", n.battery != null ? (n.battery > 100 ? "on mains power" : `${n.battery} %`) : ""],
+    ["Its channel in use", n.chanUtil != null ? `${n.chanUtil.toFixed(1)} %` : ""],
+    ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)})` : "has not shared it"],
+    ["Runs batnet", n.batnet ? "yes" : ""],
+  ], { num: n.self ? null : n.num, pos: n.position });
+}
+
+const PORTS = { nodeinfo: "who it is", position: "position", telemetry: "telemetry", text: "message", routing: "receipt",
+  traceroute: "route trace", neighborinfo: "neighbours", "map-report": "map report", "store-forward": "store and forward" };
+const WHAT = {
+  heard: (f) => (f.encrypted ? "encrypted" : PORTS[f.port] || f.port || "packet"),
+  garbled: () => "unreadable",
+  sent: (f) => (f.port === "nodeinfo" ? "hello sent" : f.port === "text" ? "message sent" : `sent ${f.port || ""}`),
+  relayed: () => "passed on", busy: () => "channel busy",
+};
+
+// says puts a packet's contents in a few words.
+function says(f) {
+  const i = f.info || {};
+  if (f.kind === "garbled" || f.kind === "relayed" || f.kind === "busy") return "";
+  if (f.text) return `“${f.text}”`;
+  if (f.lat != null) return placeText({ lat: f.lat, lon: f.lon, accuracyM: i.accuracyM });
+  switch (f.port) {
+    case "nodeinfo": return [i.longName && `${i.longName}${i.shortName ? ` (${i.shortName})` : ""}`, i.hardware, i.role].filter(Boolean).join(", ");
+    case "telemetry": return [i.battery != null && (i.battery > 100 ? "mains power" : `battery ${i.battery} %`), i.voltage && `${i.voltage} V`,
+      i.channelUse != null && `channel ${i.channelUse} % busy`, i.temperatureC != null && `${i.temperatureC} °C`, i.humidity != null && `${i.humidity} % humidity`,
+      i.pressureHPa != null && `${i.pressureHPa} hPa`].filter(Boolean).join(", ");
+    case "traceroute": return (i.route || []).length ? `via ${i.route.map(nameOfID).join(" → ")}` : "a route trace";
+    case "neighborinfo": return (i.neighbors || []).length ? `hears ${i.neighbors.map((x) => nameOfID(x.id)).join(", ")}` : "";
+    case "routing": return i.error ? `not delivered: ${i.error}` : "delivered";
+  }
+  return "";
+}
+
+const EXPLAIN = {
+  encrypted: "Sent on a channel this hub has no key for (another group's private channel). The radio can read who sent it and where it goes, not what it says.",
+  garbled: "Heard, but damaged on the way: too weak to read, or it collided with another packet. A strong signal that still fails usually means a collision.",
+  relayed: "This hub's radio passed someone else's packet on, as every Meshtastic radio does, so it travels further.",
+  busy: "The radio had something to send but someone else was on the air, so it waited.",
+};
+
+function showFrame(f) {
+  const i = f.info || {};
+  const pos = f.lat != null ? { lat: f.lat, lon: f.lon, accuracyM: i.accuracyM } : null;
+  const what = WHAT[f.kind] ? WHAT[f.kind](f) : f.kind;
+  const explain = f.kind === "heard" && f.encrypted ? EXPLAIN.encrypted : EXPLAIN[f.kind] || "";
+  const from = f.from ? parseInt(f.from.slice(1), 16) : null;
+  const facts = [["Time", clockSec(f.t)],
+    ["From", f.from ? `${f.name || nameOfID(f.from)} (${f.from})` : f.kind === "sent" || f.kind === "relayed" ? "this hub" : ""],
+    ["To", f.to ? nameOfID(f.to) : ""],
+    ["Signal", f.kind === "heard" || f.kind === "garbled" ? `${db(f.snr)}${f.rssi ? `, ${minus(f.rssi)} dBm` : ""}` : ""],
+    ["Relays on the way", f.hops >= 0 && f.kind !== "sent" ? String(f.hops) : ""], ["Last radio before ours", f.relay ? `…${f.relay}` : ""],
+    ["Time on the air", f.airMs ? `about ${f.airMs} ms` : ""], ["Size", f.bytes ? `about ${f.bytes} bytes` : ""]];
+  if (f.alt != null) facts.push(["Height", `${f.alt} m`]);
+  if (i.sats) facts.push(["GPS satellites", i.sats]);
+  if (i.uptimeS) facts.push(["Its radio running for", duration(i.uptimeS)]);
+  if (i.airtime != null) facts.push(["Its own airtime", `${i.airtime} %`]);
+  const n = from != null ? byNum(from) : null;
+  openDetail(what[0].toUpperCase() + what.slice(1), [says(f), explain].filter(Boolean).join(" "), facts,
+    { num: n && !n.self ? from : null, pos });
 }
 
 // ---- messages ----
 let conv = "pub";            // the open conversation: "pub" or a node number as a string
 let replyTo = null;          // the message being answered
-const started = new Set();   // conversations opened from the radio list, maybe still empty
+const started = new Set();   // conversations opened from elsewhere, maybe still empty
 const seen = new Set();      // messages already noticed (for the new-message flash)
 let firstStatus = true;
 const pageStart = Date.now();
 const lastRead = load("hub.read", {});
-let threadSig = "";
+let threadSig = "", homeSig = "";
 
 const readTime = (c) => (lastRead[c] ? Date.parse(lastRead[c]) : pageStart);
 const textKey = (t) => `${t.id}:${t.from}:${t.at}`;
@@ -161,7 +287,7 @@ function conversations(r) {
 
 function openConv(id) {
   if (id !== "pub") started.add(id);
-  if (conv !== id) { replyTo = null; threadSig = ""; }
+  if (conv !== id) { replyTo = null; showReply(); }
   conv = id;
   setView("messages");
   $("msg").focus();
@@ -177,11 +303,31 @@ function statusLine(t) {
   }
 }
 
+function bubble(t, all, { who, reply }) {
+  const li = el("li", { class: t.mine ? "mine" : "in" });
+  if (who) li.append(el("span", { class: "who", text: who }));
+  if (t.replyId) {
+    const q = all.find((x) => x.id === t.replyId);
+    li.append(el("span", { class: "quote", text: q ? `${q.mine ? "You" : nameOfNum(q.from)}: ${q.text}` : "An earlier message" }));
+  }
+  li.append(el("span", { class: "body", text: t.text }));
+  const meta = el("span", { class: "meta" }, clock(t.at));
+  if (!t.mine) meta.append(`, ${db(t.snr)}, ${t.hops < 0 ? "?" : t.hops} relays${t.pki ? ", encrypted to this hub" : ""}`);
+  const st = t.mine ? statusLine(t) : null;
+  if (st) meta.append(" ", st);
+  if (reply) {
+    const rb = el("button", { class: "linkbtn", type: "button", text: "Reply" });
+    rb.addEventListener("click", () => { replyTo = t; showReply(); $("msg").focus(); });
+    meta.append(" ", rb);
+  }
+  li.append(meta);
+  return li;
+}
+
 function renderMessages(r, convs) {
   const total = convs.filter((c) => c.id !== "pub").reduce((s, c) => s + c.unread, 0);
-  const pubUnread = convs[0].unread;
   const badge = $("badge");
-  badge.hidden = !total && !pubUnread;
+  badge.hidden = !total && !convs[0].unread;
   badge.textContent = total ? String(total) : "";
   badge.className = "badge" + (total ? "" : " dot");
 
@@ -192,6 +338,7 @@ function renderMessages(r, convs) {
     c.unread = 0;
     save("hub.read", lastRead);
   }
+  if (view !== "messages") return;
 
   $("convs").replaceChildren(...convs.map((x) => {
     const lastT = x.texts[x.texts.length - 1];
@@ -207,35 +354,17 @@ function renderMessages(r, convs) {
   $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
-    : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${minus((node.snr || 0).toFixed(1))} dB, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
+    : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
   $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : `Message to ${c.name}`;
   $("thread-empty").hidden = c.texts.length > 0;
   $("thread-empty").textContent = c.id === "pub" ? "No messages heard yet." : "No messages yet. Write the first one below.";
 
-  const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + (r.nodes || []).length;
+  const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + nodes().length;
   if (sig === threadSig) return;
   threadSig = sig;
   const list = $("thread");
   const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  const all = r.texts || [];
-  list.replaceChildren(...c.texts.map((t) => {
-    const li = el("li", { class: t.mine ? "mine" : "in" });
-    if (!t.mine && c.id === "pub") li.append(el("span", { class: "who", text: nameOfNum(t.from) }));
-    if (t.replyId) {
-      const q = all.find((x) => x.id === t.replyId);
-      li.append(el("span", { class: "quote", text: q ? `${q.mine ? "You" : nameOfNum(q.from)}: ${q.text}` : "An earlier message" }));
-    }
-    li.append(el("span", { class: "body", text: t.text }));
-    const meta = el("span", { class: "meta" }, clock(t.at));
-    if (!t.mine) meta.append(`, ${minus((t.snr || 0).toFixed(1))} dB, ${t.hops < 0 ? "?" : t.hops} relays${t.pki ? ", encrypted to this hub" : ""}`);
-    const st = t.mine ? statusLine(t) : null;
-    if (st) meta.append(" ", st);
-    const rb = el("button", { class: "linkbtn", type: "button", text: "Reply" });
-    rb.addEventListener("click", () => { replyTo = t; showReply(); $("msg").focus(); });
-    meta.append(" ", rb);
-    li.append(meta);
-    return li;
-  }));
+  list.replaceChildren(...c.texts.map((t) => bubble(t, r.texts || [], { who: !t.mine && c.id === "pub" ? nameOfNum(t.from) : "", reply: true })));
   if (atBottom) list.scrollTop = list.scrollHeight;
 }
 
@@ -265,9 +394,222 @@ function noticeNew(r) {
 }
 $("flash-open").addEventListener("click", () => { $("flash").hidden = true; if (flashConv) openConv(flashConv); });
 
+// ---- home: the simple first screen ----
+function renderHome(s, convs) {
+  const r = s.radio;
+  const others = nodes().filter((n) => !n.self);
+  const hour = others.filter((n) => Date.now() - Date.parse(n.lastHeard) < 3600e3).length;
+  const unread = convs.filter((c) => c.id !== "pub").reduce((a, c) => a + c.unread, 0);
+  const hl = $("headline");
+  hl.replaceChildren(el("span", { class: "big", text: String(hour) }), ` radio${hour === 1 ? "" : "s"} heard in the last hour`);
+  if (unread) {
+    const b = el("button", { class: "linkbtn", type: "button", text: `${unread} new message${unread === 1 ? "" : "s"} for you` });
+    b.addEventListener("click", () => { const c = convs.find((x) => x.id !== "pub" && x.unread); if (c) openConv(c.id); });
+    hl.append(". ", b);
+  }
+  hl.append(".");
+  const lg = s.log, sy = s.system;
+  const parts = [];
+  if (r && r.ready) parts.push(`Radio on ${r.preset}${r.txEnabled ? "" : ", listening only"}`);
+  if (lg) parts.push(lg.on ? `logging since ${clock(lg.started)}` : "not logging");
+  if (sy.tempC) parts.push(`the Pi at ${sy.tempC.toFixed(0)} °C`);
+  $("health").textContent = parts.length ? parts.join(", ") + "." : "";
+
+  drawAir($("plot-home"), nodes());
+  const recent = [];
+  for (const c of convs) for (const t of c.texts) recent.push({ t, c });
+  recent.sort((a, b) => Date.parse(a.t.at) - Date.parse(b.t.at));
+  const show = recent.slice(-5);
+  $("home-empty").hidden = show.length > 0;
+  const sig = show.map((x) => textKey(x.t) + x.t.status).join(",");
+  if (sig === homeSig) return;
+  homeSig = sig;
+  $("home-thread").replaceChildren(...show.map(({ t, c }) => {
+    const who = t.mine ? (c.id === "pub" ? "You, to everyone" : `You, to ${c.name}`) : `${nameOfNum(t.from)}${c.id === "pub" ? "" : ", to you"}`;
+    const li = bubble(t, (r && r.texts) || [], { who, reply: false });
+    li.classList.add("click");
+    li.addEventListener("click", () => openConv(c.id));
+    return li;
+  }));
+}
+
+// ---- the map ----
+let map = null, mapLayer = null, mapFitted = false, placing = false;
+function showMap() {
+  if (!window.L) { $("map-note").textContent = "The map could not load."; $("map-note").hidden = false; return; }
+  if (!map) {
+    map = L.map("map-canvas", { zoomControl: true });
+    const tiles = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18, referrerPolicy: "strict-origin-when-cross-origin",
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map);
+    let errors = 0;
+    tiles.on("tileerror", () => {
+      if (++errors < 3) return;
+      $("map-note").textContent = "No map tiles: they need the internet. The radios are still in the right places.";
+      $("map-note").hidden = false;
+    });
+    mapLayer = L.layerGroup().addTo(map);
+    map.setView([52.52, 13.405], 11);
+    map.on("click", async (ev) => {
+      if (!placing) return;
+      placing = false;
+      $("map-canvas").classList.remove("placing");
+      try {
+        await act("settings", { lat: ev.latlng.lat.toFixed(5), lon: ev.latlng.lng.toFixed(5) });
+        setNote("place-note", "Saved. Distances now count from there.");
+        poll();
+      } catch (e) { setNote("place-note", e.message, true); }
+    });
+  }
+  setTimeout(() => { map.invalidateSize(); drawMap(); }, 0);
+}
+$("place-hub").addEventListener("click", () => {
+  if (!map) return;
+  placing = true;
+  $("map-canvas").classList.add("placing");
+  setNote("place-note", "Click the map where this hub stands.");
+});
+
+function drawMap() {
+  if (!map || view !== "map") return;
+  mapLayer.clearLayers();
+  const w = where();
+  const placed = nodes().filter((n) => n.position && !n.self);
+  const pts = [];
+  const ink = css("--dot"), teal = css("--batnet"), sheet = css("--sheet");
+  for (const n of placed) {
+    const p = [n.position.lat, n.position.lon];
+    pts.push(p);
+    const col = n.batnet ? teal : ink;
+    const old = Date.now() - Date.parse(n.position.at) > 6 * 3600e3;
+    if (n.position.accuracyM > 60) {
+      L.circle(p, { radius: n.position.accuracyM, color: col, weight: 1, opacity: old ? 0.3 : 0.6, fillOpacity: 0.06, interactive: false }).addTo(mapLayer);
+    }
+    const m = L.circleMarker(p, { radius: 7, color: sheet, weight: 2, fillColor: col, fillOpacity: old ? 0.45 : 1 }).addTo(mapLayer);
+    m.bindTooltip(n.shortName || n.id.slice(-4), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
+    m.on("click", () => showRadio(n.num));
+  }
+  if (w) {
+    pts.push([w.lat, w.lon]);
+    L.marker([w.lat, w.lon], { icon: L.divIcon({ className: "hubmark", html: "<span>this hub</span>", iconSize: null }), keyboard: false }).addTo(mapLayer);
+  }
+  if (!mapFitted && pts.length) { map.fitBounds(L.latLngBounds(pts).pad(0.2), { maxZoom: 14 }); mapFitted = true; }
+
+  $("mcount").textContent = placed.length ? `(${placed.length})` : "";
+  $("map-empty").hidden = placed.length > 0;
+  const sorted = placed.slice().sort((a, b) => (w ? distance(w, a.position) - distance(w, b.position) : Date.parse(b.position.at) - Date.parse(a.position.at)));
+  $("maplist").replaceChildren(...sorted.map((n) => {
+    const b = el("button", { type: "button", class: "conv" },
+      el("span", { class: "cn", text: nodeName(n) }),
+      el("span", { class: "cp", text: `${w ? km(distance(w, n.position)) + " away, " : ""}${n.position.accuracyM > 60 ? `rough area (${km(n.position.accuracyM)}), ` : ""}shared ${ago(n.position.at)}` }));
+    b.addEventListener("click", () => { map.setView([n.position.lat, n.position.lon], Math.max(map.getZoom(), 14)); showRadio(n.num); });
+    return el("li", {}, b);
+  }));
+}
+
+// ---- settings ----
+const formsDirty = new Set();
+for (const f of ["radio-form", "owner-form", "hub-form"]) $(f).addEventListener("input", () => formsDirty.add(f));
+const bytes = (s) => new TextEncoder().encode(s).length;
+function counts() {
+  $("long-count").textContent = `${bytes($("set-long").value)} of 39 bytes`;
+  const sb = bytes($("set-short").value);
+  $("short-count").textContent = `${sb} of 4 bytes`;
+  $("short-count").className = "hint" + (sb > 4 ? " bad" : "");
+}
+$("set-long").addEventListener("input", counts);
+$("set-short").addEventListener("input", counts);
+$("set-short").removeAttribute("maxlength"); // bytes, not letters: an emoji is one letter and four bytes
+
+function renderSettings(s) {
+  const r = s.radio, me = nodes().find((n) => n.self);
+  if (r && r.ready && !formsDirty.has("radio-form")) {
+    $("preset-list").replaceChildren(...(s.presets || []).map((p) => {
+      const info = PRESETS[p] || { what: "", rate: "" };
+      const inp = el("input", { type: "radio", name: "preset", value: p });
+      inp.checked = p === r.preset;
+      return el("label", { class: "preset" + (p === r.preset ? " now" : "") }, inp,
+        el("span", { class: "pn" }, p, p === r.preset ? el("span", { class: "tag me", text: "now" }) : null),
+        el("span", { class: "pw", text: info.what }), el("span", { class: "pr", text: info.rate }));
+    }));
+    $("set-hops").value = String(r.hopLimit || 3);
+    $("set-power").value = String(r.txPower || 27);
+    $("set-power").max = String(s.maxTxPower || 27);
+    $("set-tx").checked = !!r.txEnabled;
+  }
+  if (me && !formsDirty.has("owner-form")) {
+    $("set-long").value = me.longName || "";
+    $("set-short").value = me.shortName || "";
+    counts();
+  }
+  if (s.settings && !formsDirty.has("hub-form")) {
+    const h = s.settings.helloMinutes, v = h < 0 ? "-1" : h === 0 ? "5" : String(h);
+    if (![...$("set-hello").options].some((o) => o.value === v)) $("set-hello").append(el("option", { value: v, text: `every ${h} minutes` }));
+    $("set-hello").value = v;
+    $("set-lat").value = s.settings.where ? String(s.settings.where.lat) : "";
+    $("set-lon").value = s.settings.where ? String(s.settings.where.lon) : "";
+  }
+}
+
+$("radio-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const r = last && last.radio;
+  const sel = document.querySelector('input[name="preset"]:checked');
+  const body = { hopLimit: $("set-hops").value, txPower: $("set-power").value, txEnabled: String($("set-tx").checked) };
+  if (sel && r && sel.value !== r.preset) {
+    if (!confirm(`Switch the radio to ${sel.value}? It will then only hear radios on ${sel.value}.`)) return;
+    body.preset = sel.value;
+  }
+  try {
+    await act("radio", body);
+    formsDirty.delete("radio-form");
+    setNote("radio-note", "Sent to the radio. It restarts and is back in about 10 s.");
+  } catch (e) { setNote("radio-note", e.message, true); }
+});
+
+$("owner-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await act("owner", { long: $("set-long").value, short: $("set-short").value });
+    formsDirty.delete("owner-form");
+    setNote("owner-note", "Renamed. Radios nearby see the new name the next time this hub says hello.");
+  } catch (e) { setNote("owner-note", e.message, true); }
+});
+
+$("hub-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await act("settings", { helloMinutes: $("set-hello").value, lat: $("set-lat").value.trim(), lon: $("set-lon").value.trim() });
+    formsDirty.delete("hub-form");
+    setNote("hub-note", "Saved.");
+    poll();
+  } catch (e) { setNote("hub-note", e.message, true); }
+});
+$("forget-place").addEventListener("click", async () => {
+  try {
+    await act("settings", { lat: "", lon: "" });
+    formsDirty.delete("hub-form");
+    setNote("hub-note", "Forgotten.");
+    poll();
+  } catch (e) { setNote("hub-note", e.message, true); }
+});
+
+function applyTheme(t) {
+  if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme;
+  for (const b of document.querySelectorAll(".theme button")) b.setAttribute("aria-checked", String(b.dataset.theme === (t || "")));
+  if (map) drawMap();
+}
+for (const b of document.querySelectorAll(".theme button")) b.addEventListener("click", () => { save("hub.theme", b.dataset.theme); applyTheme(b.dataset.theme); });
+applyTheme(load("hub.theme", ""));
+
 // ---- drawing the status ----
 function render(s) {
   last = s;
+  const me = nodes().find((n) => n.self);
+  const name = (me && me.longName) || "lorabatnet";
+  $("hubname").textContent = name;
+  document.title = `${name} hub`;
   $("house").textContent = s.system.model ? `${s.house}, on a ${s.system.model.replace(/ Model B Rev [\d.]+$/, "")}` : s.house;
   $("clock").textContent = clock(s.system.time);
   const r = s.radio;
@@ -277,46 +619,52 @@ function render(s) {
   else if (!r.ready) { onair.textContent = "Radio connecting…"; onair.className = "onair"; }
   else if (r.region === "not set") { onair.textContent = "Radio on, but no region is set: it will not transmit"; onair.className = "onair down"; }
   else {
-    const ch = (r.channels || []).find((c) => c.role === "primary");
-    onair.textContent = `On air: ${r.region.replace("_", " ")} MHz, ${r.preset}, ${r.txPower} dBm${ch ? `, channel ${ch.name}` : ""}`;
+    onair.textContent = `On air: ${r.region.replace("_", " ")} MHz, ${r.preset}, ${r.txEnabled ? `${r.txPower} dBm` : "listening only"}`;
     onair.className = "onair live";
   }
 
-  const nodes = (r && r.nodes) || [];
-  if (view === "radios") {
-    drawAir(nodes);
-    const others = nodes.filter((n) => !n.self);
-    $("ncount").textContent = others.length ? `(${others.length})` : "";
-    $("nodes-empty").hidden = others.length > 0;
-    $("nodelist").replaceChildren(...nodes.map((n) => {
-      const name = el("td", { class: "nm" }, nodeName(n));
-      if (n.batnet) name.append(el("span", { class: "tag bn", text: "batnet" }));
-      if (n.self) name.append(el("span", { class: "tag me", text: "this hub" }));
-      name.append(el("span", { class: "sub", text: `${n.shortName || ""} ${n.id}${n.role ? ", " + n.role : ""}` }));
-      const sig = n.self ? el("td", { text: "" }) : el("td", {}, bars(n.snr), `${minus((n.snr || 0).toFixed(1))} dB`,
-        n.rssi ? el("span", { class: "sub", text: `${minus(n.rssi)} dBm` }) : null);
-      const hops = el("td", { text: n.self ? "" : n.hops < 0 ? "?" : String(n.hops) });
-      const heard = el("td", { text: n.self ? "" : ago(n.lastHeard) });
-      if (!n.self && n.packets) heard.append(el("span", { class: "sub", text: `${n.packets} packet${n.packets > 1 ? "s" : ""}` }));
-      const act = el("td", {});
-      if (!n.self) {
-        const b = el("button", { class: "btn ghost small", type: "button", text: "Message" });
-        b.addEventListener("click", () => openConv(String(n.num)));
-        act.append(b);
-      }
-      return el("tr", {}, name, sig, hops, heard, act);
-    }));
-  }
-
-  if (r) {
-    noticeNew(r);
-    renderMessages(r, conversations(r));
-  }
+  const convs = r ? conversations(r) : [];
+  if (r) { noticeNew(r); renderMessages(r, convs); }
+  if (view === "home") renderHome(s, convs);
+  if (view === "map") drawMap();
+  if (view === "radios") renderRadios();
   const ready = r && r.ready && r.region !== "not set";
-  for (const b of [$("hello"), document.querySelector("#send button")]) b.disabled = !ready;
+  for (const b of [$("hello"), document.querySelector("#send button"), document.querySelector("#home-send button")]) b.disabled = !ready;
+  if (view === "settings") renderHubSettings(s);
+}
 
-  const m = s.mesh || {};
-  for (const b of document.querySelectorAll(".side .modes button")) b.setAttribute("aria-checked", String(b.dataset.mode === m.mode));
+function renderRadios() {
+  drawAir($("plot"), nodes());
+  const others = nodes().filter((n) => !n.self);
+  $("ncount").textContent = others.length ? `(${others.length})` : "";
+  $("nodes-empty").hidden = others.length > 0;
+  $("nodelist").replaceChildren(...nodes().map((n) => {
+    const name = el("td", { class: "nm" }, nodeName(n));
+    if (n.batnet) name.append(el("span", { class: "tag bn", text: "batnet" }));
+    if (n.self) name.append(el("span", { class: "tag me", text: "this hub" }));
+    if (n.position && !n.self) name.append(el("span", { class: "tag pos", text: "on the map" }));
+    name.append(el("span", { class: "sub", text: [n.shortName, n.hardware, n.role].filter(Boolean).join(", ") || n.id }));
+    const sig = n.self ? el("td", { text: "" }) : el("td", {}, bars(n.snr), db(n.snr), n.rssi ? el("span", { class: "sub", text: `${minus(n.rssi)} dBm` }) : null);
+    const hops = el("td", { text: n.self ? "" : n.hops < 0 ? "?" : String(n.hops) });
+    const heard = el("td", { text: n.self ? "" : ago(n.lastHeard) });
+    if (!n.self && n.packets) heard.append(el("span", { class: "sub", text: `${n.packets} packet${n.packets > 1 ? "s" : ""}` }));
+    const actions = el("td", { class: "acts" });
+    const info = el("button", { class: "btn ghost small", type: "button", text: "Info" });
+    info.addEventListener("click", () => showRadio(n.num));
+    actions.append(info);
+    if (!n.self) {
+      const b = el("button", { class: "btn ghost small", type: "button", text: "Message" });
+      b.addEventListener("click", () => openConv(String(n.num)));
+      actions.append(b);
+    }
+    return el("tr", {}, name, sig, hops, heard, actions);
+  }));
+}
+
+function renderHubSettings(s) {
+  renderSettings(s);
+  const r = s.radio, m = s.mesh || {};
+  for (const b of document.querySelectorAll(".mesh button")) b.setAttribute("aria-checked", String(b.dataset.mode === m.mode));
   $("mode-help").textContent = MODE_HELP[m.mode] || "";
   const st = $("mesh-state");
   st.textContent = m.state + (m.detail ? `. ${m.detail}` : "");
@@ -330,7 +678,7 @@ function render(s) {
     lb.textContent = lg.on ? "Stop logging" : "Start logging";
     lb.className = "btn" + (lg.on ? " onair-btn" : "");
     $("log-state").textContent = lg.on
-      ? `Logging since ${clock(lg.started)}: ${lg.packets} packet${lg.packets === 1 ? "" : "s"} from ${lg.radios} radio${lg.radios === 1 ? "" : "s"}, ${lg.hellos} hello${lg.hellos === 1 ? "" : "s"} sent (${lg.helloMinutes ? `one every ${lg.helloMinutes} min` : "listening only"})${lg.unreadable ? `, ${lg.unreadable} heard too weak to read` : ""}`
+      ? `Logging since ${clock(lg.started)}: ${lg.packets} packet${lg.packets === 1 ? "" : "s"} from ${lg.radios} radio${lg.radios === 1 ? "" : "s"}, ${lg.hellos} hello${lg.hellos === 1 ? "" : "s"} sent (${lg.helloMinutes ? `one every ${lg.helloMinutes} min` : "none"})${lg.unreadable ? `, ${lg.unreadable} heard too weak to read` : ""}`
       : "Not logging.";
     $("log-state").className = "state" + (lg.error ? " bad" : "");
     if (lg.error) $("log-state").textContent += ` Error: ${lg.error}`;
@@ -345,9 +693,10 @@ function render(s) {
     ["Memory free", sy.memTotalMB ? `${sy.memAvailMB} of ${sy.memTotalMB} MB` : "?"],
     ["Card free", sy.diskSizeGB ? `${sy.diskFreeGB.toFixed(1)} of ${sy.diskSizeGB.toFixed(0)} GB` : "?"],
     ["Running for", sy.uptime ? duration(sy.uptime) : "?"],
-    ["LoRa stick", sy.meshstick ? "plugged in" : "not found"]];
+    ["LoRa stick", sy.meshstick ? "plugged in" : "not found"],
+    ["Radio firmware", r && r.firmware ? `meshtasticd ${r.firmware}` : ""]];
   for (const i of sy.interfaces || []) if (i.addrs && i.addrs.length) facts.push([i.name + (i.wifi ? " (WiFi)" : ""), i.addrs.join(", ")]);
-  $("sys").replaceChildren(...facts.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
+  $("sys").replaceChildren(...facts.filter(([, v]) => v).flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
 
   let url = s.appURL || location.origin + "/";
   if (/^http:\/\/(127\.|localhost|\[::1\])/.test(url)) { // on the screen: the address phones use instead
@@ -389,15 +738,13 @@ async function pollTraffic() {
   } catch (e) { /* next time */ }
 }
 
-const WHAT = { heard: (f) => (f.encrypted ? "encrypted" : f.port || "packet"), garbled: () => "unreadable", sent: (f) => `sent ${f.port === "nodeinfo" ? "hello" : f.port || ""}`, relayed: () => "passed on", busy: () => "channel busy" };
 function frameText(f) {
   const parts = [`${clockSec(f.t)}: ${WHAT[f.kind] ? WHAT[f.kind](f) : f.kind}`];
   if (f.from) parts.push(`from ${f.name || nameOfID(f.from)}`);
   if (f.to) parts.push(`to ${nameOfID(f.to)}`);
-  if (f.kind === "heard" || f.kind === "garbled") parts.push(`${minus(f.snr.toFixed(2))} dB${f.rssi ? `, ${minus(f.rssi)} dBm` : ""}`);
-  if (f.hops >= 0 && f.kind !== "sent") parts.push(`${f.hops} relays`);
-  if (f.relay) parts.push(`via …${f.relay}`);
-  if (f.airMs) parts.push(`${f.airMs} ms on air`);
+  const s = says(f);
+  if (s) parts.push(s);
+  if (f.kind === "heard" || f.kind === "garbled") parts.push(db(f.snr));
   return parts.join(", ");
 }
 
@@ -406,9 +753,9 @@ function drawTraffic() {
   const now = Date.now(), span = win * 1000, t0 = now - span;
   const fr = tr.frames.filter((f) => Date.parse(f.t) >= t0);
   const me = last && last.radio ? "!" + hex8(last.radio.myNum) : "";
-  const self = last && last.radio ? (last.radio.nodes || []).find((n) => n.self) : null;
+  const self = nodes().find((n) => n.self);
   for (const b of document.querySelectorAll(".win button")) b.setAttribute("aria-checked", String(Number(b.dataset.win) === win));
-  $("tr-sub").textContent = `Everything this hub's radio picks up on ${tr.preset || "its preset"}, readable or not, over the last ${win === 3600 ? "hour" : win / 60 + " minutes"}.`;
+  $("tr-sub").textContent = `Everything this hub's radio picks up on ${tr.preset || "its preset"}, readable or not, over the last ${win === 3600 ? "hour" : win / 60 + " minutes"}. Click a packet for what it says.`;
 
   const n = (k, p) => fr.filter((f) => f.kind === k && (!p || p(f))).length;
   const stats = [["Readable", n("heard", (f) => !f.encrypted)], ["Encrypted", n("heard", (f) => f.encrypted)], ["Unreadable", n("garbled")],
@@ -425,8 +772,7 @@ function drawTraffic() {
   const x = (t) => ml + (t - t0) / span * (W - ml - mr);
   const hi = 10, lo = -25, y = (s) => top + (hi - Math.max(lo, Math.min(hi, s))) / (hi - lo) * (bot - top);
   const g = [];
-  g.push(svg("text", { class: "ax", x: ml - 6, y: laneY + 4, "text-anchor": "end" }));
-  g[g.length - 1].textContent = "this hub";
+  const lane = svg("text", { class: "ax", x: ml - 6, y: laneY + 4, "text-anchor": "end" }); lane.textContent = "this hub"; g.push(lane);
   g.push(svg("line", { class: "lane", x1: ml, x2: W - mr, y1: laneY + 12, y2: laneY + 12 }));
   for (const s of [10, 0, -10, -20]) {
     g.push(svg("line", { class: "grid", x1: ml, x2: W - mr, y1: y(s), y2: y(s) }));
@@ -444,17 +790,17 @@ function drawTraffic() {
   const pxPerMs = (W - ml - mr) / span;
   for (const f of fr) {
     const fx = x(Date.parse(f.t)), fresh = f.seq > tr.drawnSeq ? " fresh" : "";
-    const w = Math.max(6, (f.airMs || 0) * pxPerMs);
+    const w = Math.max(9, (f.airMs || 0) * pxPerMs);
     let m, my;
     if (f.kind === "heard") {
       my = y(f.snr);
-      m = svg("rect", { class: "m heard" + (f.encrypted ? " enc" : "") + (f.to === me ? " us" : "") + fresh, x: fx, y: my - 4, width: Math.max(w, 9), height: 8, rx: 4 });
+      m = svg("rect", { class: "m heard" + (f.encrypted ? " enc" : "") + (f.to === me ? " us" : "") + fresh, x: fx, y: my - 4, width: w, height: 8, rx: 4 });
     } else if (f.kind === "garbled") {
       my = y(f.snr);
       m = svg("circle", { class: "m garbled" + (f.to === me ? " us" : "") + fresh, cx: fx, cy: my, r: 4 });
     } else if (f.kind === "sent") {
       my = laneY;
-      m = svg("rect", { class: "m sent" + fresh, x: fx, y: my - 4, width: w, height: 8, rx: 3 });
+      m = svg("rect", { class: "m sent" + fresh, x: fx, y: my - 4, width: w, height: 8, rx: 4 });
     } else if (f.kind === "relayed") {
       my = laneY;
       m = svg("circle", { class: "m relayed" + fresh, cx: fx, cy: my, r: 4 });
@@ -465,8 +811,7 @@ function drawTraffic() {
     g.push(m);
     marks.push({ x: fx + (f.kind === "heard" || f.kind === "sent" ? Math.min(w, 20) / 2 : 0), y: my, f });
   }
-  const nowLine = svg("line", { class: "now", x1: W - mr, x2: W - mr, y1: laneY - 8, y2: bot });
-  g.push(nowLine);
+  g.push(svg("line", { class: "now", x1: W - mr, x2: W - mr, y1: laneY - 8, y2: bot }));
   T.replaceChildren(...g);
   tr.drawnSeq = tr.seq;
 
@@ -511,9 +856,8 @@ function drawRelays(fr) {
   for (const f of fr) if (f.relay && (f.kind === "heard" || f.kind === "garbled")) counts.set(f.relay, (counts.get(f.relay) || 0) + 1);
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxv = top.length ? top[0][1] : 1;
-  const nodes = (last && last.radio && last.radio.nodes) || [];
   $("relays").replaceChildren(...(top.length ? top.map(([r, c]) => {
-    const cands = nodes.filter((nd) => (nd.num & 0xff) === parseInt(r, 16) && !nd.self).map(nodeName).slice(0, 2);
+    const cands = nodes().filter((nd) => (nd.num & 0xff) === parseInt(r, 16) && !nd.self).map(nodeName).slice(0, 2);
     return el("li", {},
       el("span", { class: "rl", text: `…${r}` }),
       el("span", { class: "rbar" }, el("i", { style: `width:${(c / maxv * 100).toFixed(0)}%` })),
@@ -524,23 +868,33 @@ function drawRelays(fr) {
 
 function drawFeed(fr) {
   const rows = fr.slice(-80).reverse();
-  $("feed").replaceChildren(...rows.map((f) => el("tr", { class: f.kind + (f.encrypted ? " enc" : "") },
-    el("td", { text: clockSec(f.t) }),
-    el("td", { class: "what", text: WHAT[f.kind] ? WHAT[f.kind](f) : f.kind }),
-    el("td", { text: f.from || f.to ? `${f.from ? f.name || nameOfID(f.from) : "this hub"} → ${nameOfID(f.to)}` : "" }),
-    el("td", { text: f.kind === "heard" || f.kind === "garbled" ? `${minus(f.snr.toFixed(1))} dB${f.rssi ? `, ${minus(f.rssi)} dBm` : ""}` : "" }),
-    el("td", { text: f.hops >= 0 && f.kind !== "sent" ? String(f.hops) : "" }),
-    el("td", { text: f.relay ? "…" + f.relay : "" }),
-    el("td", { text: f.airMs ? `${f.airMs} ms` : "" }))));
+  $("feed").replaceChildren(...rows.map((f) => {
+    const row = el("tr", { class: "click " + f.kind + (f.encrypted ? " enc" : ""), tabindex: "0" },
+      el("td", { text: clockSec(f.t) }),
+      el("td", { class: "what", text: WHAT[f.kind] ? WHAT[f.kind](f) : f.kind }),
+      el("td", { text: f.from || f.to ? `${f.from ? f.name || nameOfID(f.from) : "this hub"} → ${nameOfID(f.to)}` : "" }),
+      el("td", { class: "says", text: says(f) }),
+      el("td", { text: f.kind === "heard" || f.kind === "garbled" ? `${db(f.snr)}${f.rssi ? `, ${minus(f.rssi)} dBm` : ""}` : "" }),
+      el("td", { text: f.hops >= 0 && f.kind !== "sent" ? String(f.hops) : "" }),
+      el("td", { text: f.relay ? "…" + f.relay : "" }));
+    row.addEventListener("click", () => showFrame(f));
+    row.addEventListener("keydown", (ev) => { if (ev.key === "Enter") showFrame(f); });
+    return row;
+  }));
 }
 
-// Hover: the nearest mark within reach gets a tooltip.
-$("timeline").addEventListener("pointermove", (ev) => {
+// Hover and click on the timeline: the nearest mark within reach.
+function nearest(ev) {
   const T = $("timeline"), r = T.getBoundingClientRect(), vb = T.viewBox.baseVal;
   const px = (ev.clientX - r.left) * vb.width / r.width, py = (ev.clientY - r.top) * vb.height / r.height;
   let best = null, bd = 16;
   for (const m of marks) { const d = Math.hypot(m.x - px, m.y - py); if (d < bd) { bd = d; best = m; } }
+  return { best, r, vb };
+}
+$("timeline").addEventListener("pointermove", (ev) => {
+  const { best, r, vb } = nearest(ev);
   const tip = $("tip");
+  $("timeline").style.cursor = best ? "pointer" : "";
   if (!best) { tip.classList.remove("on"); return; }
   tip.textContent = frameText(best.f);
   tip.style.left = `${Math.min(Math.max(best.x * r.width / vb.width, 120), r.width - 120)}px`;
@@ -548,6 +902,7 @@ $("timeline").addEventListener("pointermove", (ev) => {
   tip.classList.add("on");
 });
 $("timeline").addEventListener("pointerleave", () => $("tip").classList.remove("on"));
+$("timeline").addEventListener("click", (ev) => { const { best } = nearest(ev); if (best) showFrame(best.f); });
 for (const b of document.querySelectorAll(".win button")) {
   b.addEventListener("click", () => { win = Number(b.dataset.win); save("hub.win", win); drawTraffic(); });
 }
@@ -571,43 +926,45 @@ async function act(path, body) {
     const out = await res.json().catch(() => ({}));
     if (res.status === 401 && !(last && last.local)) {
       const p = await askPIN();
-      if (p == null) throw new Error("Not sent: the buttons need the hub PIN.");
+      if (p == null) throw new Error("Not done: the buttons need the hub PIN.");
       pin = p;
       try { sessionStorage.setItem("hubPIN", pin); } catch (e) { /* fine */ }
       continue;
     }
-    if (!res.ok) throw new Error(out.error || "The hub said no.");
+    if (!res.ok) throw new Error((out.error || "The hub said no.").replace(/^meshtastic: /, ""));
     return out;
   }
   throw new Error("Wrong PIN.");
 }
 
-function note(msg, bad) { const n = $("send-note"); n.textContent = msg; n.className = "note" + (bad ? " bad" : ""); }
+async function sendText(input, noteId, body) {
+  const text = input.value.trim();
+  if (!text) return false;
+  try {
+    await act("send", { ...body, text });
+    input.value = "";
+    setNote(noteId, body.to ? "Sent by radio. The tick shows when it arrived." : "Sent by radio. Radios in range get it within a few seconds.");
+    poll();
+    return true;
+  } catch (e) { setNote(noteId, e.message, true); return false; }
+}
 
 $("send").addEventListener("submit", async (ev) => {
   ev.preventDefault();
-  const text = $("msg").value.trim();
-  if (!text) return;
-  const body = { text };
+  const body = {};
   if (conv !== "pub") body.to = "!" + hex8(Number(conv));
   if (replyTo && replyTo.id) body.replyId = String(replyTo.id);
-  try {
-    await act("send", body);
-    $("msg").value = "";
-    replyTo = null; showReply();
-    note(conv === "pub" ? "Sent by radio. Radios in range get it within a few seconds." : "Sent by radio. The tick shows when it arrived.");
-    poll();
-  } catch (e) { note(e.message, true); }
+  if (await sendText($("msg"), "send-note", body)) { replyTo = null; showReply(); }
 });
+$("home-send").addEventListener("submit", (ev) => { ev.preventDefault(); sendText($("home-msg"), "home-note", {}); });
 
 $("hello").addEventListener("click", async () => {
   try {
     await act("hello");
-    const p = $("pulse");
-    p.classList.remove("go"); void p.getBBox(); p.classList.add("go");
-    $("air-note").textContent = "Hello sent. Radios in range answer over the next minute or so.";
-    $("air-note").className = "note";
-  } catch (e) { $("air-note").textContent = e.message; $("air-note").className = "note bad"; }
+    const p = $("plot-home").querySelector(".pulse");
+    if (p) { p.classList.remove("go"); void p.getBBox(); p.classList.add("go"); }
+    setNote("air-note", "Hello sent. Radios in range answer over the next minute or so.");
+  } catch (e) { setNote("air-note", e.message, true); }
 });
 
 $("logbtn").addEventListener("click", async () => {
@@ -618,7 +975,7 @@ $("logbtn").addEventListener("click", async () => {
   } catch (e) { $("log-state").textContent = e.message; }
 });
 
-for (const b of document.querySelectorAll(".side .modes button")) {
+for (const b of document.querySelectorAll(".mesh button")) {
   b.addEventListener("click", async () => {
     const mode = b.dataset.mode;
     if (last && last.mesh && last.mesh.mode === mode) return;
@@ -630,21 +987,21 @@ for (const b of document.querySelectorAll(".side .modes button")) {
   });
 }
 
-// Keys for the hub's own keyboard: 1, 2, 3 switch views; / starts a message.
+// Keys for the hub's own keyboard: 1 to 6 switch views; / starts a message.
 document.addEventListener("keydown", (ev) => {
-  const typing = ["INPUT", "TEXTAREA"].includes(document.activeElement.tagName);
+  const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
   if (ev.key === "Escape") { if (replyTo) { replyTo = null; showReply(); } else if (typing) document.activeElement.blur(); return; }
-  if (typing || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  if (typing || ev.ctrlKey || ev.metaKey || ev.altKey || $("detail").open || $("pin").open) return;
   if (ev.key === "/") { ev.preventDefault(); setView("messages"); $("msg").focus(); }
-  const i = ["1", "2", "3"].indexOf(ev.key);
+  const i = ["1", "2", "3", "4", "5", "6"].indexOf(ev.key);
   if (i >= 0) setView(VIEWS[i]);
 });
-$("tab-radios").parentElement.addEventListener("keydown", (ev) => {
+document.querySelector(".tabs").addEventListener("keydown", (ev) => {
   if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
   const i = (VIEWS.indexOf(view) + (ev.key === "ArrowRight" ? 1 : VIEWS.length - 1)) % VIEWS.length;
   setView(VIEWS[i]); $("tab-" + VIEWS[i]).focus();
 });
-window.addEventListener("resize", () => { if (view === "traffic") drawTraffic(); });
+window.addEventListener("resize", () => { if (view === "traffic") drawTraffic(); if (map && view === "map") map.invalidateSize(); });
 
 setView(view);
 poll();

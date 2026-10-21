@@ -3,150 +3,243 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>batnet hub</title>
+<title>lorabatnet hub</title>
+<link rel="stylesheet" href="vendor/leaflet.css">
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
 <header class="top">
   <div class="name">
-    <h1>batnet hub</h1>
+    <h1 id="hubname">lorabatnet</h1>
     <p id="house" class="muted"></p>
   </div>
   <p id="onair" class="onair" aria-live="polite">Connecting to the radio…</p>
   <p id="clock" class="clock"></p>
 </header>
 <nav class="tabs" role="tablist" aria-label="Views">
-  <button role="tab" id="tab-radios" aria-controls="view-radios" data-view="radios">Radios</button>
+  <button role="tab" id="tab-home" aria-controls="view-home" data-view="home">Home</button>
   <button role="tab" id="tab-messages" aria-controls="view-messages" data-view="messages">Messages <span id="badge" class="badge" hidden></span></button>
+  <button role="tab" id="tab-map" aria-controls="view-map" data-view="map">Map</button>
+  <button role="tab" id="tab-radios" aria-controls="view-radios" data-view="radios">Radios</button>
   <button role="tab" id="tab-traffic" aria-controls="view-traffic" data-view="traffic">Traffic</button>
+  <button role="tab" id="tab-settings" aria-controls="view-settings" data-view="settings">Settings</button>
   <p id="flash" class="flash" role="status" hidden><span id="flash-text"></span> <button id="flash-open" class="btn small">Open</button></p>
 </nav>
 
-<main class="grid">
-  <div class="views">
-    <section class="view radios" id="view-radios" role="tabpanel" aria-labelledby="tab-radios">
-      <div class="air">
-        <div class="head">
-          <h2>Who is out there</h2>
-          <button id="hello" class="btn">Say hello</button>
-        </div>
-        <p class="muted">Every radio this hub has heard. The closer to the middle, the fewer relays between us.</p>
-        <svg id="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays"></svg>
-        <p class="legend"><span class="k direct"></span>heard directly <span class="k relayed"></span>through relays <span class="k bn"></span>runs batnet</p>
+<main class="views">
+  <!-- Home: the simple first screen -->
+  <section class="view home" id="view-home" role="tabpanel" aria-labelledby="tab-home">
+    <p id="headline" class="headline"></p>
+    <p id="health" class="health"></p>
+    <div class="home-grid">
+      <div class="home-msgs">
+        <div class="head"><h2>Latest messages</h2><button class="linkbtn" data-go="messages" type="button">All messages</button></div>
+        <ol id="home-thread" class="bubbles compact"></ol>
+        <p id="home-empty" class="empty">No messages yet.</p>
+        <form id="home-send" class="send" autocomplete="off">
+          <label class="sr" for="home-msg">Message to everyone nearby</label>
+          <input id="home-msg" maxlength="200" placeholder="Message to everyone in range">
+          <button class="btn onair-btn" type="submit">Send</button>
+        </form>
+        <p id="home-note" class="note" aria-live="polite"></p>
+      </div>
+      <div class="home-air">
+        <div class="head"><h2>Who is out there</h2><button id="hello" class="btn">Say hello</button></div>
+        <svg id="plot-home" class="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays; click one for more"></svg>
         <p id="air-note" class="note" aria-live="polite"></p>
       </div>
-      <div class="nodes">
-        <h2>Radios nearby <span id="ncount" class="count"></span></h2>
+    </div>
+  </section>
+
+  <section class="view msgr" id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
+    <ul id="convs" class="convs" aria-label="Conversations"></ul>
+    <div class="thread">
+      <div class="thread-head">
+        <h2 id="thread-name"></h2>
+        <p id="thread-sub" class="muted"></p>
+      </div>
+      <ol id="thread" class="bubbles" aria-live="polite"></ol>
+      <p id="thread-empty" class="empty"></p>
+      <p id="replying" class="replying" hidden><span id="replying-text"></span> <button id="reply-cancel" class="btn ghost small" type="button">Cancel</button></p>
+      <form id="send" class="send" autocomplete="off">
+        <label class="sr" for="msg">Message</label>
+        <input id="msg" maxlength="200">
+        <button class="btn onair-btn" type="submit">Send by radio</button>
+      </form>
+      <p id="send-note" class="note" aria-live="polite"></p>
+    </div>
+  </section>
+
+  <section class="view mapview" id="view-map" role="tabpanel" aria-labelledby="tab-map" hidden>
+    <div class="map-wrap">
+      <div id="map-canvas" aria-label="Map of the radios that shared where they are"></div>
+      <p id="map-note" class="map-note" hidden></p>
+    </div>
+    <aside class="map-side">
+      <h2>On the map <span id="mcount" class="count"></span></h2>
+      <p class="muted small">Radios that shared where they are. A ring means the radio shares only a rough area, on purpose.</p>
+      <ul id="maplist" class="maplist"></ul>
+      <p id="map-empty" class="empty" hidden>No radio has shared a position yet.</p>
+      <button id="place-hub" class="btn ghost small" type="button">Mark where this hub is</button>
+      <p id="place-note" class="note"></p>
+    </aside>
+  </section>
+
+  <section class="view radios" id="view-radios" role="tabpanel" aria-labelledby="tab-radios" hidden>
+    <div class="air">
+      <h2>Who is out there</h2>
+      <p class="muted small">Every radio this hub has heard. The closer to the middle, the fewer relays between us. Click one for more.</p>
+      <svg id="plot" class="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays; click one for more"></svg>
+      <p class="legend"><span class="k direct"></span>heard directly <span class="k relayed"></span>through relays <span class="k bn"></span>runs batnet</p>
+    </div>
+    <div class="nodes">
+      <h2>Radios heard <span id="ncount" class="count"></span></h2>
+      <div class="table-wrap">
         <table>
-          <thead><tr><th scope="col">Name</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Last heard</th><th scope="col"><span class="sr">Message</span></th></tr></thead>
+          <thead><tr><th scope="col">Name</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Last heard</th><th scope="col"><span class="sr">Actions</span></th></tr></thead>
           <tbody id="nodelist"></tbody>
         </table>
-        <p id="nodes-empty" class="empty" hidden>Only this hub so far. Press Say hello: radios in range answer with their names.</p>
       </div>
-    </section>
+      <p id="nodes-empty" class="empty" hidden>Only this hub so far. Press Say hello on Home: radios in range answer with their names.</p>
+    </div>
+  </section>
 
-    <section class="view msgr" id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
-      <ul id="convs" class="convs" aria-label="Conversations"></ul>
-      <div class="thread">
-        <div class="thread-head">
-          <h2 id="thread-name"></h2>
-          <p id="thread-sub" class="muted"></p>
-        </div>
-        <ol id="thread" class="bubbles" aria-live="polite"></ol>
-        <p id="thread-empty" class="empty"></p>
-        <p id="replying" class="replying" hidden><span id="replying-text"></span> <button id="reply-cancel" class="btn ghost small" type="button">Cancel</button></p>
-        <form id="send" class="send" autocomplete="off">
-          <label class="sr" for="msg">Message</label>
-          <input id="msg" maxlength="200">
-          <button class="btn onair-btn" type="submit">Send by radio</button>
-        </form>
-        <p id="send-note" class="note" aria-live="polite"></p>
+  <section class="view traffic" id="view-traffic" role="tabpanel" aria-labelledby="tab-traffic" hidden>
+    <div class="head">
+      <div>
+        <h2>Traffic on the air</h2>
+        <p id="tr-sub" class="muted">Everything this hub's radio picks up, readable or not.</p>
       </div>
-    </section>
-
-    <section class="view traffic" id="view-traffic" role="tabpanel" aria-labelledby="tab-traffic" hidden>
-      <div class="head">
-        <div>
-          <h2>Traffic on the air</h2>
-          <p id="tr-sub" class="muted">Everything this hub's radio picks up, readable or not.</p>
-        </div>
-        <div class="modes win" role="radiogroup" aria-label="Time window">
-          <button role="radio" data-win="120">2 min</button>
-          <button role="radio" data-win="600">10 min</button>
-          <button role="radio" data-win="3600">1 hour</button>
-        </div>
+      <div class="modes win" role="radiogroup" aria-label="Time window">
+        <button role="radio" data-win="120">2 min</button>
+        <button role="radio" data-win="600">10 min</button>
+        <button role="radio" data-win="3600">1 hour</button>
       </div>
-      <dl id="tr-stats" class="stats"></dl>
-      <div class="tl-wrap">
-        <svg id="timeline" role="img" aria-label="Packets over time by signal strength"></svg>
-        <div id="tip" class="tip" role="tooltip"></div>
+    </div>
+    <dl id="tr-stats" class="stats"></dl>
+    <div class="tl-wrap">
+      <svg id="timeline" role="img" aria-label="Packets over time by signal strength; click one for what it says"></svg>
+      <div id="tip" class="tip" role="tooltip"></div>
+    </div>
+    <p class="legend tl-legend">
+      <span><svg width="16" height="10"><rect x="1" y="1" width="14" height="8" rx="4" class="m heard"/></svg>readable</span>
+      <span><svg width="16" height="10"><rect x="1" y="1" width="14" height="8" rx="4" class="m heard enc"/></svg>encrypted for another group</span>
+      <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m garbled"/></svg>too weak or collided</span>
+      <span><svg width="16" height="10"><rect x="1" y="1" width="14" height="8" rx="4" class="m heard us"/></svg>for this hub</span>
+      <span><svg width="16" height="10"><rect x="1" y="1" width="14" height="8" rx="4" class="m sent"/></svg>sent by this hub</span>
+      <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m relayed"/></svg>passed on by this hub</span>
+    </p>
+    <div class="tr-lower">
+      <div>
+        <h3>Packets per minute</h3>
+        <svg id="perminute" role="img" aria-label="Packets per minute"></svg>
       </div>
-      <p class="legend tl-legend">
-        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard"/></svg>readable</span>
-        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard enc"/></svg>encrypted for another group</span>
-        <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m garbled"/></svg>too weak or collided</span>
-        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard us"/></svg>for this hub</span>
-        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m sent"/></svg>sent by this hub</span>
-        <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m relayed"/></svg>passed on by this hub</span>
-      </p>
-      <div class="tr-lower">
-        <div>
-          <h3>Packets per minute</h3>
-          <svg id="perminute" role="img" aria-label="Packets per minute"></svg>
-        </div>
-        <div>
-          <h3>Who passes traffic to us</h3>
-          <p class="muted small">The last radio before ours, by the last two digits of its ID.</p>
-          <ul id="relays" class="relays"></ul>
-        </div>
+      <div>
+        <h3>Who passes traffic to us</h3>
+        <p class="muted small">The last radio before ours, by the last two digits of its ID.</p>
+        <ul id="relays" class="relays"></ul>
       </div>
-      <details class="feed" id="feed-box" open>
-        <summary>Every packet, newest first</summary>
+    </div>
+    <details class="feed" open>
+      <summary>Every packet, newest first. Click one for what it says.</summary>
+      <div class="table-wrap">
         <table>
-          <thead><tr><th scope="col">Time</th><th scope="col">What</th><th scope="col">From → to</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Via</th><th scope="col">Air</th></tr></thead>
+          <thead><tr><th scope="col">Time</th><th scope="col">What</th><th scope="col">From → to</th><th scope="col">Says</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Via</th></tr></thead>
           <tbody id="feed"></tbody>
         </table>
-      </details>
-    </section>
-  </div>
+      </div>
+    </details>
+  </section>
 
-  <section class="side">
-    <div class="block" aria-labelledby="log-h">
-      <div class="head"><h2 id="log-h">Log</h2><button id="logbtn" class="btn" disabled>Start logging</button></div>
-      <p class="muted">Records every packet the radio hears, even those too weak to read, and says hello now and then. It keeps going after a restart or a power cut until you stop it: take the hub along on a trip.</p>
+  <section class="view settings" id="view-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+    <form id="radio-form" class="card wide" autocomplete="off">
+      <h2>Radio</h2>
+      <fieldset class="presets">
+        <legend>Preset: how far against how fast. A radio only hears others on the same one.</legend>
+        <div id="preset-list" class="preset-list"></div>
+      </fieldset>
+      <div class="row2">
+        <label>Relays allowed <span class="hint">how many radios may pass a message on; Meshtastic's default is 3</span>
+          <select id="set-hops"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select></label>
+        <label>Transmit power, dBm <span class="hint">the EU allows 27; the Meshstick gives at most 22</span>
+          <input id="set-power" type="number" min="1" max="27" step="1"></label>
+        <label class="check"><input id="set-tx" type="checkbox"> Transmit <span class="hint">off: listen only, the radio sends nothing</span></label>
+      </div>
+      <div class="actions"><button class="btn" type="submit">Apply to the radio</button><span id="radio-note" class="note">The radio restarts to apply it: about 10 s off the air.</span></div>
+    </form>
+
+    <form id="owner-form" class="card" autocomplete="off">
+      <h2>Name on the air</h2>
+      <label>Name <span class="hint" id="long-count"></span><input id="set-long" maxlength="39"></label>
+      <label>Short name <span class="hint" id="short-count"></span><input id="set-short" maxlength="4"></label>
+      <p class="muted small">Every radio nearby sees these. The short name holds 4 bytes: up to 4 letters, or one emoji.</p>
+      <div class="actions"><button class="btn" type="submit">Rename</button><span id="owner-note" class="note"></span></div>
+    </form>
+
+    <form id="hub-form" class="card" autocomplete="off">
+      <h2>This hub</h2>
+      <label>Say hello <span class="hint">while logging; each hello asks every radio in range to answer, so keep it rare in a busy mesh</span>
+        <select id="set-hello"><option value="-1">never</option><option value="5">every 5 minutes</option><option value="15">every 15 minutes</option><option value="30">every 30 minutes</option><option value="60">every hour</option></select></label>
+      <label>Where it stands <span class="hint">for the map and distances; kept on the hub, never sent by radio</span>
+        <span class="latlon"><input id="set-lat" inputmode="decimal" placeholder="latitude" aria-label="latitude"><input id="set-lon" inputmode="decimal" placeholder="longitude" aria-label="longitude"></span></label>
+      <div class="actions"><button class="btn" type="submit">Save</button><button id="forget-place" class="btn ghost" type="button">Forget the place</button><span id="hub-note" class="note"></span></div>
+    </form>
+
+    <div class="card">
+      <div class="head"><h2>Log</h2><button id="logbtn" class="btn" disabled>Start logging</button></div>
+      <p class="muted small">Records every packet the radio hears, even those too weak to read. It keeps going after a restart or a power cut until you stop it: take the hub along on a trip.</p>
       <p id="log-state" class="state"></p>
       <ul id="logfiles" class="peers"></ul>
     </div>
 
-    <div class="block" aria-labelledby="mesh-h">
-      <h2 id="mesh-h">WiFi mesh</h2>
-      <div class="modes" role="radiogroup" aria-label="Mesh mode">
+    <div class="card">
+      <h2>WiFi mesh</h2>
+      <div class="modes mesh" role="radiogroup" aria-label="Mesh mode">
         <button role="radio" data-mode="off">Off</button>
         <button role="radio" data-mode="mock">Mock</button>
         <button role="radio" data-mode="real">Real</button>
       </div>
-      <p id="mode-help" class="muted"></p>
+      <p id="mode-help" class="muted small"></p>
       <p id="mesh-state" class="state"></p>
       <ul id="peers" class="peers"></ul>
     </div>
 
-    <div class="block" aria-labelledby="pi-h">
-      <h2 id="pi-h">This Pi</h2>
+    <div class="card">
+      <h2>This Pi</h2>
       <dl id="sys" class="facts"></dl>
     </div>
 
-    <div class="block" aria-labelledby="app-h">
-      <h2 id="app-h">The house app</h2>
-      <p class="muted">Phones open it in a browser on this hub's network.</p>
+    <div class="card">
+      <h2>The house app</h2>
+      <p class="muted small">Phones open it in a browser on this hub's network.</p>
       <dl id="app" class="facts"></dl>
+    </div>
+
+    <div class="card">
+      <h2>This screen</h2>
+      <div class="modes theme" role="radiogroup" aria-label="Colours">
+        <button role="radio" data-theme="">Automatic</button>
+        <button role="radio" data-theme="light">Light</button>
+        <button role="radio" data-theme="dark">Dark</button>
+      </div>
+      <p class="muted small">Keys on the hub's keyboard: 1 to 6 switch views, / starts a message.</p>
     </div>
   </section>
 </main>
 
+<dialog id="detail">
+  <form method="dialog">
+    <h2 id="detail-title"></h2>
+    <p id="detail-says" class="says"></p>
+    <dl id="detail-facts" class="facts"></dl>
+    <div class="row"><button id="detail-map" class="btn ghost" type="button" hidden>Show on the map</button><button id="detail-msg" class="btn ghost" type="button" hidden>Message</button><button class="btn" value="close">Close</button></div>
+  </form>
+</dialog>
+
 <dialog id="pin">
   <form method="dialog" id="pinform">
     <h2>Hub PIN</h2>
-    <p class="muted">The buttons need the hub PIN when you use them from another device. It is shown on the hub's own screen.</p>
+    <p class="muted">The buttons need the hub PIN when you use them from another device. It is shown on the hub's own screen, under Settings.</p>
     <label for="pinin">PIN</label>
     <input id="pinin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required>
     <p id="pin-err" class="note"></p>
@@ -154,6 +247,7 @@
   </form>
 </dialog>
 
+<script src="vendor/leaflet.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>

@@ -94,3 +94,18 @@ func (e *enc) bytes(num int, v []byte) {
 	e.b = binary.AppendUvarint(e.b, uint64(len(v)))
 	e.b = append(e.b, v...)
 }
+
+// put appends f as it was received (to rebuild a message with some fields changed).
+func (e *enc) put(f field) {
+	switch f.typ {
+	case wireVarint:
+		e.varint(f.num, f.v)
+	case wireI32:
+		e.fixed32(f.num, uint32(f.v))
+	case wireI64:
+		e.key(f.num, wireI64)
+		e.b = binary.LittleEndian.AppendUint64(e.b, f.v)
+	case wireLen:
+		e.bytes(f.num, f.b)
+	}
+}

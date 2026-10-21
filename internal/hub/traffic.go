@@ -36,6 +36,13 @@ type Frame struct {
 	Relay     string  `json:"relay,omitempty"`
 	Bytes     int     `json:"bytes,omitempty"`
 	AirMs     int     `json:"airMs,omitempty"` // estimated time on the air
+	// What the packet says, when it could be read: a text, a shared
+	// position, and the decoded contents of other ports.
+	Text string         `json:"text,omitempty"`
+	Lat  *float64       `json:"lat,omitempty"`
+	Lon  *float64       `json:"lon,omitempty"`
+	Alt  *int32         `json:"alt,omitempty"`
+	Info map[string]any `json:"info,omitempty"`
 }
 
 const (
@@ -72,10 +79,11 @@ func (t *Traffic) Event(e meshtastic.Event) {
 		// air after a 16-byte header.
 		air := max(e.Bytes-1, 20)
 		t.add(Frame{At: e.At, Kind: "heard", From: e.From, Name: e.FromName, To: e.To, Port: e.Port, Encrypted: e.Port == "",
-			SNR: float64(e.SNR), RSSI: int(e.RSSI), Hops: e.Hops, Relay: e.Relay, Bytes: air, AirMs: t.airtime(air)})
+			SNR: float64(e.SNR), RSSI: int(e.RSSI), Hops: e.Hops, Relay: e.Relay, Bytes: air, AirMs: t.airtime(air),
+			Text: e.Text, Lat: e.Lat, Lon: e.Lon, Alt: e.Alt, Info: e.Info})
 	case e.Kind == "sent":
 		air := max(e.Bytes+12, 20) // the ToRadio wrapping off, the header and encryption on
-		t.add(Frame{At: e.At, Kind: "sent", To: e.To, Port: e.Port, Hops: 0, Bytes: air, AirMs: t.airtime(air)})
+		t.add(Frame{At: e.At, Kind: "sent", To: e.To, Port: e.Port, Hops: 0, Bytes: air, AirMs: t.airtime(air), Text: e.Text})
 	}
 }
 

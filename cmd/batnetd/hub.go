@@ -45,6 +45,8 @@ type hubSettings struct {
 	// HelloMinutes is the time between the log's hellos: 0 or unset, every 5
 	// minutes; negative, none (listen only).
 	HelloMinutes int `json:"helloMinutes,omitempty"`
+	// Where the hub stands, for the panel's map; never sent by radio.
+	Where *hub.Where `json:"where,omitempty"`
 }
 
 // The real mesh: bat0 in 172.27.0.0/16, broadcasts on UDP 4200, repairs on HTTP 4201.
@@ -195,11 +197,29 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	radio.OnEvent(logbook.Event)
 	traffic := hub.NewTraffic(func() string { return radio.Status().Preset })
 	radio.OnEvent(traffic.Event)
-	switch m := h.settings.HelloMinutes; {
-	case m < 0:
-		logbook.SetHelloEvery(0)
-	case m > 0:
-		logbook.SetHelloEvery(time.Duration(m) * time.Minute)
+	setHello := func(m int) {
+		switch {
+		case m < 0:
+			logbook.SetHelloEvery(0)
+		case m > 0:
+			logbook.SetHelloEvery(time.Duration(m) * time.Minute)
+		default:
+			logbook.SetHelloEvery(hub.HelloEvery)
+		}
+	}
+	setHello(h.settings.HelloMinutes)
+	settings := func() hub.HubSettings {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return hub.HubSettings{HelloMinutes: h.settings.HelloMinutes, Where: h.settings.Where}
+	}
+	saveSettings := func(hs hub.HubSettings) error {
+		h.mu.Lock()
+		h.settings.HelloMinutes, h.settings.Where = hs.HelloMinutes, hs.Where
+		err := h.save()
+		h.mu.Unlock()
+		setHello(hs.HelloMinutes)
+		return err
 	}
 	if h.settings.Log {
 		if err := logbook.Start(); err != nil {
@@ -215,7 +235,8 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	})
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
-		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic})
+		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic,
+		Settings: settings, SaveSettings: saveSettings})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())

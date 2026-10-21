@@ -9,6 +9,18 @@ sources:
   - id: reddit-divided
     resource: https://www.reddit.com/r/meshtastic/comments/1mmsay9/berlin_a_divided_city/
     title: r/meshtastic - Berlin, a divided city (August 2025, with node maps for both presets)
+  - id: reddit-freifunk
+    resource: https://www.reddit.com/r/meshtastic/comments/1naqcci/berlin_freifunk_is_now_mediumfast/
+    title: r/meshtastic - Berlin Freifunk is now MediumFast (2025)
+  - id: mt-blog
+    resource: https://meshtastic.org/blog/why-your-mesh-should-switch-from-longfast/
+    title: Meshtastic blog - Is LongFast holding your mesh back? (22 April 2025)
+  - id: chaosmesh
+    resource: https://potatomesh.net/pages/about
+    title: Berlin Chaos Mesh (PotatoMesh) - the settings Berlin's mesh community publishes
+  - id: raspberry-tips
+    resource: https://raspberry.tips/?p=19026
+    title: raspberry.tips - German regional presets, after Mesh Dresden's overview
 ---
 
 # What the community reports
@@ -31,6 +43,30 @@ note, so the balance may have moved since:
   centre; LF nodes in the centre, south-ish and east, and around Potsdam.
 * A visitor on LF heard almost no one. Others blame LTE interference too:
   repeaters with band-pass filters do much better than bare boards.
+
+Since then the move has gone further:
+
+* Freifunk Berlin's repeaters switched one after the other: "After
+  Teufelsberg and Zwingli, also the repeater at Vaterhaus switched to
+  MediumFast. I recommend we use this momentum to move the rest of the
+  community to MediumFast, too." [reddit-freifunk]
+* Berlin Chaos Mesh, the community's own page, publishes MediumFast at
+  869.525 MHz, 250 kHz, as Berlin's Meshtastic preset: public channel
+  "MediumFast", a coordination channel "BerlinMesh" with its own key, and
+  TEST and SOS channels with the open key. (Its key is public on that page;
+  it is not copied into this repo.) It lists MeshCore at 869.618 MHz,
+  62.5 kHz, and Reticulum at 869.475 MHz, 125 kHz, beside it. [chaosmesh]
+  (The page's table gives SF 8 for MediumFast; Meshtastic's MediumFast is
+  SF 9, which is what the bench hub's radio uses.)
+* A German overview after Mesh Dresden: Berlin on MediumFast, Hessen on
+  ShortSlow; a radio left on LongFast does not hear the local network.
+  [raspberry-tips]
+* Meshtastic itself recommends moving off LongFast in dense meshes (more than
+  about 60 nodes close together, or a busy city): MediumFast or MediumSlow for
+  dense urban meshes, ShortFast or ShortSlow for very dense ones. Its link
+  budgets: LongFast 153 dB at 1.07 kbit/s, MediumSlow 150.5 dB at 1.95,
+  MediumFast 148 dB at 3.52, ShortSlow 145.5 dB at 6.25, ShortFast 143 dB at
+  10.94, ShortTurbo 140 dB at 21.88. [mt-blog]
 
 # What it means for a hub
 

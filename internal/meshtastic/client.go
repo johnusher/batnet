@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 	"unicode/utf8"
@@ -26,6 +27,7 @@ const (
 	// SendGap and HelloGap keep a person at the panel from hogging the shared
 	// channel; meshtasticd enforces the EU868 duty cycle on top.
 	SendGap  = 5 * time.Second
+	adminGap = 5 * time.Second
 	HelloGap = 5 * time.Minute
 )
 
@@ -51,9 +53,29 @@ type Node struct {
 	ChanUtil  *float32  `json:"chanUtil,omitempty"`
 	AirUtilTx *float32  `json:"airUtilTx,omitempty"`
 	Packets   int       `json:"packets"`
+	Hardware  string    `json:"hardware,omitempty"`
+	// Position is where the radio last said it was; nil: it never said.
+	Position *NodePosition `json:"position,omitempty"`
 	// Batnet: sent batnet traffic (PRIVATE_APP) or names itself batnet.
 	Batnet bool `json:"batnet"`
 	Self   bool `json:"self"`
+}
+
+// NodePosition is a radio's last shared position.
+type NodePosition struct {
+	Lat       float64   `json:"lat"`
+	Lon       float64   `json:"lon"`
+	Alt       *int32    `json:"alt,omitempty"`
+	AccuracyM float64   `json:"accuracyM,omitempty"` // 0: exact
+	At        time.Time `json:"at"`
+}
+
+func (c *Client) setPosition(n *Node, p Position) {
+	at := c.now()
+	if p.Time != 0 {
+		at = time.Unix(int64(p.Time), 0)
+	}
+	n.Position = &NodePosition{Lat: p.Lat, Lon: p.Lon, Alt: p.Alt, AccuracyM: p.AccuracyM, At: at}
 }
 
 // Text is one text message on a channel this radio can read.
@@ -103,10 +125,13 @@ type Event struct {
 	Lon      *float64  `json:"lon,omitempty"`
 	Alt      *int32    `json:"alt,omitempty"`
 	Bytes    int       `json:"bytes"`
-	Relay    string    `json:"relay,omitempty"` // the last byte of the radio that passed it on
-	PKI      bool      `json:"pki,omitempty"`
-	ReplyID  uint32    `json:"replyId,omitempty"`
-	Status   string    `json:"status,omitempty"` // for a receipt: what became of message ID
+	// Info is what the packet says, decoded for the panel (battery, names,
+	// a route, neighbours), by port.
+	Info    map[string]any `json:"info,omitempty"`
+	Relay   string         `json:"relay,omitempty"` // the last byte of the radio that passed it on
+	PKI     bool           `json:"pki,omitempty"`
+	ReplyID uint32         `json:"replyId,omitempty"`
+	Status  string         `json:"status,omitempty"` // for a receipt: what became of message ID
 	// Local is a packet from this hub's own radio (its telemetry, a receipt),
 	// not one heard on the air.
 	Local bool   `json:"local,omitempty"`
@@ -147,6 +172,8 @@ type Client struct {
 	selfUser  []byte // our own User message, for "say hello"
 	lastSend  time.Time
 	lastHello time.Time
+	lastAdmin time.Time
+	loraRaw   []byte // the radio's LoRaConfig as it sent it, for changing a few fields
 	listeners map[chan struct{}]bool
 	onEvent   []func(Event)
 }
@@ -386,8 +413,8 @@ func (c *Client) setUser(n *Node, u user) {
 	if u.short != "" {
 		n.ShortName = u.short
 	}
-	n.HWModel, n.Role = u.hw, roles[u.role]
-	if len(u.long) >= 6 && (u.long[:6] == "batnet" || u.long[:6] == "Batnet") {
+	n.HWModel, n.Role, n.Hardware = u.hw, roles[u.role], HardwareName(u.hw)
+	if l := strings.ToLower(u.long); strings.HasPrefix(l, "batnet") || strings.HasPrefix(l, "lorabatnet") {
 		n.Batnet = true
 	}
 }
@@ -413,6 +440,10 @@ func (c *Client) nodeInfo(b []byte) {
 			if n.Num == c.st.MyNum {
 				c.selfUser = append([]byte(nil), f.b...)
 			}
+		case 3:
+			if p, ok := parsePosition(f.b); ok {
+				c.setPosition(n, p)
+			}
 		case 4:
 			n.SNR = f.f32()
 		case 5:
@@ -435,6 +466,7 @@ func (c *Client) config(b []byte) {
 			continue
 		}
 		c.st.Preset, c.st.TxEnabled = presets[0], false
+		c.loraRaw = append([]byte(nil), f.b...)
 		sub, _ := fields(f.b)
 		for _, s := range sub {
 			switch s.num {
@@ -518,6 +550,10 @@ func (c *Client) packet(p packet) *Event {
 			ID: p.id, ReplyID: p.replyID, PKI: p.pki})
 	case PortNodeInfo:
 		c.setUser(n, parseUser(p.payload))
+	case PortPosition:
+		if pos, ok := parsePosition(p.payload); ok {
+			c.setPosition(n, pos)
+		}
 	case PortTelemetry:
 		fs, _ := fields(p.payload)
 		for _, f := range fs {
@@ -600,21 +636,11 @@ func (c *Client) event(p packet, n int) Event {
 			e.Text = string(p.payload)
 		}
 	case PortPosition:
-		fs, _ := fields(p.payload)
-		for _, f := range fs {
-			switch f.num {
-			case 1:
-				v := float64(int32(f.v)) / 1e7
-				e.Lat = &v
-			case 2:
-				v := float64(int32(f.v)) / 1e7
-				e.Lon = &v
-			case 3:
-				v := f.i32()
-				e.Alt = &v
-			}
+		if pos, ok := parsePosition(p.payload); ok {
+			e.Lat, e.Lon, e.Alt = &pos.Lat, &pos.Lon, pos.Alt
 		}
 	}
+	e.Info = info(p.port, p.payload)
 	return e
 }
 

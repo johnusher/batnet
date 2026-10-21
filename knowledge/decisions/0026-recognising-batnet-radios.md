@@ -24,9 +24,11 @@ Meshtastic handshake so that a hub can tell which radios nearby run batnet.
   batnet" packet would cost shared airtime on LongFast, which Meshtastic users
   rightly guard, and would tell anyone listening that a batnet village is
   there.
-* **A hint for people:** batnet nodes name themselves "batnet …" (this hub is
-  "batnet hub 1"). The panel tags a radio "batnet" when it sent `PRIVATE_APP`
-  traffic or has such a name; the name is never trusted for anything.
+* **A hint for people:** batnet nodes name themselves "lorabatnet …" ("lobat":
+  LoRa and bat, and it sounds like rabbit), with the bat as their short name;
+  the bench hub is "lorabatnet 🐰🦇", short name 🦇. The panel tags a radio
+  "batnet" when it sent `PRIVATE_APP`
+  traffic or has such a name (starting "lorabatnet" or "batnet"); the name is never trusted for anything.
 * **Who is out there:** the panel lists every radio meshtasticd has heard, and
   "Say hello" broadcasts this node's name asking for replies (Meshtastic's own
   NodeInfo exchange), at most once every 5 minutes.

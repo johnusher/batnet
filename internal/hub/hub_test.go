@@ -118,3 +118,31 @@ func TestSendToOneRadioAndTraffic(t *testing.T) {
 		t.Errorf("traffic %s %v", w.Body.String(), err)
 	}
 }
+
+func TestSettings(t *testing.T) {
+	hs := HubSettings{}
+	h := New(Config{Radio: meshtastic.New("127.0.0.1:1"),
+		Settings: func() HubSettings { return hs }, SaveSettings: func(n HubSettings) error { hs = n; return nil }}).Handler()
+	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"helloMinutes":"60","lat":"52.5","lon":"13.4"}`, true); code != 200 || hs.HelloMinutes != 60 || hs.Where == nil || hs.Where.Lat != 52.5 {
+		t.Fatalf("save: %d %+v", code, hs)
+	}
+	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"lat":"95","lon":"13.4"}`, true); code != 400 || hs.Where.Lat != 52.5 {
+		t.Errorf("a place off the map: %d %+v", code, hs)
+	}
+	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"lat":"","lon":""}`, true); code != 200 || hs.Where != nil {
+		t.Errorf("forget the place: %d %+v", code, hs)
+	}
+	if code, _ := post(h, "/hub/api/settings", "10.0.0.1:1", "", `{"helloMinutes":"5"}`, true); code != 401 || hs.HelloMinutes != 60 {
+		t.Errorf("from the LAN without the PIN: %d %+v", code, hs)
+	}
+	for _, c := range []struct{ path, body, err string }{
+		{"/hub/api/radio", `{"hopLimit":"x"}`, "number"},
+		{"/hub/api/radio", `{"preset":"MediumFast"}`, "not arrived yet"},
+		{"/hub/api/owner", `{"long":"lorabatnet","short":"🦇"}`, "radio not connected"},
+	} {
+		code, out := post(h, c.path, "127.0.0.1:1", "", c.body, true)
+		if msg, _ := out["error"].(string); code != 400 || !strings.Contains(msg, c.err) {
+			t.Errorf("%s %s: %d %v", c.path, c.body, code, out)
+		}
+	}
+}

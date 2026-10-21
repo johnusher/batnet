@@ -34,6 +34,9 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [x] The hub's log picks up packets meshtasticd heard but could not read (B40)
 - [x] MediumFast against LongFast at the bench hub, 20 minutes each with the antenna near the roof: 26 radios against 5; the hub stays on MediumFast ([research](/research/meshtastic-presets-berlin.md)); confirm draft decision [0027](/decisions/0027-preset-follows-the-local-mesh.md)
 - [x] Hub panel: messages to one radio and replies with delivery ticks, a traffic view of everything on the air (readable, encrypted, unreadable, sent, passed on)
+- [x] Hub panel: a simple Home, a map of shared positions, click a radio or a packet for what it says, Settings for the radio (preset, relays, power, listen-only), the name on the air and the hub; the bench hub is "lorabatnet 🐰🦇"
+- [ ] Offline map tiles for the village's area on the hub (L17)
+- [ ] Maybe: Berlin's coordination channel "BerlinMesh" as a secondary channel on the hub, to read the community (its key is on the Chaos Mesh page; kept on the hub only, never in the repo)
 - [ ] The second Meshstick on pi7 as a roving listener: a second meshtasticd (own `--fsdir`, `--port`, `--hwid`), each instance pinned to its stick by USB serial, receive only, stepping through the EU presets a few minutes each (they share 869.525 MHz and differ in spreading factor), logged beside the first
 
 # Known problems to fix first

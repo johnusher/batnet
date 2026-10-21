@@ -66,6 +66,25 @@ type Config struct {
 	AppURL           string
 	Log              *Logbook // nil: no logging
 	Traffic          *Traffic // nil: no traffic view
+	// Settings and SaveSettings are the hub's own settings (nil: fixed).
+	Settings     func() HubSettings
+	SaveSettings func(HubSettings) error
+}
+
+// HubSettings are the hub's own settings the panel can change.
+type HubSettings struct {
+	// HelloMinutes is the time between the log's hellos: 0 means every 5
+	// minutes, negative none.
+	HelloMinutes int `json:"helloMinutes"`
+	// Where is where the hub stands, for the map and distances. It stays on
+	// the hub and is never sent by radio.
+	Where *Where `json:"where,omitempty"`
+}
+
+// Where is a place on the map.
+type Where struct {
+	Lat float64 `json:"lat"`
+	Lon float64 `json:"lon"`
 }
 
 // Server serves the panel.
@@ -98,11 +117,14 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /hub/api/hello", s.action(s.hello))
 	mux.HandleFunc("POST /hub/api/mode", s.action(s.mode))
 	mux.HandleFunc("POST /hub/api/log", s.action(s.logOnOff))
+	mux.HandleFunc("POST /hub/api/radio", s.action(s.radio))
+	mux.HandleFunc("POST /hub/api/owner", s.action(s.owner))
+	mux.HandleFunc("POST /hub/api/settings", s.action(s.settings))
 	mux.HandleFunc("GET /hub/logs/{name}", s.download)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 		w.Header().Set("Cache-Control", "no-store")
 		mux.ServeHTTP(w, r)
 	})
@@ -127,10 +149,19 @@ type statusOut struct {
 	Radio  *meshtastic.Status `json:"radio"`
 	Mesh   MeshStatus         `json:"mesh"`
 	Log    *LogStatus         `json:"log,omitempty"`
+	// Settings: the hub's own, and what the radio settings may be.
+	Settings   *HubSettings `json:"settings,omitempty"`
+	Presets    []string     `json:"presets"`
+	MaxTxPower int          `json:"maxTxPower"`
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
-	out := statusOut{House: s.cfg.House, Local: local(r), AppURL: s.cfg.AppURL, System: readSystem(s.cfg.DataDir)}
+	out := statusOut{House: s.cfg.House, Local: local(r), AppURL: s.cfg.AppURL, System: readSystem(s.cfg.DataDir),
+		Presets: meshtastic.Presets, MaxTxPower: meshtastic.MaxTxPower}
+	if s.cfg.Settings != nil {
+		hs := s.cfg.Settings()
+		out.Settings = &hs
+	}
 	if out.Local {
 		out.PINs = map[string]string{"hub": s.cfg.HubPIN, "admin": s.cfg.AdminPIN}
 	}
@@ -298,6 +329,79 @@ func (s *Server) logOnOff(b map[string]string) (any, error) {
 		return nil, err
 	}
 	return s.cfg.Log.Status(), nil
+}
+
+// radio changes the radio's LoRa settings: preset, hopLimit, txPower, txEnabled.
+func (s *Server) radio(b map[string]string) (any, error) {
+	if s.cfg.Radio == nil {
+		return nil, meshtastic.ErrOffline
+	}
+	rs := meshtastic.RadioSettings{Preset: b["preset"]}
+	if v := b["hopLimit"]; v != "" {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return nil, errors.New("Relays is a number.")
+		}
+		h := uint32(n)
+		rs.HopLimit = &h
+	}
+	if v := b["txPower"]; v != "" {
+		n, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			return nil, errors.New("Transmit power is a number.")
+		}
+		p := int32(n)
+		rs.TxPower = &p
+	}
+	if v := b["txEnabled"]; v != "" {
+		on := v == "true"
+		rs.TxEnabled = &on
+	}
+	if err := s.cfg.Radio.SetRadio(rs); err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true, "restarting": true}, nil
+}
+
+// owner renames this hub's radio: long and short.
+func (s *Server) owner(b map[string]string) (any, error) {
+	if s.cfg.Radio == nil {
+		return nil, meshtastic.ErrOffline
+	}
+	if err := s.cfg.Radio.SetOwner(b["long"], b["short"]); err != nil {
+		return nil, err
+	}
+	return map[string]bool{"ok": true}, nil
+}
+
+// settings changes the hub's own settings: helloMinutes; lat and lon (both
+// empty: forget where the hub is).
+func (s *Server) settings(b map[string]string) (any, error) {
+	if s.cfg.Settings == nil || s.cfg.SaveSettings == nil {
+		return nil, errors.New("This hub's settings are fixed.")
+	}
+	hs := s.cfg.Settings()
+	if v, ok := b["helloMinutes"]; ok {
+		n, err := strconv.Atoi(v)
+		if err != nil || n > 24*60 {
+			return nil, errors.New("Hello every: a number of minutes.")
+		}
+		hs.HelloMinutes = n
+	}
+	if la, lo := b["lat"], b["lon"]; la != "" || lo != "" {
+		lat, err1 := strconv.ParseFloat(la, 64)
+		lon, err2 := strconv.ParseFloat(lo, 64)
+		if err1 != nil || err2 != nil || lat < -90 || lat > 90 || lon < -180 || lon > 180 {
+			return nil, errors.New("That is not a place on the map.")
+		}
+		hs.Where = &Where{Lat: lat, Lon: lon}
+	} else if _, ok := b["lat"]; ok {
+		hs.Where = nil
+	}
+	if err := s.cfg.SaveSettings(hs); err != nil {
+		return nil, err
+	}
+	return hs, nil
 }
 
 // download serves a saved log; from the LAN it needs the hub PIN (?pin=).
