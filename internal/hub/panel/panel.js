@@ -87,6 +87,76 @@ const where = () => (last && last.settings && last.settings.where) || null;
 const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 function setNote(id, msg, bad) { $(id).textContent = msg; $(id).className = "note" + (bad ? " bad" : ""); }
 
+// ---- ?redact: screenshots for the public README ----
+// Real people's radio names, node IDs, places and words never go into the
+// repo (knowledge/security/secret-hygiene.md). With ?redact the panel swaps
+// them, consistently, for placeholders before drawing: names from a list,
+// IDs from a hash, places moved by a kilometre or two, message texts for
+// stock lines, the hub's own addresses for examples. The shape of the mesh
+// (how many radios, their signal, relays and timing) stays real.
+const redact = new URLSearchParams(location.search).has("redact");
+const R_NAMES = ["Anna", "Ben", "Cleo", "Dev", "Emil", "Fritzi", "Gül", "Hanna", "Ilja", "Jonas", "Kemal", "Lena", "Mira", "Noah",
+  "Olga", "Paul", "Quinn", "Rosa", "Sami", "Tara", "Uli", "Vera", "Wim", "Xenia", "Yusuf", "Zoe"];
+const R_LINES = ["Water is back on at our end.", "Anyone have a spare 12 V battery?", "Radio check from the south side, 73.",
+  "Testing a new antenna on the balcony.", "Heard you loud and clear.", "Good morning, mesh!", "Who has power in Wedding?"];
+const rh = (x, salt) => hash(salt + String(x));
+const rNum = (num) => (num === BCAST || num == null ? num : (rh(num, "n") | 0x10000000) >>> 0);
+const rID = (id) => (!id || id === "everyone" || id[0] !== "!" ? id : "!" + hex8(rNum(parseInt(id.slice(1), 16))));
+const rSeen = new Map(); // real number -> its place in the list, so no two radios share a name
+function rName(num, role) {
+  if (!rSeen.has(num)) rSeen.set(num, rSeen.size);
+  const i = rSeen.get(num), who = R_NAMES[i % R_NAMES.length], round = Math.floor(i / R_NAMES.length);
+  if (/ROUTER|REPEATER/.test(role || "")) return { long: `Rooftop repeater ${i + 1}`, short: `R${i + 1}` };
+  return { long: `${who}'s radio${round ? " " + (round + 1) : ""}`, short: who.slice(0, 2).toUpperCase() + (round ? round + 1 : "") };
+}
+function rPlace(p, num, km) { // moved by up to km kilometres, the same way every time
+  if (!p || p.lat == null) return p;
+  const h = rh(num, "pos"), a = (h % 360) * Math.PI / 180, d = km * (0.5 + ((h >>> 9) % 100) / 200);
+  return { ...p, lat: +(p.lat + d / 111 * Math.cos(a)).toFixed(3), lon: +(p.lon + d / 68 * Math.sin(a)).toFixed(3) };
+}
+function redactStatus(s) {
+  const r = s.radio;
+  if (r) {
+    const me = r.myNum;
+    for (const n of (r.nodes || []).slice().sort((a, b) => rh(a.num, "o") - rh(b.num, "o"))) rName(n.num, n.role); // a stable order
+    for (const n of r.nodes || []) {
+      const nm = n.self ? { long: "lorabatnet 🐰🦇", short: "🦇" } : rName(n.num, n.role);
+      n.longName = nm.long; n.shortName = nm.short;
+      if (n.position) n.position = rPlace(n.position, n.num, 1.5);
+      n.num = rNum(n.num); n.id = "!" + hex8(n.num);
+    }
+    r.myNum = rNum(me);
+    (r.texts || []).forEach((t, i) => { t.from = rNum(t.from); t.to = rNum(t.to); t.text = R_LINES[(rh(t.id, "t") + i) % R_LINES.length]; });
+  }
+  if (s.settings && s.settings.where) s.settings.where = rPlace(s.settings.where, 1, 2.5);
+  const sy = s.system;
+  sy.hostname = "hub";
+  for (const i of sy.interfaces || []) i.addrs = (i.addrs || []).map((a) => (a.startsWith("10.42.") || a.startsWith("172.27.") ? a : "192.168.1.20/24"));
+  const w = s.wifi;
+  if (w) {
+    w.ssid = "Home WiFi"; w.connection = "Home WiFi"; w.ownSSID = "batnet-hub";
+    for (const n of w.saved || []) { n.ssid = "Home WiFi"; n.name = "Home WiFi"; }
+  }
+  return s;
+}
+function redactTraffic(o) {
+  for (const f of o.frames) {
+    const from = f.from ? parseInt(f.from.slice(1), 16) : null;
+    f.from = rID(f.from); f.to = rID(f.to);
+    if (f.name) f.name = rName(from, "").long;
+    if (f.text) f.text = R_LINES[rh(f.seq, "t") % R_LINES.length];
+    if (f.relay) f.relay = hex8(rh(f.relay, "relay")).slice(-2);
+    if (f.lat != null) { const p = rPlace({ lat: f.lat, lon: f.lon }, from, 1.5); f.lat = p.lat; f.lon = p.lon; }
+    const i = f.info;
+    if (i) {
+      if (i.longName) { const nm = rName(from, i.role); i.longName = nm.long; i.shortName = nm.short; }
+      if (i.route) i.route = i.route.map(rID);
+      if (i.neighbors) i.neighbors = i.neighbors.map((x) => ({ ...x, id: rID(x.id) }));
+    }
+  }
+  return o;
+}
+
 // ---- views ----
 const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings", "system", "help"];
 let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
@@ -747,7 +817,8 @@ async function poll() {
       return;
     }
     if (!res.ok) throw new Error(res.status);
-    render(await res.json());
+    const st = await res.json();
+    render(redact ? redactStatus(st) : st);
   } catch (e) {
     $("onair").textContent = "The hub is not answering. Retrying…";
     $("onair").className = "onair down";
@@ -765,6 +836,7 @@ async function pollTraffic() {
     const res = await fetch(`api/traffic?since=${tr.seq}`, { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
     if (!res.ok) return;
     const o = await res.json();
+    if (redact) redactTraffic(o);
     if (o.seq < tr.seq) { tr.seq = 0; tr.frames = []; tr.drawnSeq = 0; return pollTraffic(); } // the hub restarted
     tr.seq = o.seq; tr.preset = o.preset; tr.limit = o.limit;
     tr.frames.push(...o.frames);
@@ -893,7 +965,7 @@ function drawRelays(fr) {
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8);
   const maxv = top.length ? top[0][1] : 1;
   $("relays").replaceChildren(...(top.length ? top.map(([r, c]) => {
-    const cands = nodes().filter((nd) => (nd.num & 0xff) === parseInt(r, 16) && !nd.self).map(nodeName).slice(0, 2);
+    const cands = redact ? [] : nodes().filter((nd) => (nd.num & 0xff) === parseInt(r, 16) && !nd.self).map(nodeName).slice(0, 2);
     return el("li", {},
       el("span", { class: "rl", text: `…${r}` }),
       el("span", { class: "rbar" }, el("i", { style: `width:${(c / maxv * 100).toFixed(0)}%` })),
@@ -1334,7 +1406,7 @@ function renderPower(s) {
   $("pw-reduced").checked = pw.reduced;
   $("pw-reduced").disabled = pw.settings.mode === "low";
   const parts = [];
-  parts.push(pw.sleepsIn < 0 ? "The screen stays on." : !pw.screenOn ? "The screen is asleep." : `The screen sleeps in ${mmss(pw.sleepsIn)} without a key.`);
+  parts.push(pw.noScreen ? "No screen plugged in." : pw.sleepsIn < 0 ? "The screen stays on." : !pw.screenOn ? "The screen is asleep." : `The screen sleeps in ${mmss(pw.sleepsIn)} without a key.`);
   if (pw.uvKnown) parts.push(pw.underVoltage ? "The power supply is too weak right now: use a better power bank or a shorter, thicker cable." : pw.uvCount ? `The power supply was too weak ${pw.uvCount} time${pw.uvCount === 1 ? "" : "s"}, last ${ago(pw.uvLast)}.` : "The power supply is good.");
   if (s.mesh && s.mesh.mode === "real") parts.push("The WiFi mesh stick uses about 1 W: switch the mesh off in Settings if you don't need it.");
   $("power-state").textContent = parts.join(" ") + (pw.error ? ` ${pw.error}` : "");

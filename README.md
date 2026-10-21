@@ -14,10 +14,11 @@ batnet turns small, cheap computers into a local chat network for a house, a
 street, a village, a festival camp or a group on a hike. New to words like
 *node*, *mesh* or *LoRa*? See [Words we use](#words-we-use).
 
-> **Not ready yet.** batnet is still being designed, so there's nothing to
-> install today. The link above shows how the app will look and work. To hear
-> when it's ready, click **Watch** at the top of this page (you need a free
-> GitHub account).
+> **Not ready yet.** batnet is still being built, so there's nothing to
+> install today. The link above shows how the app will look and work, and
+> [the first real hub](#the-first-hub-on-a-bench-in-berlin) is on the air in
+> Berlin. To hear when it's ready, click **Watch** at the top of this page (you
+> need a free GitHub account).
 
 ## At a glance
 
@@ -65,6 +66,70 @@ street, a village, a festival camp or a group on a hike. New to words like
   public posts and can reply, and their radios help carry batnet's messages
   further, without being able to read the private ones.
   [How batnet differs from Meshtastic](#how-batnet-differs-from-meshtastic-and-the-others).
+
+## The first hub, on a bench in Berlin
+
+Since 21 October 2026 the first real batnet **hub** has been running at home in
+Berlin: a Raspberry Pi 4 with a USB long-range radio stick (an Elecrow
+Meshstick, about €25). You use it on its own small screen and keyboard, or in
+any web browser on the home WiFi. There is only one hub so far, so it doesn't
+link houses yet. Today it listens to the [Meshtastic](https://meshtastic.org/)
+radios around it, talks with them, and keeps going when the power and the
+internet are gone.
+
+[![The hub's Home view: 75 radios heard in the last hour, the latest messages, and a radar of who is out there](docs/img/hub/home.png)](docs/img/hub/home.png)
+
+*Home, on an evening in October: 75 radios heard in the last hour, the latest
+messages (none just then), and a radar of who is out there. The closer a dot is
+to the middle, the fewer other radios passed its signal on before it reached
+the hub.*
+
+[![The Map view: radios that shared where they are, spread across Berlin](docs/img/hub/map.jpg)](docs/img/hub/map.jpg)
+
+*The map of Berlin: the radios that chose to share where they are. Berlin's
+mesh reaches from the centre to the edge of the city, passed along by radios
+on rooftops and towers. (The streets come from the internet; without it, the dots
+still show in the right places.)*
+
+<table><tr>
+<td width="50%"><a href="docs/img/hub/radios.png"><img src="docs/img/hub/radios.png" alt="The Radios view: the radar and a table of every radio heard, with its signal, relays and when it was last heard"></a><br><em>Radios: every radio heard, with its signal strength and how many relays it came through.</em></td>
+<td width="50%"><a href="docs/img/hub/traffic.png"><img src="docs/img/hub/traffic.png" alt="The Traffic view: every packet on the air over the last ten minutes, by time and signal strength"></a><br><em>Traffic: every packet on the air, even those too weak to read, and how busy the channel is.</em></td>
+</tr><tr>
+<td width="50%"><a href="docs/img/hub/system.png"><img src="docs/img/hub/system.png" alt="The System view: WiFi, sound, light and button, and the power modes"></a><br><em>System: the hub's own WiFi for a power cut, sound, an LED and a button, and power modes.</em></td>
+<td width="50%"><a href="docs/img/hub/screen.png"><img src="docs/img/hub/screen.png" alt="The panel on the hub's own 800 by 480 screen, in dark colours"></a><br><em>The same panel on the hub's own small screen (800 × 480).</em></td>
+</tr></table>
+
+*In these pictures the radios' names, their numbers, the places and the words
+of messages are swapped for made-up ones, because they belong to real people.
+How many radios there are, their signal, their relays and the timing are real.*
+
+**What the hub does today:**
+
+* **Messages** to everyone nearby, or to one radio, with ticks when they
+  arrive (✓ a radio passed it on, ✓✓ it got there).
+* **A radar, a list and a map** of the radios around it, and a view of all the
+  traffic on the air. Click any radio or packet for what it says.
+* **Settings for the radio:** its speed setting (Berlin uses *MediumFast*),
+  relays, power, listen-only and its name.
+* **A log** of everything the radio hears, kept through power cuts, to take
+  along on a walk or a bike ride.
+* **For a power cut:**
+  * **Its own WiFi.** When the home router is off, the hub makes a WiFi of its
+    own after 3 minutes, or at once from a button. Phones join it with a QR
+    code. It has a password, unless an admin chooses to let neighbours in.
+  * **Power modes:** High, Medium and Low trade speed and screen time for
+    battery life. The screen sleeps when nobody uses it, and only runs at all
+    while one is plugged in.
+  * **Sound and light:** a chime on a speaker for a new message, an LED that
+    blinks until you read it, and a button to start the hub's own WiFi without
+    a screen.
+  * **A translator** between German and English, on the hub itself with no
+    internet.
+  * **Help** built in, and printable on paper: how long it runs on a power bank,
+    what to do when something is wrong, and the commands to type.
+
+The details are in the [bench hub's notes](knowledge/hardware/bench-pi7.md) and
+the [test reports](knowledge/tests/).
 
 ## How batnet differs from Meshtastic and the others
 

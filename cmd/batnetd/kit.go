@@ -103,6 +103,7 @@ func (h *hubRun) startKit(ctx context.Context, radio *meshtastic.Client, id ledg
 			log.Printf("devices: unplugged: %s", d.Name)
 		}
 		screenNow := hub.HasScreen(all)
+		k.power.SetScreen(screenNow)
 		changed := len(added)+len(removed) == 0 // the first look
 		for _, d := range append(append([]hub.Device{}, added...), removed...) {
 			changed = changed || d.Kind == "screen"

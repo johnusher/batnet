@@ -35,6 +35,7 @@ type PowerStatus struct {
 	UVCount      int           `json:"uvCount"`      // times it went too weak since the start
 	UVLast       time.Time     `json:"uvLast,omitempty"`
 	UVKnown      bool          `json:"uvKnown"` // the Pi reports it
+	NoScreen     bool          `json:"noScreen"`
 	Error        string        `json:"error,omitempty"`
 }
 
@@ -53,7 +54,15 @@ type Power struct {
 	uvNow    bool
 	uvCount  int
 	uvLast   time.Time
+	noScreen bool
 	err      string
+}
+
+// SetScreen says whether a screen is plugged in (from the devices watcher).
+func (p *Power) SetScreen(present bool) {
+	p.mu.Lock()
+	p.noScreen = !present
+	p.mu.Unlock()
 }
 
 // PowerConfig wires a Power.
@@ -247,7 +256,7 @@ func (p *Power) Status() PowerStatus {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	st := PowerStatus{Settings: p.set, ScreenOn: p.screenOn, Reduced: p.set.Mode == PowerLow || p.set.Reduced, SleepsIn: -1,
-		UnderVoltage: p.uvNow, UVCount: p.uvCount, UVLast: p.uvLast, UVKnown: p.uv != "", Error: p.err, PollSeconds: 2}
+		UnderVoltage: p.uvNow, UVCount: p.uvCount, UVLast: p.uvLast, UVKnown: p.uv != "", Error: p.err, PollSeconds: 2, NoScreen: p.noScreen}
 	if idle := p.idleFor(); idle > 0 && p.screenOn {
 		left := idle - p.now().Sub(p.lastAct)
 		if left < 0 {

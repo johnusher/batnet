@@ -23,7 +23,7 @@ implementation follows the plans in `docs/plans/`.
 | `deploy/pi/` | Turning a Pi into a hub: `deploy.sh <ssh-host>` from a laptop runs `setup.sh` on the Pi (clean-up, meshtasticd + Meshstick, batman-adv, kiosk, systemd units, watchdogs; the polkit rule, power modes, the own-WiFi firewall, the translator via `translate-setup.sh`). The bench hub: `knowledge/hardware/bench-pi7.md` |
 | `scenarios/` | Village scenarios (JSON) run by `batnetd -sim`, CI and the simulator's real engine |
 | `cmd/batnetwasm/` | The real code for the simulator page (`GOOS=js GOARCH=wasm`) |
-| `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` |
+| `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` (the simulator) and `docs/img/hub/shoot.sh <hub>` (a real hub's panel, with `?redact` swapping real names, IDs and places for placeholders) |
 | `video/` | The film as code: `script.json` (narration), `scenes.js` (canvas scenes), `render.py` (ElevenLabs voice, headless Chrome frames, ffmpeg). The film itself is on YouTube only (linked from the README); no media in the repo. Skill: `.claude/skills/making-the-film/` |
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
