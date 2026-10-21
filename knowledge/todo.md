@@ -8,8 +8,7 @@ generated: { by: claude-code/claude-fable-5-1, at: 2026-10-15T13:45:00Z }
 ---
 
 Tick items off here (move them to Done with the date). Bugs and limits live in
-[known problems](known-problems.md); this page is the order of work. No Linear
-for batnet yet.
+[known problems](known-problems.md); this page is the order of work.
 
 # Milestone 1 plans ([spec](https://github.com/johnusher/batnet/blob/main/docs/specs/2026-10-15-m1-design.md))
 

@@ -10,7 +10,7 @@ generated: { by: claude-code/claude-fable-5-1, at: 2026-10-15T13:45:00Z }
 Every bug found, every known limit and every review finding not fixed at once
 goes here, with where it came from. Move a line to **Resolved** (with the
 commit or decision) when it is fixed; delete resolved lines after a month.
-No Linear for batnet yet: this page is the list.
+This page is the list.
 
 # Open bugs
 

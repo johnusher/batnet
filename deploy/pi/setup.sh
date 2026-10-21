@@ -21,7 +21,7 @@ done
 touch /etc/cloud/cloud-init.disabled
 $APT autoremove --purge >/dev/null
 dpkg -l | awk '/^rc/{print $2}' | xargs -r dpkg --purge >/dev/null
-# Wand leftovers are left in place: nothing of theirs starts on boot.
+# Files from the Pi's earlier use stay in place: nothing of theirs starts on boot.
 
 say "Packages"
 $APT install batctl iw cage chromium curl jq pipx fonts-noto-color-emoji >/dev/null

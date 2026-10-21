@@ -51,3 +51,6 @@ implementation follows the plans in `docs/plans/`.
    [`knowledge/todo.md`](knowledge/todo.md): tick items off as you finish them.
 6. **Radio rules matter.** Anything that transmits or scans must respect EU868
    duty cycle and power limits and the activity-only scanner rule (decision 0009).
+7. **`cp` here means: commit and push this repo.** The session's record is
+   [`knowledge/log.md`](knowledge/log.md) (plus the test write-ups and to-do);
+   batnet keeps its own records and writes nothing into other projects' repos.
