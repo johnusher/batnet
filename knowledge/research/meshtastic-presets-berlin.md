@@ -108,3 +108,11 @@ Since then the move has gone further:
   unreadable packets came in at a good SNR (−5 to −9 dB): those collided
   rather than being too weak, the crowding the community reports. The hub
   stays on MediumFast.
+* The antenna's place, on MediumFast the same evening: near the roof, 20
+  minutes gave 47 packets from 32 radios (65 unreadable), median SNR −11 dB;
+  brought inside, the next six minutes gave none, one unreadable at −16 dB,
+  and an hourly hello got no answer. The roof position was only about 1.5 dB
+  above MediumFast's limit (−12.5 dB), and almost everything came through one
+  relay (20 of 47 packets): a wall's few dB lose the whole mesh. A hub wants
+  the Pi indoors and the antenna outside and high, on a short, thick cable
+  (at 868 MHz RG-174 loses about 1 dB a metre, RG-58 about 0.5 dB).

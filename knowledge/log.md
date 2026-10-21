@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-21
+* **Update**: [Presets in Berlin](/research/meshtastic-presets-berlin.md): the antenna inside heard nothing where near the roof it heard 32 radios in 20 minutes; the margin was about 1.5 dB.
 * **Update**: The hub panel became six views (Home, Messages, Map, Radios, Traffic, Settings): packets and radios open their details, shared positions on a map, the radio's preset, relays, power and name set from the panel. The bench hub is "lorabatnet 🐰🦇" ([0026](/decisions/0026-recognising-batnet-radios.md)); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained Freifunk's repeaters, Berlin Chaos Mesh's settings and Meshtastic's own advice; L17, L18.
 * **Update**: The hub panel gained Messages (one conversation per radio, replies, delivery ticks) and Traffic (every packet on the air by time and SNR, readable or not); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained the MediumFast against LongFast numbers (26 radios against 5); the bench hub stays on MediumFast; [L16](/known-problems.md).
 * **Creation**: Research note [Meshtastic presets in Berlin](/research/meshtastic-presets-berlin.md) (the city split between LongFast and MediumFast, which share 869.525 MHz in the EU) and draft decision [0027 the preset follows the local mesh](/decisions/0027-preset-follows-the-local-mesh.md); the bench hub listens on MediumFast overnight, hellos hourly (`helloMinutes`).
