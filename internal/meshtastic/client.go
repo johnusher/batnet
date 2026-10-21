@@ -67,6 +67,13 @@ type Text struct {
 	RSSI    int32     `json:"rssi,omitempty"`
 	Hops    int       `json:"hops"`
 	Mine    bool      `json:"mine"`
+	ID      uint32    `json:"id"`
+	ReplyID uint32    `json:"replyId,omitempty"` // the message this one answers
+	PKI     bool      `json:"pki,omitempty"`     // encrypted end to end for this hub
+	// Status of a message this hub sent: sending, passed on (a radio nearby
+	// relayed it), delivered (the radio it was for confirmed it) or failed.
+	Status string `json:"status,omitempty"`
+	Detail string `json:"detail,omitempty"` // why it failed
 }
 
 // Channel is one of the radio's channels.
@@ -80,7 +87,7 @@ type Channel struct {
 // received (decoded or not), and the connection coming and going.
 type Event struct {
 	At       time.Time `json:"t"`
-	Kind     string    `json:"kind"` // packet, connected, disconnected
+	Kind     string    `json:"kind"` // packet, sent, receipt, connected, disconnected
 	From     string    `json:"from,omitempty"`
 	FromName string    `json:"fromName,omitempty"`
 	To       string    `json:"to,omitempty"`
@@ -96,7 +103,14 @@ type Event struct {
 	Lon      *float64  `json:"lon,omitempty"`
 	Alt      *int32    `json:"alt,omitempty"`
 	Bytes    int       `json:"bytes"`
-	Error    string    `json:"error,omitempty"`
+	Relay    string    `json:"relay,omitempty"` // the last byte of the radio that passed it on
+	PKI      bool      `json:"pki,omitempty"`
+	ReplyID  uint32    `json:"replyId,omitempty"`
+	Status   string    `json:"status,omitempty"` // for a receipt: what became of message ID
+	// Local is a packet from this hub's own radio (its telemetry, a receipt),
+	// not one heard on the air.
+	Local bool   `json:"local,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 // Status is a copy of everything the client knows.
@@ -134,22 +148,22 @@ type Client struct {
 	lastSend  time.Time
 	lastHello time.Time
 	listeners map[chan struct{}]bool
-	onEvent   func(Event)
+	onEvent   []func(Event)
 }
 
-// OnEvent sets a function called for every Event (from the client's own
-// goroutine; it must not block for long). Set it before Run.
+// OnEvent adds a function called for every Event (from the client's own
+// goroutine; it must not block for long). Add them before Run.
 func (c *Client) OnEvent(f func(Event)) {
 	c.mu.Lock()
-	c.onEvent = f
+	c.onEvent = append(c.onEvent, f)
 	c.mu.Unlock()
 }
 
 func (c *Client) emit(e Event) {
 	c.mu.Lock()
-	f := c.onEvent
+	fs := c.onEvent
 	c.mu.Unlock()
-	if f != nil {
+	for _, f := range fs {
 		f(e)
 	}
 }
@@ -341,10 +355,15 @@ func (c *Client) handle(b []byte) {
 			c.st.Ready = false
 		case frPacket:
 			if p, err := parsePacket(f.b); err == nil {
-				c.packet(p)
-				ev := c.event(p, len(f.b))
+				receipt := c.packet(p)
+				evs := []Event{c.event(p, len(f.b))}
+				if receipt != nil {
+					evs = append(evs, *receipt)
+				}
 				c.mu.Unlock()
-				c.emit(ev)
+				for _, ev := range evs {
+					c.emit(ev)
+				}
 				c.mu.Lock()
 			}
 		}
@@ -470,7 +489,9 @@ func (c *Client) channel(b []byte) {
 	c.channels[ch.Index] = ch
 }
 
-func (c *Client) packet(p packet) {
+// packet folds a received packet in; for a receipt about a message this hub
+// sent it returns the event saying what became of it. Caller holds mu.
+func (c *Client) packet(p packet) *Event {
 	c.st.PacketsIn++
 	n := c.node(p.from)
 	n.Packets++
@@ -485,15 +506,16 @@ func (c *Client) packet(p packet) {
 		n.Hops = h
 	}
 	if !p.decoded {
-		return
+		return nil
 	}
 	switch p.port {
 	case PortText:
 		t := string(p.payload)
 		if !utf8.ValidString(t) {
-			return
+			return nil
 		}
-		c.addText(Text{At: n.LastHeard, From: p.from, To: p.to, Channel: p.channel, Text: t, SNR: p.snr, RSSI: p.rssi, Hops: p.hops()})
+		c.addText(Text{At: n.LastHeard, From: p.from, To: p.to, Channel: p.channel, Text: t, SNR: p.snr, RSSI: p.rssi, Hops: p.hops(),
+			ID: p.id, ReplyID: p.replyID, PKI: p.pki})
 	case PortNodeInfo:
 		c.setUser(n, parseUser(p.payload))
 	case PortTelemetry:
@@ -506,7 +528,48 @@ func (c *Client) packet(p packet) {
 		}
 	case PortPrivate:
 		n.Batnet = true
+	case PortRouting:
+		if p.requestID != 0 {
+			return c.receipt(p)
+		}
 	}
+	return nil
+}
+
+// receipt applies a Routing packet that answers a message this hub sent: from
+// the radio it was for, it was delivered; from this hub's own radio with no
+// error, a radio nearby passed it on; with an error, it failed. A message
+// already delivered stays delivered. Caller holds mu.
+func (c *Client) receipt(p packet) *Event {
+	for i := len(c.st.Texts) - 1; i >= 0; i-- {
+		t := &c.st.Texts[i]
+		if !t.Mine || t.ID != p.requestID {
+			continue
+		}
+		if t.Status == "delivered" {
+			return nil
+		}
+		switch code := routingError(p.payload); {
+		case code != 0:
+			t.Status, t.Detail = "failed", routingErrors[code]
+			if t.Detail == "" {
+				t.Detail = fmt.Sprintf("error %d", code)
+			}
+		case p.from == t.To:
+			t.Status, t.Detail = "delivered", ""
+		default:
+			t.Status, t.Detail = "passed on", ""
+		}
+		return &Event{At: c.now(), Kind: "receipt", ID: t.ID, To: nodeID(t.To), Status: t.Status, Error: t.Detail, Local: p.from == c.st.MyNum}
+	}
+	return nil
+}
+
+func nodeID(n uint32) string {
+	if n == Broadcast {
+		return "everyone"
+	}
+	return fmt.Sprintf("!%08x", n)
 }
 
 var portNames = map[uint32]string{PortText: "text", PortPosition: "position", PortNodeInfo: "nodeinfo", PortRouting: "routing",
@@ -515,10 +578,11 @@ var portNames = map[uint32]string{PortText: "text", PortPosition: "position", Po
 
 // event describes a received packet for the log. Caller holds mu.
 func (c *Client) event(p packet, n int) Event {
-	e := Event{At: c.now(), Kind: "packet", From: fmt.Sprintf("!%08x", p.from), To: fmt.Sprintf("!%08x", p.to), Channel: p.channel,
-		ID: p.id, SNR: p.snr, RSSI: p.rssi, Hops: p.hops(), HopStart: p.hopStart, Bytes: n}
-	if p.to == Broadcast {
-		e.To = "everyone"
+	e := Event{At: c.now(), Kind: "packet", From: nodeID(p.from), To: nodeID(p.to), Channel: p.channel,
+		ID: p.id, SNR: p.snr, RSSI: p.rssi, Hops: p.hops(), HopStart: p.hopStart, Bytes: n,
+		PKI: p.pki, ReplyID: p.replyID, Local: p.from == c.st.MyNum}
+	if p.relay != 0 {
+		e.Relay = fmt.Sprintf("%02x", p.relay&0xff)
 	}
 	if nd := c.nodes[p.from]; nd != nil {
 		e.FromName = nd.LongName
@@ -595,17 +659,30 @@ func (c *Client) Status() Status {
 
 // SendText sends text to everyone on a channel (0 is the primary).
 func (c *Client) SendText(text string, channel uint32) error {
+	_, err := c.Send(Broadcast, channel, text, 0)
+	return err
+}
+
+// Send sends text to one radio (to) or to everyone (Broadcast) on a channel,
+// optionally as a reply to message replyID, asking for a receipt. A message
+// to one radio is encrypted end to end by meshtasticd once it knows that
+// radio's key. It returns the message as the panel shows it.
+func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, error) {
 	if text == "" || len(text) > MaxText {
-		return fmt.Errorf("meshtastic: text must be 1-%d bytes", MaxText)
+		return Text{}, fmt.Errorf("meshtastic: text must be 1-%d bytes", MaxText)
 	}
 	c.mu.Lock()
 	if c.conn == nil || !c.st.Ready {
 		c.mu.Unlock()
-		return ErrOffline
+		return Text{}, ErrOffline
+	}
+	if to == c.st.MyNum || to == 0 {
+		c.mu.Unlock()
+		return Text{}, errors.New("meshtastic: that is this hub")
 	}
 	if c.now().Sub(c.lastSend) < SendGap {
 		c.mu.Unlock()
-		return ErrTooSoon
+		return Text{}, ErrTooSoon
 	}
 	c.lastSend = c.now()
 	hop := c.st.HopLimit
@@ -613,15 +690,19 @@ func (c *Client) SendText(text string, channel uint32) error {
 	if hop == 0 {
 		hop = 3
 	}
-	if err := c.write(encodePacket(Broadcast, channel, rand.Uint32(), hop, PortText, []byte(text), false)); err != nil {
-		return err
+	id := rand.Uint32()
+	pb := encodePacket(to, channel, id, hop, PortText, []byte(text), sendOpts{wantAck: true, replyID: replyID})
+	if err := c.write(pb); err != nil {
+		return Text{}, err
 	}
 	c.mu.Lock()
 	c.st.PacketsOut++
-	c.addText(Text{At: c.now(), From: c.st.MyNum, To: Broadcast, Channel: channel, Text: text, Hops: 0, Mine: true})
+	t := Text{At: c.now(), From: c.st.MyNum, To: to, Channel: channel, Text: text, Hops: 0, Mine: true, ID: id, ReplyID: replyID, Status: "sending"}
+	c.addText(t)
 	c.changed()
 	c.mu.Unlock()
-	return nil
+	c.emit(Event{At: t.At, Kind: "sent", To: nodeID(to), Channel: channel, ID: id, Port: "text", Text: text, ReplyID: replyID, Bytes: len(pb), Local: true})
+	return t, nil
 }
 
 // SayHello broadcasts this node's name and asks the radios that hear it to
@@ -642,11 +723,14 @@ func (c *Client) SayHello() error {
 	if hop == 0 {
 		hop = 3
 	}
-	if err := c.write(encodePacket(Broadcast, 0, rand.Uint32(), hop, PortNodeInfo, u, true)); err != nil {
+	id := rand.Uint32()
+	pb := encodePacket(Broadcast, 0, id, hop, PortNodeInfo, u, sendOpts{wantResponse: true})
+	if err := c.write(pb); err != nil {
 		return err
 	}
 	c.mu.Lock()
 	c.st.PacketsOut++
 	c.mu.Unlock()
+	c.emit(Event{At: c.now(), Kind: "sent", To: "everyone", ID: id, Port: "nodeinfo", Bytes: len(pb), Local: true})
 	return nil
 }

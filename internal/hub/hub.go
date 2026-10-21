@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -64,6 +65,7 @@ type Config struct {
 	HubPIN, AdminPIN string
 	AppURL           string
 	Log              *Logbook // nil: no logging
+	Traffic          *Traffic // nil: no traffic view
 }
 
 // Server serves the panel.
@@ -78,6 +80,7 @@ type Server struct {
 func New(cfg Config) *Server { return &Server{cfg: cfg} }
 
 const (
+	keepTexts    = 300 // messages the panel gets: public and to this hub
 	maxBody      = 4 << 10
 	failWindow   = 10 * time.Minute
 	failsAllowed = 5
@@ -90,6 +93,7 @@ func (s *Server) Handler() http.Handler {
 	mux.Handle("GET /hub/", http.StripPrefix("/hub/", http.FileServer(http.FS(sub))))
 	mux.HandleFunc("GET /hub/api/ping", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok\n")) })
 	mux.HandleFunc("GET /hub/api/status", s.status)
+	mux.HandleFunc("GET /hub/api/traffic", s.traffic)
 	mux.HandleFunc("POST /hub/api/send", s.action(s.send))
 	mux.HandleFunc("POST /hub/api/hello", s.action(s.hello))
 	mux.HandleFunc("POST /hub/api/mode", s.action(s.mode))
@@ -132,8 +136,8 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.cfg.Radio != nil {
 		st := s.cfg.Radio.Status()
-		if len(st.Texts) > 100 {
-			st.Texts = st.Texts[len(st.Texts)-100:]
+		if len(st.Texts) > keepTexts {
+			st.Texts = st.Texts[len(st.Texts)-keepTexts:]
 		}
 		out.Radio = &st
 	}
@@ -145,6 +149,15 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		out.Log = &ls
 	}
 	writeJSON(w, http.StatusOK, out)
+}
+
+func (s *Server) traffic(w http.ResponseWriter, r *http.Request) {
+	if s.cfg.Traffic == nil {
+		writeJSON(w, http.StatusOK, TrafficOut{Frames: []Frame{}})
+		return
+	}
+	since, _ := strconv.ParseInt(r.URL.Query().Get("since"), 10, 64)
+	writeJSON(w, http.StatusOK, s.cfg.Traffic.Since(since))
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -219,15 +232,32 @@ func (s *Server) checkPIN(pin string) *failure {
 	return nil
 }
 
+// send sends a text to everyone, or with "to" (a node ID such as !a1b2c3d4)
+// to one radio; "replyId" makes it an answer to that message.
 func (s *Server) send(b map[string]string) (any, error) {
 	if s.cfg.Radio == nil {
 		return nil, meshtastic.ErrOffline
 	}
-	text := strings.TrimSpace(b["text"])
-	if err := s.cfg.Radio.SendText(text, 0); err != nil {
+	to := uint32(meshtastic.Broadcast)
+	if id := b["to"]; id != "" && id != "everyone" {
+		n, err := strconv.ParseUint(strings.TrimPrefix(id, "!"), 16, 32)
+		if err != nil || !strings.HasPrefix(id, "!") || len(id) != 9 {
+			return nil, errors.New("That is not a radio's ID (like !a1b2c3d4).")
+		}
+		to = uint32(n)
+	}
+	var reply uint64
+	if r := b["replyId"]; r != "" {
+		var err error
+		if reply, err = strconv.ParseUint(r, 10, 32); err != nil {
+			return nil, errors.New("Bad reply.")
+		}
+	}
+	t, err := s.cfg.Radio.Send(to, 0, strings.TrimSpace(b["text"]), uint32(reply))
+	if err != nil {
 		return nil, err
 	}
-	return map[string]bool{"ok": true}, nil
+	return t, nil
 }
 
 func (s *Server) hello(map[string]string) (any, error) {

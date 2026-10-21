@@ -193,6 +193,8 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		return h.save()
 	})
 	radio.OnEvent(logbook.Event)
+	traffic := hub.NewTraffic(func() string { return radio.Status().Preset })
+	radio.OnEvent(traffic.Event)
 	switch m := h.settings.HelloMinutes; {
 	case m < 0:
 		logbook.SetHelloEvery(0)
@@ -206,10 +208,14 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 	go logbook.Run(ctx, data)
 	go radio.Run(ctx)
-	go meshtastic.WatchJournal(ctx, "meshtasticd.service", logbook.Unreadable)
+	go meshtastic.WatchJournal(ctx, "meshtasticd.service", meshtastic.JournalHandlers{
+		Unreadable: func(u meshtastic.Unreadable) { logbook.Unreadable(u); traffic.Garbled(u) },
+		Relayed:    func(r string) { logbook.Note("relayed", map[string]any{"relay": r}); traffic.Relayed(r) },
+		Busy:       traffic.Busy,
+	})
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
-		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook})
+		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())

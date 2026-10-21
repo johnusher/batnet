@@ -15,39 +15,100 @@
   <p id="onair" class="onair" aria-live="polite">Connecting to the radio…</p>
   <p id="clock" class="clock"></p>
 </header>
+<nav class="tabs" role="tablist" aria-label="Views">
+  <button role="tab" id="tab-radios" aria-controls="view-radios" data-view="radios">Radios</button>
+  <button role="tab" id="tab-messages" aria-controls="view-messages" data-view="messages">Messages <span id="badge" class="badge" hidden></span></button>
+  <button role="tab" id="tab-traffic" aria-controls="view-traffic" data-view="traffic">Traffic</button>
+  <p id="flash" class="flash" role="status" hidden><span id="flash-text"></span> <button id="flash-open" class="btn small">Open</button></p>
+</nav>
 
 <main class="grid">
-  <section class="air" aria-labelledby="air-h">
-    <div class="head">
-      <h2 id="air-h">Who is out there</h2>
-      <button id="hello" class="btn">Say hello</button>
-    </div>
-    <p class="muted">Every radio this hub has heard. The closer to the middle, the fewer relays between us.</p>
-    <svg id="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays"></svg>
-    <p class="legend"><span class="k direct"></span>heard directly <span class="k relayed"></span>through relays <span class="k bn"></span>runs batnet</p>
-  </section>
+  <div class="views">
+    <section class="view radios" id="view-radios" role="tabpanel" aria-labelledby="tab-radios">
+      <div class="air">
+        <div class="head">
+          <h2>Who is out there</h2>
+          <button id="hello" class="btn">Say hello</button>
+        </div>
+        <p class="muted">Every radio this hub has heard. The closer to the middle, the fewer relays between us.</p>
+        <svg id="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays"></svg>
+        <p class="legend"><span class="k direct"></span>heard directly <span class="k relayed"></span>through relays <span class="k bn"></span>runs batnet</p>
+        <p id="air-note" class="note" aria-live="polite"></p>
+      </div>
+      <div class="nodes">
+        <h2>Radios nearby <span id="ncount" class="count"></span></h2>
+        <table>
+          <thead><tr><th scope="col">Name</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Last heard</th><th scope="col"><span class="sr">Message</span></th></tr></thead>
+          <tbody id="nodelist"></tbody>
+        </table>
+        <p id="nodes-empty" class="empty" hidden>Only this hub so far. Press Say hello: radios in range answer with their names.</p>
+      </div>
+    </section>
 
-  <section class="nodes" aria-labelledby="nodes-h">
-    <h2 id="nodes-h">Radios nearby <span id="ncount" class="count"></span></h2>
-    <table>
-      <thead><tr><th scope="col">Name</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Last heard</th></tr></thead>
-      <tbody id="nodelist"></tbody>
-    </table>
-    <p id="nodes-empty" class="empty" hidden>Only this hub so far. Press Say hello: radios in range answer with their names.</p>
-  </section>
+    <section class="view msgr" id="view-messages" role="tabpanel" aria-labelledby="tab-messages" hidden>
+      <ul id="convs" class="convs" aria-label="Conversations"></ul>
+      <div class="thread">
+        <div class="thread-head">
+          <h2 id="thread-name"></h2>
+          <p id="thread-sub" class="muted"></p>
+        </div>
+        <ol id="thread" class="bubbles" aria-live="polite"></ol>
+        <p id="thread-empty" class="empty"></p>
+        <p id="replying" class="replying" hidden><span id="replying-text"></span> <button id="reply-cancel" class="btn ghost small" type="button">Cancel</button></p>
+        <form id="send" class="send" autocomplete="off">
+          <label class="sr" for="msg">Message</label>
+          <input id="msg" maxlength="200">
+          <button class="btn onair-btn" type="submit">Send by radio</button>
+        </form>
+        <p id="send-note" class="note" aria-live="polite"></p>
+      </div>
+    </section>
 
-  <section class="chat" aria-labelledby="chat-h">
-    <h2 id="chat-h">Public channel</h2>
-    <p class="muted">Meshtastic's open LongFast channel: anyone with a Meshtastic radio nearby can read it. Don't send anything private.</p>
-    <ol id="texts" class="texts"></ol>
-    <p id="texts-empty" class="empty">No messages heard yet.</p>
-    <form id="send" class="send" autocomplete="off">
-      <label class="sr" for="msg">Message for the public channel</label>
-      <input id="msg" maxlength="200" placeholder="Write to everyone in range (press / to type)">
-      <button class="btn onair-btn" type="submit">Send by radio</button>
-    </form>
-    <p id="send-note" class="note" aria-live="polite"></p>
-  </section>
+    <section class="view traffic" id="view-traffic" role="tabpanel" aria-labelledby="tab-traffic" hidden>
+      <div class="head">
+        <div>
+          <h2>Traffic on the air</h2>
+          <p id="tr-sub" class="muted">Everything this hub's radio picks up, readable or not.</p>
+        </div>
+        <div class="modes win" role="radiogroup" aria-label="Time window">
+          <button role="radio" data-win="120">2 min</button>
+          <button role="radio" data-win="600">10 min</button>
+          <button role="radio" data-win="3600">1 hour</button>
+        </div>
+      </div>
+      <dl id="tr-stats" class="stats"></dl>
+      <div class="tl-wrap">
+        <svg id="timeline" role="img" aria-label="Packets over time by signal strength"></svg>
+        <div id="tip" class="tip" role="tooltip"></div>
+      </div>
+      <p class="legend tl-legend">
+        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard"/></svg>readable</span>
+        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard enc"/></svg>encrypted for another group</span>
+        <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m garbled"/></svg>too weak or collided</span>
+        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m heard us"/></svg>for this hub</span>
+        <span><svg width="16" height="10"><rect x="1" y="2" width="14" height="6" rx="3" class="m sent"/></svg>sent by this hub</span>
+        <span><svg width="12" height="12"><circle cx="6" cy="6" r="4" class="m relayed"/></svg>passed on by this hub</span>
+      </p>
+      <div class="tr-lower">
+        <div>
+          <h3>Packets per minute</h3>
+          <svg id="perminute" role="img" aria-label="Packets per minute"></svg>
+        </div>
+        <div>
+          <h3>Who passes traffic to us</h3>
+          <p class="muted small">The last radio before ours, by the last two digits of its ID.</p>
+          <ul id="relays" class="relays"></ul>
+        </div>
+      </div>
+      <details class="feed" id="feed-box" open>
+        <summary>Every packet, newest first</summary>
+        <table>
+          <thead><tr><th scope="col">Time</th><th scope="col">What</th><th scope="col">From → to</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Via</th><th scope="col">Air</th></tr></thead>
+          <tbody id="feed"></tbody>
+        </table>
+      </details>
+    </section>
+  </div>
 
   <section class="side">
     <div class="block" aria-labelledby="log-h">

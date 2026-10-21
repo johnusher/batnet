@@ -27,14 +27,29 @@ const (
 	mpRxTime   = 7
 	mpRxSNR    = 8
 	mpHopLimit = 9
+	mpWantAck  = 10
 	mpRxRSSI   = 12
 	mpHopStart = 15
+	mpPKI      = 17
+	mpRelay    = 19
 
 	// Data
 	dPortnum      = 1
 	dPayload      = 2
 	dWantResponse = 3
+	dRequestID    = 6
+	dReplyID      = 7
+
+	// Routing
+	rtErrorReason = 3
 )
+
+// routingErrors says in plain words why a message was not delivered
+// (Routing.Error in mesh.proto).
+var routingErrors = map[uint32]string{1: "no route to that radio", 2: "refused", 3: "timed out",
+	4: "no radio interface", 5: "no answer after three tries", 6: "no channel for it", 7: "too large",
+	8: "nobody answered", 9: "the radio's airtime limit was reached", 32: "bad request", 33: "not allowed",
+	34: "encryption failed", 35: "that radio's key is not known yet", 38: "too many messages: rate limited"}
 
 // Ports (portnums.proto).
 const (
@@ -121,9 +136,12 @@ type packet struct {
 	snr                   float32
 	rssi                  int32
 	hopLimit, hopStart    uint32
+	relay                 uint32 // the last byte of the radio that passed it on; 0: unknown
+	pki                   bool   // encrypted end to end for this one radio
 	decoded               bool
 	port                  uint32
 	payload               []byte
+	requestID, replyID    uint32
 }
 
 func parsePacket(b []byte) (p packet, err error) {
@@ -151,6 +169,10 @@ func parsePacket(b []byte) (p packet, err error) {
 			p.hopLimit = f.u32()
 		case mpHopStart:
 			p.hopStart = f.u32()
+		case mpRelay:
+			p.relay = f.u32()
+		case mpPKI:
+			p.pki = f.v != 0
 		case mpDecoded:
 			p.decoded = true
 			ds, err := fields(f.b)
@@ -163,6 +185,10 @@ func parsePacket(b []byte) (p packet, err error) {
 					p.port = d.u32()
 				case dPayload:
 					p.payload = d.b
+				case dRequestID:
+					p.requestID = d.u32()
+				case dReplyID:
+					p.replyID = d.u32()
 				}
 			}
 		}
@@ -178,13 +204,34 @@ func (p packet) hops() int {
 	return int(p.hopStart - p.hopLimit)
 }
 
+// routingError reads a Routing payload: 0 means delivered (or passed on).
+func routingError(b []byte) uint32 {
+	fs, _ := fields(b)
+	for _, f := range fs {
+		if f.num == rtErrorReason {
+			return f.u32()
+		}
+	}
+	return 0
+}
+
+// sendOpts are the optional parts of an outgoing packet.
+type sendOpts struct {
+	wantResponse bool   // ask the radios that hear it to answer (a hello)
+	wantAck      bool   // ask for a delivery receipt
+	replyID      uint32 // the message this one answers
+}
+
 // encodePacket builds a ToRadio carrying one decoded MeshPacket.
-func encodePacket(to, channel, id, hopLimit, port uint32, payload []byte, wantResponse bool) []byte {
+func encodePacket(to, channel, id, hopLimit, port uint32, payload []byte, o sendOpts) []byte {
 	var d enc
 	d.varint(dPortnum, uint64(port))
 	d.bytes(dPayload, payload)
-	if wantResponse {
+	if o.wantResponse {
 		d.varint(dWantResponse, 1)
+	}
+	if o.replyID != 0 {
+		d.fixed32(dReplyID, o.replyID)
 	}
 	var mp enc
 	mp.fixed32(mpTo, to)
@@ -194,6 +241,9 @@ func encodePacket(to, channel, id, hopLimit, port uint32, payload []byte, wantRe
 	mp.bytes(mpDecoded, d.b)
 	mp.fixed32(mpID, id)
 	mp.varint(mpHopLimit, uint64(hopLimit))
+	if o.wantAck {
+		mp.varint(mpWantAck, 1)
+	}
 	var tr enc
 	tr.bytes(trPacket, mp.b)
 	return tr.b

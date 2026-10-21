@@ -23,6 +23,7 @@ address, login, MACs and radio node ID are private and stay out of this repo
 | OS | Raspberry Pi OS (Debian 13 trixie, arm64, the desktop image), kernel 6.18 |
 | LoRa | Elecrow **Meshstick**: USB, a CH341 USB-to-SPI bridge (USB ID `1a86:5512`) driving an SX1262; EU868; its own antenna |
 | WiFi | built-in (brcmfmac) on the home network for now; a USB WiFi stick for batman-adv still to be plugged in (it becomes `wlan1`) |
+| Panel | three views: **Radios** (who is out there, the list, Message buttons), **Messages** (the public channel and one conversation per radio, with replies and delivery ticks), **Traffic** (everything on the air by time and SNR, readable or not, what this hub sent and passed on, who relays to us, every packet). Keys on the hub: 1, 2, 3 switch views, / starts a message |
 | Screen | a small HDMI display, 800 × 480 (its EDID also offers 1080p, but 800 × 480 is native), on HDMI 0, and a USB keyboard. The panel's screen layout fits it without scrolling |
 
 # Is a 2 GB Pi 4 enough for a hub?
@@ -57,7 +58,7 @@ hangs for 15 s. The kiosk's browser profile lives in memory and is new on every 
 
 # Radio settings
 
-EU_868, LongFast (869.525 MHz) until the evening of 2026-10-21, then MediumFast (also 869.525 MHz) to compare, since much of Berlin uses it ([presets in Berlin](/research/meshtastic-presets-berlin.md)); hop limit 3, 27 dBm configured (the
+EU_868, MediumFast (869.525 MHz) since the evening of 2026-10-21: it heard five times more radios than LongFast at this house ([presets in Berlin](/research/meshtastic-presets-berlin.md)); the antenna near the roof ([presets in Berlin](/research/meshtastic-presets-berlin.md)); hop limit 3, 27 dBm configured (the
 Meshstick's SX1262 tops out at 22 dBm; the band allows 27 dBm ERP), node name
 "batnet hub 1", short name BH1. Meshtastic's firmware keeps the EU868 duty
 cycle; the panel adds a 5 s gap between sends; the log says hello every 5 minutes, or as `helloMinutes` in `hub.json` says (60 at home overnight; negative: listen only).

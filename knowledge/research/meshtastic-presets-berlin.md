@@ -3,7 +3,7 @@ type: Research Note
 title: Meshtastic presets in Berlin - a city split between LongFast and MediumFast
 description: Berlin's Meshtastic users are split between LongFast and MediumFast, which in EU_868 share one frequency but cannot hear each other; what the community reports, what it means for a hub, and what the bench hub measured.
 tags: [meshtastic, lora, presets, berlin, interop, field]
-status: draft
+status: stable
 generated: { by: claude-code/claude-opus-5-5, at: 2026-10-21T15:00:00Z }
 sources:
   - id: reddit-divided
@@ -56,5 +56,19 @@ note, so the balance may have moved since:
 * On LongFast, at home and on a bike ride on 2026-10-21, it decoded nothing;
   at the far end of the ride it heard one probable answer to a hello, too
   weak to read ([test](/tests/2026-10-21-bike-ride-log.md)).
-* From the evening of 2026-10-21 it listens on MediumFast at home overnight,
-  hello once an hour, to compare.
+* With the antenna moved up near the roof the same evening, 20 minutes on
+  each preset, back to back:
+
+  | | MediumFast | LongFast |
+  |---|---|---|
+  | Packets read | 30 | 8 |
+  | Different radios | 26 | 5 |
+  | Heard but unreadable | 33 | 3 |
+  | Median SNR | −11.75 dB | −14.75 dB |
+
+  At this house MediumFast is where the mesh is. Only one radio was heard
+  directly on either; almost everything came through relays, most through
+  one. A hello on MediumFast brought four named answers within 20 s. Many
+  unreadable packets came in at a good SNR (−5 to −9 dB): those collided
+  rather than being too weak, the crowding the community reports. The hub
+  stays on MediumFast.

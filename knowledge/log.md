@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-21
+* **Update**: The hub panel gained Messages (one conversation per radio, replies, delivery ticks) and Traffic (every packet on the air by time and SNR, readable or not); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained the MediumFast against LongFast numbers (26 radios against 5); the bench hub stays on MediumFast; [L16](/known-problems.md).
 * **Creation**: Research note [Meshtastic presets in Berlin](/research/meshtastic-presets-berlin.md) (the city split between LongFast and MediumFast, which share 869.525 MHz in the EU) and draft decision [0027 the preset follows the local mesh](/decisions/0027-preset-follows-the-local-mesh.md); the bench hub listens on MediumFast overnight, hellos hourly (`helloMinutes`).
 * **Update**: [B40](/known-problems.md) resolved: the hub's log records packets heard but too weak to read, from meshtasticd's journal; [to do](/todo.md) gained the second Meshstick as a roving listener.
 * **Update**: [The bike ride](/tests/2026-10-21-bike-ride-log.md) results: 12 hellos, one probable answer at 1.7 km, heard but below the decode limit; [B40](/known-problems.md) the log misses packets that fail their checksum; [to do](/todo.md) updated.

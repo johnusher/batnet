@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/johnusher/batnet/internal/meshtastic"
 )
 
 func post(h http.Handler, path, from, pin, body string, xhub bool) (int, map[string]any) {
@@ -91,5 +93,28 @@ func TestPanelIsServed(t *testing.T) {
 		if w.Code != 200 || w.Body.Len() < 100 {
 			t.Errorf("%s: %d, %d bytes", p, w.Code, w.Body.Len())
 		}
+	}
+}
+
+func TestSendToOneRadioAndTraffic(t *testing.T) {
+	tr := NewTraffic(func() string { return "MediumFast" })
+	tr.Busy()
+	h := New(Config{Radio: meshtastic.New("127.0.0.1:1"), Traffic: tr}).Handler()
+	for _, c := range []struct{ body, err string }{
+		{`{"text":"hi","to":"a1b2c3d4"}`, "not a radio's ID"},
+		{`{"text":"hi","to":"!zz"}`, "not a radio's ID"},
+		{`{"text":"hi","to":"!a1b2c3d4","replyId":"x"}`, "Bad reply"},
+		{`{"text":"hi","to":"!a1b2c3d4","replyId":"77"}`, "radio not connected"},
+	} {
+		code, out := post(h, "/hub/api/send", "127.0.0.1:1", "", c.body, true)
+		if msg, _ := out["error"].(string); code != 400 || !strings.Contains(msg, c.err) {
+			t.Errorf("%s: %d %v", c.body, code, out)
+		}
+	}
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/hub/api/traffic?since=0", nil))
+	var out TrafficOut
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil || out.Seq != 1 || len(out.Frames) != 1 || out.Limit != -12.5 {
+		t.Errorf("traffic %s %v", w.Body.String(), err)
 	}
 }

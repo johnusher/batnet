@@ -32,7 +32,41 @@ type Unreadable struct {
 var (
 	ignoredRe = regexp.MustCompile(`Ignore received packet due to error=(-?\d+) \((.*)\)`)
 	kvRe      = regexp.MustCompile(`(\w+)=(\S+)`)
+	relayRe   = regexp.MustCompile(`Rebroadcast received message coming from (\d+)`)
 )
+
+// JournalHandlers get what meshtasticd's log says about the air; nil ones are skipped.
+type JournalHandlers struct {
+	Unreadable func(Unreadable)
+	// Relayed: this hub's radio passed a packet on, heard from the radio
+	// whose last byte is relay ("" when it does not say).
+	Relayed func(relay string)
+	// Busy: the radio wanted to send but the channel was busy.
+	Busy func()
+}
+
+func (h JournalHandlers) line(s string) {
+	if u, ok := ParseUnreadable(s); ok {
+		if h.Unreadable != nil {
+			u.At = time.Now()
+			h.Unreadable(u)
+		}
+		return
+	}
+	if m := relayRe.FindStringSubmatch(s); m != nil {
+		if h.Relayed != nil {
+			r := ""
+			if n, _ := strconv.Atoi(m[1]); n > 0 {
+				r = fmt.Sprintf("%02x", n&0xff)
+			}
+			h.Relayed(r)
+		}
+		return
+	}
+	if h.Busy != nil && strings.Contains(s, "Can not send yet, busyRx") {
+		h.Busy()
+	}
+}
 
 // ParseUnreadable reads one meshtasticd log line such as
 //
@@ -74,10 +108,10 @@ func ParseUnreadable(line string) (Unreadable, bool) {
 	return u, true
 }
 
-// WatchJournal follows meshtasticd's log in the systemd journal and calls
-// on for every packet it heard but could not read, until ctx ends. The user
-// running it needs to be in the systemd-journal group.
-func WatchJournal(ctx context.Context, unit string, on func(Unreadable)) {
+// WatchJournal follows meshtasticd's log in the systemd journal and passes
+// what it says about the air to h, until ctx ends. The user running it needs
+// to be in the systemd-journal group.
+func WatchJournal(ctx context.Context, unit string, h JournalHandlers) {
 	warned := false
 	for ctx.Err() == nil {
 		cmd := exec.CommandContext(ctx, "journalctl", "-u", unit, "-f", "-n", "0", "-o", "cat")
@@ -88,10 +122,7 @@ func WatchJournal(ctx context.Context, unit string, on func(Unreadable)) {
 		if err == nil {
 			sc := bufio.NewScanner(out)
 			for sc.Scan() {
-				if u, ok := ParseUnreadable(sc.Text()); ok {
-					u.At = time.Now()
-					on(u)
-				}
+				h.line(sc.Text())
 			}
 			err = cmd.Wait()
 		}

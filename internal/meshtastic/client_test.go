@@ -6,6 +6,7 @@ import (
 	"math"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -221,4 +222,128 @@ func TestOfflineAndBadInput(t *testing.T) {
 	// Garbage never panics.
 	c.handle([]byte{0x12, 0x03, 0xff, 0xff, 0xff})
 	c.handle([]byte{0xff})
+}
+
+// readyRadio connects a client to a fake radio holding this hub (0xdeadbeef)
+// and one other radio (0xa1b2c3d4).
+func readyRadio(t *testing.T) (*fakeRadio, *Client, *[]Event) {
+	t.Helper()
+	f := newFakeRadio(t)
+	c := New(f.ln.Addr().String())
+	var mu sync.Mutex
+	evs := &[]Event{}
+	c.OnEvent(func(e Event) { mu.Lock(); *evs = append(*evs, e); mu.Unlock() })
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	go c.Run(ctx)
+	<-f.got // want_config
+	var my, myInfo enc
+	my.varint(1, 0xdeadbeef)
+	myInfo.bytes(frMyInfo, my.b)
+	f.send(myInfo.b)
+	f.send(nodeInfo(0xdeadbeef, userMsg("!deadbeef", "batnet hub 1", "BH1"), 0, 0))
+	f.send(nodeInfo(0xa1b2c3d4, userMsg("!a1b2c3d4", "Anna's handheld", "ANNA"), 6.5, 1))
+	var done enc
+	done.varint(frConfigComplete, 1)
+	f.send(done.b)
+	waitFor(t, c, func(s Status) bool { return s.Ready && len(s.Nodes) == 2 })
+	return f, c, evs
+}
+
+// routingPacket is a receipt from a radio about message id.
+func routingPacket(from, id, errCode uint32) []byte {
+	var rt enc
+	if errCode != 0 {
+		rt.varint(rtErrorReason, uint64(errCode))
+	}
+	var d enc
+	d.varint(dPortnum, PortRouting)
+	d.bytes(dPayload, rt.b)
+	d.fixed32(dRequestID, id)
+	var mp enc
+	mp.fixed32(mpFrom, from)
+	mp.fixed32(mpTo, 0xdeadbeef)
+	mp.bytes(mpDecoded, d.b)
+	var fr enc
+	fr.bytes(frPacket, mp.b)
+	return fr.b
+}
+
+func TestDirectMessagesAndReceipts(t *testing.T) {
+	f, c, evs := readyRadio(t)
+
+	// A message to one radio, as a reply, asks for a receipt.
+	sent, err := c.Send(0xa1b2c3d4, 0, "hi Anna", 77)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := sentPacket(t, f)
+	if p.to != 0xa1b2c3d4 || string(p.payload) != "hi Anna" || p.replyID != 77 || p.id != sent.ID || sent.Status != "sending" {
+		t.Fatalf("sent %+v, text %+v", p, sent)
+	}
+	if _, err := c.Send(0xdeadbeef, 0, "to myself", 0); err == nil {
+		t.Error("a message to this hub itself was accepted")
+	}
+
+	// Anna's radio confirms it: delivered, and a later receipt from our own
+	// radio does not undo that.
+	f.send(routingPacket(0xa1b2c3d4, sent.ID, 0))
+	waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "delivered" })
+	f.send(routingPacket(0xdeadbeef, sent.ID, 5))
+	time.Sleep(50 * time.Millisecond)
+	if st := c.Status(); st.Texts[0].Status != "delivered" {
+		t.Errorf("after a late receipt %+v", st.Texts[0])
+	}
+
+	// A broadcast passed on by a radio nearby; another that failed.
+	c.mu.Lock()
+	c.lastSend = time.Time{}
+	c.mu.Unlock()
+	pub, _ := c.Send(Broadcast, 0, "hello all", 0)
+	sentPacket(t, f)
+	f.send(routingPacket(0xdeadbeef, pub.ID, 0))
+	waitFor(t, c, func(s Status) bool { return s.Texts[1].Status == "passed on" })
+	c.mu.Lock()
+	c.lastSend = time.Time{}
+	c.mu.Unlock()
+	lost, _ := c.Send(0xa1b2c3d4, 0, "are you there?", 0)
+	sentPacket(t, f)
+	f.send(routingPacket(0xdeadbeef, lost.ID, 5))
+	st := waitFor(t, c, func(s Status) bool { return s.Texts[2].Status == "failed" })
+	if st.Texts[2].Detail != "no answer after three tries" {
+		t.Errorf("failed %+v", st.Texts[2])
+	}
+
+	// An answer to this hub alone, end to end encrypted, relayed.
+	var d enc
+	d.varint(dPortnum, PortText)
+	d.bytes(dPayload, []byte("yes, hi"))
+	d.fixed32(dReplyID, lost.ID)
+	var mp enc
+	mp.fixed32(mpFrom, 0xa1b2c3d4)
+	mp.fixed32(mpTo, 0xdeadbeef)
+	mp.fixed32(mpID, 4242)
+	mp.bytes(mpDecoded, d.b)
+	mp.varint(mpPKI, 1)
+	mp.varint(mpRelay, 0x1c)
+	var fr enc
+	fr.bytes(frPacket, mp.b)
+	f.send(fr.b)
+	st = waitFor(t, c, func(s Status) bool { return len(s.Texts) == 4 })
+	if in := st.Texts[3]; in.To != 0xdeadbeef || in.ReplyID != lost.ID || !in.PKI || in.ID != 4242 || in.Mine {
+		t.Errorf("answer %+v", in)
+	}
+
+	var kinds []string
+	var relay string
+	waitFor(t, c, func(Status) bool { return len(*evs) >= 12 })
+	for _, e := range *evs {
+		kinds = append(kinds, e.Kind)
+		if e.Kind == "packet" && e.Text == "yes, hi" {
+			relay = e.Relay
+		}
+	}
+	if relay != "1c" || !strings.Contains(strings.Join(kinds, " "), "sent packet receipt") {
+		t.Errorf("events %v, relay %q", kinds, relay)
+	}
 }

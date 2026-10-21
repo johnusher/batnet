@@ -56,6 +56,7 @@ This page is the list.
 | L6 | An author signing two different entries with the same seq would not be detected (vectors hold seqs, not content) | plan 1 review; needs a protocol decision |
 | L14 | The hub's screen shows the hub PIN and the house admin PIN to anyone standing at it: physical access is trusted on the bench | [0025](/decisions/0025-hub-panel-and-mesh-modes.md); plan 5 decides for real houses |
 | L15 | The hub panel shows the public channel raw; the app's "Neighbourhood (public)" group and plain-text posts on the private channel come with the LoRa bridge in plan 3b (L8) | plan 3b |
+| L16 | The hub's messages and its traffic view live in memory: the last 200 messages and the last hour of traffic, gone when batnetd restarts (the log keeps them on disk while logging is on); what was read is kept per browser | hub panel 2026-10-21; changes when the hub's messages move into the house log (plan 3b) |
 | L7 | Sealed packets can be replayed (no sequence or associated data in `seal`); harmless today (dedup), to settle with the HTTPS transport | plan 1 review |
 
 # Deferred minors (from reviews)
