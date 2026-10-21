@@ -11,12 +11,14 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/johnusher/batnet/internal/meshtastic"
+	"github.com/johnusher/batnet/internal/translate"
 )
 
 //go:embed panel
@@ -69,6 +71,16 @@ type Config struct {
 	// Settings and SaveSettings are the hub's own settings (nil: fixed).
 	Settings     func() HubSettings
 	SaveSettings func(HubSettings) error
+	// The power-cut kit (plan 5a); each nil when the hub has none.
+	WiFi       *WiFi
+	Sound      *Sound
+	Light      *Light
+	Power      *Power
+	Devices    *Devices
+	Translator *translate.Client
+	Notifier   *Notifier
+	// Run runs the system's commands: reboot, power off, the clock, the console.
+	Run Runner
 }
 
 // HubSettings are the hub's own settings the panel can change.
@@ -79,6 +91,10 @@ type HubSettings struct {
 	// Where is where the hub stands, for the map and distances. It stays on
 	// the hub and is never sent by radio.
 	Where *Where `json:"where,omitempty"`
+	// TranslateTo is the language messages are translated into ("": en);
+	// TranslateAuto translates them without being asked.
+	TranslateTo   string `json:"translateTo,omitempty"`
+	TranslateAuto bool   `json:"translateAuto,omitempty"`
 }
 
 // Where is a place on the map.
@@ -121,6 +137,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /hub/api/owner", s.action(s.owner))
 	mux.HandleFunc("POST /hub/api/settings", s.action(s.settings))
 	mux.HandleFunc("GET /hub/logs/{name}", s.download)
+	s.kitRoutes(mux)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -153,9 +170,20 @@ type statusOut struct {
 	Settings   *HubSettings `json:"settings,omitempty"`
 	Presets    []string     `json:"presets"`
 	MaxTxPower int          `json:"maxTxPower"`
+	// The power-cut kit.
+	WiFi      *WiFiStatus       `json:"wifi,omitempty"`
+	Sound     *SoundStatus      `json:"sound,omitempty"`
+	Light     *LightStatus      `json:"light,omitempty"`
+	Power     *PowerStatus      `json:"power,omitempty"`
+	Devices   *DevicesStatus    `json:"devices,omitempty"`
+	Translate *translate.Status `json:"translate,omitempty"`
+	Unread    int               `json:"unread"`
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
+	if !s.readAllowed(w, r) {
+		return
+	}
 	out := statusOut{House: s.cfg.House, Local: local(r), AppURL: s.cfg.AppURL, System: readSystem(s.cfg.DataDir),
 		Presets: meshtastic.Presets, MaxTxPower: meshtastic.MaxTxPower}
 	if s.cfg.Settings != nil {
@@ -179,10 +207,14 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		ls := s.cfg.Log.Status()
 		out.Log = &ls
 	}
+	s.kitStatus(&out)
 	writeJSON(w, http.StatusOK, out)
 }
 
 func (s *Server) traffic(w http.ResponseWriter, r *http.Request) {
+	if !s.readAllowed(w, r) {
+		return
+	}
 	if s.cfg.Traffic == nil {
 		writeJSON(w, http.StatusOK, TrafficOut{Frames: []Frame{}})
 		return
@@ -208,6 +240,11 @@ func (f *failure) Error() string { return f.msg }
 // page on another site cannot post here without a CORS preflight, which this
 // server never answers), and the hub PIN unless the request is local.
 func (s *Server) action(f func(body map[string]string) (any, error)) http.HandlerFunc {
+	return s.actionR(func(_ *http.Request, b map[string]string) (any, error) { return f(b) })
+}
+
+// actionR is action for a handler that needs the request (local or not).
+func (s *Server) actionR(f func(r *http.Request, body map[string]string) (any, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("X-Hub") != "1" || !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "Not from the panel."})
@@ -224,7 +261,7 @@ func (s *Server) action(f func(body map[string]string) (any, error)) http.Handle
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Bad request."})
 			return
 		}
-		out, err := f(body)
+		out, err := f(r, body)
 		if err != nil {
 			code := http.StatusBadRequest
 			var fe *failure
@@ -397,6 +434,15 @@ func (s *Server) settings(b map[string]string) (any, error) {
 		hs.Where = &Where{Lat: lat, Lon: lon}
 	} else if _, ok := b["lat"]; ok {
 		hs.Where = nil
+	}
+	if v, ok := b["translateTo"]; ok {
+		if v != "" && !regexp.MustCompile(`^[a-z]{2,3}$`).MatchString(v) {
+			return nil, errors.New("Translate into: a language code like en.")
+		}
+		hs.TranslateTo = v
+	}
+	if v, ok := b["translateAuto"]; ok {
+		hs.TranslateAuto = v == "true"
 	}
 	if err := s.cfg.SaveSettings(hs); err != nil {
 		return nil, err

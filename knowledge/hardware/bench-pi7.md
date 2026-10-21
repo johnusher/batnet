@@ -46,9 +46,16 @@ power on
   └─ batnet-hub.service        batnetd -hub: the house app on http://<pi>/,
   │    (after meshtasticd)     the control panel on http://<pi>/hub/, the WiFi mesh
   └─ batnet-screen.service     cage + Chromium kiosk on tty1: the panel full screen on HDMI
-       (after batnet-hub;      (waits up to a minute for the panel to answer first)
-        Ctrl+Alt+F2 gives a normal login prompt)
+       (after batnet-hub;      (waits up to a minute for the panel to answer first;
+        Ctrl+Alt+F2 gives a    only while a screen is plugged in: batnetd starts and
+        normal login prompt)   stops it as screens come and go)
+  on demand, through polkit:   batnet-power@<mode> (power modes), batnet-console (the
+                               Terminal button), NetworkManager's batnet-own-wifi
 ```
+
+Since 2026-10-21 the hub also has the power-cut kit (plan 5a): its own WiFi,
+sound on the jack, an LED on GPIO 17 and a button on GPIO 27, power modes and
+the offline translator ([test](/tests/2026-10-21-hub-power-cut-kit.md)).
 
 Ready about 25 s after power on. Every service restarts by itself after a crash
 (`Restart=always`, no start limit). batnetd tells systemd it is alive every

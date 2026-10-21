@@ -1,0 +1,21 @@
+# batnet: the hub's own WiFi open to neighbours (decision 0028). Only the house
+# app (port 80), DHCP, DNS and mDNS; no SSH, no meshtasticd (4403, 9443), and
+# nothing through the hub to anywhere else. Loaded and removed by
+# NetworkManager's dispatcher (90-batnet-own-wifi).
+table inet batnet_own
+delete table inet batnet_own
+table inet batnet_own {
+	chain input {
+		type filter hook input priority filter; policy accept;
+		iifname != "wlan0" accept
+		ct state established,related accept
+		udp dport { 53, 67, 5353 } accept
+		tcp dport { 53, 80 } accept
+		icmp type echo-request accept
+		drop
+	}
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+		iifname "wlan0" drop
+	}
+}

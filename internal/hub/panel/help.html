@@ -10,6 +10,8 @@
   <button type="button" data-to="h-start">Start here</button>
   <button type="button" data-to="h-power">No power</button>
   <button type="button" data-to="h-net">No network</button>
+  <button type="button" data-to="h-sound">Sound and light</button>
+  <button type="button" data-to="h-translate">Translate</button>
   <button type="button" data-to="h-trouble">Something is wrong</button>
   <button type="button" data-to="h-cmds">Commands</button>
   <button type="button" data-to="h-words">Radio words</button>
@@ -26,10 +28,11 @@
     <dt>Map</dt><dd>radios that shared where they are (the map itself needs internet)</dd>
     <dt>Radios</dt><dd>every radio heard, with its signal; click one for more</dd>
     <dt>Traffic</dt><dd>everything on the air, even what could not be read</dd>
-    <dt>Settings</dt><dd>the radio, the name, the log, the PINs</dd>
+    <dt>Settings</dt><dd>the radio, the name, the log, the WiFi mesh, the PINs</dd>
+    <dt>System</dt><dd>WiFi (and the hub's own WiFi for a power cut), sound, the LED and button, power modes, the translator, what is plugged in, the terminal, restart and switch off</dd>
     <dt>Help</dt><dd>this page; it works without internet</dd>
   </dl>
-  <p>On the hub's own keyboard: keys <kbd>1</kbd> to <kbd>7</kbd> switch views, <kbd>/</kbd> starts a message, <kbd>Esc</kbd> cancels. From another computer the buttons ask for the <b>hub PIN</b>, which is shown on the hub's screen under Settings.</p>
+  <p>On the hub's own keyboard: keys <kbd>1</kbd> to <kbd>8</kbd> switch views, <kbd>/</kbd> starts a message, <kbd>Esc</kbd> cancels. From another computer the buttons ask for the <b>hub PIN</b>, which is shown on the hub's screen under Settings.</p>
 </section>
 
 <section id="h-power" class="hs">
@@ -46,18 +49,24 @@
   </table>
   <h3>To make it last longer</h3>
   <ul>
-    <li>Switch the screen off, or unplug it: <code>sudo systemctl stop batnet-screen</code>. The radio and the log keep going. <code>sudo systemctl start batnet-screen</code> brings it back.</li>
+    <li><b>Choose a power mode</b> (System, Power):
+      <b>High</b> is everything at full speed, for mains power.
+      <b>Medium</b> slows the processor to 1 GHz, saves power on the WiFi, and lets the screen sleep after 10 minutes without a key.
+      <b>Low</b> slows the processor to 600 MHz, switches the Pi's own red and green lights off, makes the screen simpler (its lowest resolution and refresh rate, nothing moving) and lets it sleep after 2 minutes. A key or the mouse wakes it.
+      In every mode the radio, the log, the sound and the LED keep working.</li>
+    <li><b>Unplug the screen</b> when nobody looks at it: the hub stops drawing it at once, and starts again by itself when you plug it back in. The screen is the biggest saving.</li>
     <li>Keep the hub listening rather than sending: Settings, Say hello: never.</li>
-    <li>Check the power from time to time: <code>vcgencmd get_throttled</code> should say <code>throttled=0x0</code>. Anything else means the power is too weak: use a better power bank or a shorter, thicker cable.</li>
+    <li>Switch the WiFi mesh off (Settings) if there are no other batnet hubs nearby: its USB stick uses about 1 W.</li>
+    <li>Check the power: System, Power says whether the supply is good. Too weak means the Pi may stop: use a better power bank or a shorter, thicker cable.</li>
   </ul>
   <h3>Switching off and on</h3>
   <ul>
-    <li>Best: <code>sudo poweroff</code>, wait until the green light stops blinking, then unplug.</li>
+    <li>Best: System, <b>Switch off</b> (or <code>sudo poweroff</code>), wait until the green light stops blinking, then unplug.</li>
     <li>If you have to, just pull the plug. The hub survives it; the log loses at most the last 30 seconds.</li>
     <li>Plug in again: everything starts by itself in about 25 seconds. If logging was on, it carries on in a new file.</li>
   </ul>
   <h3>The clock after a power cut</h3>
-  <p>The Pi has no clock battery. With no internet it starts from the time it saved a minute before the power went, so it is behind by however long it was off. Set it by hand from a phone's time: <code>sudo date -s "2026-10-21 19:30"</code>. The log also records the seconds since the hub started, so times can be corrected later.</p>
+  <p>The Pi has no clock battery. With no internet it starts from the time it saved a minute before the power went, so it is behind by however long it was off. The easy way: open the panel on a phone or laptop (on the hub's own WiFi, below), go to System, and press <b>Set the hub's clock from this device</b>; the button shows up when the two clocks differ by more than 2 minutes. Or by hand: <code>sudo date -s "2026-10-21 19:30"</code>. The log also records the seconds since the hub started, so times can be corrected later.</p>
 </section>
 
 <section id="h-net" class="hs">
@@ -67,9 +76,34 @@
   <ol>
     <li><b>Its own screen and keyboard.</b> Needs nothing else. If the screen shows a login prompt instead of the panel, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd>.</li>
     <li><b>A network cable straight from a laptop</b> into the hub's network socket. Then open <b data-fill="local">http://this-hub.local/hub/</b>. This should work without any router (the two find each other by themselves), but it has not been tried yet.</li>
-    <li><b>The hub's own WiFi</b>, for phones: planned, not on this hub yet. For now its WiFi joins the home WiFi, and that is gone when the router is.</li>
+    <li><b>The hub's own WiFi.</b> The hub can be a WiFi network itself, for your phone and laptop. See below.</li>
   </ol>
-  <p>A login on the hub itself: on its keyboard press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F2</kbd>, log in with the Pi's user name and password, and the commands below work there too. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd> goes back to the panel.</p>
+  <h3>The hub's own WiFi</h3>
+  <p>Normally the hub joins your home WiFi. When the router is off, it can make a WiFi network of its own:</p>
+  <ul>
+    <li><b>By itself</b>: when there has been no home WiFi for 3 minutes, the hub starts its own. (You can switch this off, or change the minutes, in System, WiFi.)</li>
+    <li><b>From its screen</b>: System, <b>Start the hub's own WiFi</b>.</li>
+    <li><b>With the button</b> (if one is wired, see "Sound and light"): hold it for 3 seconds.</li>
+  </ul>
+  <p>The hub's screen then shows the network's <b>name</b>, its <b>password</b> and a <b>QR code</b>. Point a phone's camera at the code to join, or type the password. Then open <b>http://10.42.0.1/hub/</b> for this panel, or <b>http://10.42.0.1/</b> for the house app. There is no internet on this network.</p>
+  <p><b>Back to the home WiFi</b>: the button is always there while the hub runs its own (System, Back to home WiFi). A restart always comes back to the home WiFi too. If the hub started its own WiFi by itself, it goes back by itself when the home WiFi returns and nobody is connected to the hub.</p>
+  <p><b>Neighbours.</b> The hub's own WiFi has a password, so only the people you give it to can join. An admin can tick <b>Let neighbours in</b> (System, WiFi): then it has no password, anyone in range can join and use the house app (every new account still needs an admin's yes), and the panel asks everyone for the hub PIN. The hub shuts everything else (SSH, the radio's own controls) on that network. Untick it to close it again.</p>
+  <p><b>Other WiFi networks.</b> System, WiFi, <b>Look for networks</b> lists those in range; <b>Join…</b> asks for the password. The hub remembers them; <b>Make it the default</b> is the one it joins first at boot, <b>Forget</b> removes one.</p>
+  <h3>A terminal</h3>
+  <p>On the hub's own keyboard: System, <b>Open a terminal</b> (or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F2</kbd>). Log in with the Pi's user name and password, and the commands below work there. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd> goes back to the panel. (For safety the terminal opens only on the hub's own screen, never in a browser.)</p>
+</section>
+
+<section id="h-sound" class="hs">
+  <h2>Sound, light and button</h2>
+  <p><b>Sound.</b> The hub plays a chime for a message for it, a message to everyone (at most once in 30 seconds), and an answer to one of its own messages. It plays on a USB speaker if one is plugged in, otherwise on the Pi's <b>audio jack</b> (the round socket next to the HDMI sockets): plug in a powered speaker or headphones. The Pi can't tell whether anything is plugged into the jack, so press <b>Play a test sound</b> (System, Sound). There you can also choose the volume, which chimes you want, quiet hours (only messages for the hub sound at night), and speech: the hub can say who a message is from, and read it out.</p>
+  <p><b>An LED.</b> The hub blinks an LED three times for a message for it, and keeps blinking slowly until the message is read. Wiring: the LED's long leg through a 330 Ω resistor to <b>GPIO 17 (pin 11)</b>, its short leg to a ground pin (<b>pin 9</b>). Pins are counted from the end near the SD card: pin 1 is the corner pin by the card, odd numbers on the inside row. Press <b>Flash the LED</b> to check.</p>
+  <p><b>A button.</b> A push button between <b>GPIO 27 (pin 13)</b> and a ground pin (<b>pin 14</b>), no resistor needed. A short press marks the messages read (the LED stops); holding it for 3 seconds starts or stops the hub's own WiFi, with two long blinks. Both pins can be changed in System, Light and button.</p>
+</section>
+
+<section id="h-translate" class="hs">
+  <h2>Translate</h2>
+  <p>The hub can translate messages between German and English by itself, without the internet. Under a message in German there is a <b>Translate</b> link; the English shows under the original, marked as a machine translation. To write in German: type in English, press <b>To German</b> next to Send, check the German, then send it. System, Translator can translate every message without asking.</p>
+  <p>It takes a second or two per message (a few seconds for the first one after a restart). Machine translation gets slang, abbreviations and typos wrong sometimes: the original always stays.</p>
 </section>
 
 <section id="h-trouble" class="hs">
@@ -84,7 +118,11 @@
     <dt>A message says "Not delivered"</dt>
     <dd>The other radio is off, out of reach, or doesn't know this hub's key yet (that comes when it hears this hub say hello). Try again later, or write to everyone.</dd>
     <dt>The screen is black</dt>
-    <dd>Wait a minute after switching on. Plugged in the screen later? <code>sudo systemctl restart batnet-screen</code>. Still nothing: the screen belongs in the HDMI socket next to the power socket (HDMI 0).</dd>
+    <dd>It may be asleep (in Medium and Low power): press a key or move the mouse. Wait a minute after switching on. A screen plugged in later starts by itself within a few seconds. Still nothing: the screen belongs in the HDMI socket next to the power socket (HDMI 0); then <code>sudo systemctl restart batnet-screen</code>.</dd>
+    <dt>The phone can't find the hub's WiFi</dt>
+    <dd>Is it on? System, WiFi says so, with its name. Phones list a new network after a few seconds; stand near the hub. The hub can't be on the home WiFi and its own at once.</dd>
+    <dt>No sound</dt>
+    <dd>System, Sound, Play a test sound. Is the speaker switched on and plugged into the jack (or a USB speaker into a USB socket)? Is Sound on, the volume up, and is it quiet hours?</dd>
     <dt>The panel doesn't open on a laptop</dt>
     <dd>Is the laptop on the same WiFi? Try the address shown on the hub's screen under Settings instead of the name. Without a router, see "When there is no network".</dd>
     <dt>Forgot the hub PIN</dt>
@@ -94,7 +132,7 @@
     <dt>The card is full</dt>
     <dd>Settings, This Pi, "Card free". Old logs are in <code>/var/lib/batnet/logs/</code>; download them first (Settings, Log), then delete the oldest.</dd>
     <dt>It is hot</dt>
-    <dd>Up to about 70 °C is fine; above 80 °C the Pi slows down to protect itself. Give it air and shade.</dd>
+    <dd>Up to about 70 °C is fine; above 80 °C the Pi slows down to protect itself. Give it air and shade. Low power (System, Power) also keeps it cooler.</dd>
     <dt>Everything is stuck</dt>
     <dd>The hub restarts its own programs when they hang, and the Pi reboots itself if the whole system hangs. If nothing moves for a few minutes: pull the power, wait 5 seconds, plug it in again.</dd>
   </dl>
@@ -120,6 +158,15 @@
       <tr><td>the radio</td><td><code>sudo systemctl restart meshtasticd</code></td></tr>
       <tr><td>the screen</td><td><code>sudo systemctl restart batnet-screen</code></td></tr>
       <tr><td>the whole Pi</td><td><code>sudo reboot</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">WiFi</th></tr>
+      <tr><td>networks in range</td><td><code>nmcli dev wifi list</code></td></tr>
+      <tr><td>join one</td><td><code>sudo nmcli dev wifi connect "Name" password "its password"</code></td></tr>
+      <tr><td>start the hub's own WiFi</td><td><code>sudo nmcli con up batnet-own-wifi</code></td></tr>
+      <tr><td>back to the home WiFi</td><td><code>sudo nmcli con down batnet-own-wifi</code></td></tr>
+      <tr><td>the hub's own WiFi password</td><td><code>sudo cat /var/lib/batnet/wifi-password</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">Power and sound</th></tr>
+      <tr><td>a power mode (high, medium, low)</td><td><code>sudo systemctl start batnet-power@low</code></td></tr>
+      <tr><td>a test tone on the jack</td><td><code>speaker-test -D plughw:Headphones -c 1 -t sine -l 1</code></td></tr>
       <tr><td>switch off safely</td><td><code>sudo poweroff</code></td></tr>
       <tr class="grp"><th colspan="2" scope="rowgroup">The radio (Meshtastic's own tool; stop the hub first, they cannot both talk to the radio)</th></tr>
       <tr><td>pause the hub</td><td><code>sudo systemctl stop batnet-hub</code></td></tr>
@@ -131,7 +178,7 @@
       <tr><td>the hub's settings</td><td><code>/var/lib/batnet/hub.json</code></td></tr>
       <tr><td>the logs, one file per start</td><td><code>/var/lib/batnet/logs/</code></td></tr>
       <tr><td>the house app's messages</td><td><code>/var/lib/batnet/house.db</code></td></tr>
-      <tr><td>the PINs</td><td><code>/var/lib/batnet/hub-pin</code>, <code>admin-pin</code></td></tr>
+      <tr><td>the PINs and the WiFi password</td><td><code>/var/lib/batnet/hub-pin</code>, <code>admin-pin</code>, <code>wifi-password</code></td></tr>
       <tr><td>the radio's settings</td><td><code>/etc/meshtasticd/</code></td></tr>
       <tr class="grp"><th colspan="2" scope="rowgroup">The clock</th></tr>
       <tr><td>what time the Pi thinks it is, and whether it is synced</td><td><code>timedatectl</code></td></tr>
@@ -157,6 +204,7 @@
     <dt>Public channel</dt><dd>Meshtastic's open channel: everyone with a radio nearby can read it.</dd>
     <dt>Airtime, duty cycle</dt><dd>how long a radio is on the air. In this band a radio may send at most 10% of each hour, and the software keeps to it.</dd>
     <dt>Node ID</dt><dd>a radio's number, like !a1b2c3d4. The short name (up to four letters, or one emoji) is what small screens show.</dd>
+    <dt>Access point, hotspot</dt><dd>a WiFi network that phones and laptops join. The hub's own WiFi is one.</dd>
     <dt>Antenna gain, dBi</dt><dd>how much an antenna focuses the signal; a 5 dBi antenna hears and reaches further than a stubby one.</dd>
   </dl>
 </section>

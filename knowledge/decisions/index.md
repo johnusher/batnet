@@ -29,3 +29,7 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0025 Hub panel and mesh modes](0025-hub-panel-and-mesh-modes.md) - batnetd -hub serves the app and a control panel on the LAN and on HDMI; the WiFi mesh runs off, mock or real
 * [0026 Recognising batnet radios](0026-recognising-batnet-radios.md) - no extra handshake: the private channel and signed entries mark batnet nodes; nothing extra on the public channel
 * [0027 The preset follows the local mesh](0027-preset-follows-the-local-mesh.md) - the Meshtastic preset is a village setting, measured first; a second radio listens to the other preset (draft)
+* [0028 The hub's own WiFi](0028-hub-own-wifi.md) - every boot joins the home WiFi; a button, the hub's button or 3 minutes without home WiFi start its own (password, QR); "Let neighbours in" opens it behind a firewall; back home always works (draft)
+* [0029 Power modes](0029-hub-power-modes.md) - high, medium, low: CPU speed, WiFi power saving, the screen's sleep and a reduced screen, the Pi's lights; the screen runs only while one is plugged in (draft)
+* [0030 Offline translator](0030-offline-translator.md) - Argos models on CTranslate2 in a helper process: German and English on the hub, no internet (draft)
+* [0031 Root actions through polkit](0031-root-actions-through-polkit.md) - batnetd stays unprivileged; polkit allows NetworkManager, a few batnet units, reboot, power off, the clock; the terminal is the Pi's own console (draft)

@@ -23,6 +23,7 @@
   <button role="tab" id="tab-radios" aria-controls="view-radios" data-view="radios">Radios</button>
   <button role="tab" id="tab-traffic" aria-controls="view-traffic" data-view="traffic">Traffic</button>
   <button role="tab" id="tab-settings" aria-controls="view-settings" data-view="settings">Settings</button>
+  <button role="tab" id="tab-system" aria-controls="view-system" data-view="system">System <span id="sys-badge" class="badge dot" hidden></span></button>
   <button role="tab" id="tab-help" aria-controls="view-help" data-view="help">Help</button>
   <p id="flash" class="flash" role="status" hidden><span id="flash-text"></span> <button id="flash-open" class="btn small">Open</button></p>
 </nav>
@@ -65,6 +66,7 @@
       <form id="send" class="send" autocomplete="off">
         <label class="sr" for="msg">Message</label>
         <input id="msg" maxlength="200">
+        <button id="msg-tr" class="btn ghost" type="button" hidden>To German</button>
         <button class="btn onair-btn" type="submit">Send by radio</button>
       </form>
       <p id="send-note" class="note" aria-live="polite"></p>
@@ -206,11 +208,6 @@
     </div>
 
     <div class="card">
-      <h2>This Pi</h2>
-      <dl id="sys" class="facts"></dl>
-    </div>
-
-    <div class="card">
       <h2>The house app</h2>
       <p class="muted small">Phones open it in a browser on this hub's network.</p>
       <dl id="app" class="facts"></dl>
@@ -223,7 +220,119 @@
         <button role="radio" data-theme="light">Light</button>
         <button role="radio" data-theme="dark">Dark</button>
       </div>
-      <p class="muted small">Keys on the hub's keyboard: 1 to 7 switch views, / starts a message.</p>
+      <p class="muted small">Keys on the hub's keyboard: 1 to 8 switch views, / starts a message.</p>
+    </div>
+  </section>
+  <section class="view settings system" id="view-system" role="tabpanel" aria-labelledby="tab-system" hidden>
+    <div class="card wide" id="wifi-card">
+      <div class="head"><h2>WiFi</h2><span class="actions"><button id="wifi-own" class="btn" type="button">Start the hub's own WiFi</button><button id="wifi-home" class="btn ghost" type="button">Back to home WiFi</button></span></div>
+      <p id="wifi-state" class="state"></p>
+      <p id="wifi-note" class="note" aria-live="polite"></p>
+      <div id="own-box" class="own-box" hidden>
+        <div class="qr" id="wifi-qr" aria-hidden="true"></div>
+        <dl id="own-facts" class="facts"></dl>
+        <button id="wifi-print" class="btn ghost small" type="button">Print a WiFi card</button>
+      </div>
+      <div class="row2 wifi-cols">
+        <form id="wifi-form" class="sub-card" autocomplete="off">
+          <h3>The hub's own WiFi</h3>
+          <label class="check"><input id="wifi-auto" type="checkbox"> Start it by itself when there is no home WiFi for
+            <input id="wifi-after" type="number" min="1" max="120" step="1" class="mins" aria-label="minutes"> minutes</label>
+          <label class="check"><input id="wifi-neigh" type="checkbox"> Let neighbours in <span class="hint">no password: anyone in range can join and use the house app (every new account still needs an admin's yes); the panel then asks everyone for the hub PIN, SSH and the radio's own ports are shut</span></label>
+          <label>Name <span class="hint">what phones see in their WiFi list</span><input id="wifi-ssid" maxlength="32"></label>
+          <div class="actions"><button class="btn" type="submit">Save</button><span id="wifi-form-note" class="note"></span></div>
+        </form>
+        <div class="sub-card">
+          <h3>Networks the hub knows</h3>
+          <ul id="wifi-saved" class="peers"></ul>
+          <div class="actions"><button id="wifi-scan" class="btn ghost small" type="button">Look for networks</button></div>
+          <ul id="wifi-nearby" class="peers"></ul>
+          <form id="join-form" class="join" autocomplete="off" hidden>
+            <label>Network<input id="join-ssid" maxlength="32"></label>
+            <label>Password <span class="hint">empty for an open network</span><input id="join-pass" type="password" maxlength="63" autocomplete="new-password"></label>
+            <label class="check"><input id="join-hidden" type="checkbox"> It doesn't show its name (hidden)</label>
+            <div class="actions"><button class="btn" type="submit">Join</button><button id="join-cancel" class="btn ghost" type="button">Cancel</button></div>
+          </form>
+          <button id="join-other" class="linkbtn" type="button">Join a network by name</button>
+        </div>
+      </div>
+    </div>
+
+    <form id="sound-form" class="card" autocomplete="off">
+      <h2>Sound</h2>
+      <p id="sound-state" class="state"></p>
+      <label class="check"><input id="snd-on" type="checkbox"> Sound on</label>
+      <div class="row2">
+        <label>Play on<select id="snd-out"><option value="auto">a USB speaker if there is one, else the jack</option><option value="jack">the audio jack</option><option value="usb">a USB speaker</option></select></label>
+        <label>Volume <span class="hint" id="snd-vol-v"></span><input id="snd-vol" type="range" min="10" max="100" step="5"></label>
+      </div>
+      <fieldset class="checks"><legend>A chime for</legend>
+        <label class="check"><input id="snd-direct" type="checkbox"> a message for this hub</label>
+        <label class="check"><input id="snd-public" type="checkbox"> a message to everyone <span class="hint">at most one chime in 30 s</span></label>
+        <label class="check"><input id="snd-replies" type="checkbox"> an answer to one of the hub's messages</label>
+        <label class="check"><input id="snd-delivered" type="checkbox"> one of the hub's messages arrived, or failed</label>
+      </fieldset>
+      <fieldset class="checks"><legend>Speech <span id="snd-speak-hint" class="hint"></span></legend>
+        <label class="check"><input id="snd-speak" type="checkbox"> say who it is from</label>
+        <label class="check"><input id="snd-read" type="checkbox"> and read the message out</label>
+      </fieldset>
+      <label class="check"><input id="snd-quiet" type="checkbox"> Quiet from <input id="snd-from" type="time" aria-label="quiet from"> to <input id="snd-to" type="time" aria-label="quiet until"> <span class="hint">only messages for the hub sound then</span></label>
+      <div class="actions"><button class="btn" type="submit">Save</button><button id="snd-test" class="btn ghost" type="button">Play a test sound</button><span id="sound-note" class="note"></span></div>
+    </form>
+
+    <form id="light-form" class="card" autocomplete="off">
+      <h2>Light and button</h2>
+      <p id="light-state" class="state"></p>
+      <div class="row2">
+        <label>LED on<select id="lt-led"></select></label>
+        <label>Button on<select id="lt-btn"></select></label>
+      </div>
+      <label class="check"><input id="lt-keep" type="checkbox"> Keep blinking until the messages are read <span class="hint">on the panel, or a short press of the button</span></label>
+      <label class="check"><input id="lt-public" type="checkbox"> One blink for a message to everyone</label>
+      <p class="muted small">The LED: its long leg through a 330 Ω resistor to the pin, its short leg to a ground pin (pin 9 or 14). The button: between its pin and a ground pin. A short press marks the messages read; hold it for 3 seconds to start or stop the hub's own WiFi.</p>
+      <div class="actions"><button class="btn" type="submit">Save</button><button id="lt-test" class="btn ghost" type="button">Flash the LED</button><span id="light-note" class="note"></span></div>
+    </form>
+
+    <div class="card">
+      <h2>Power</h2>
+      <div class="modes power" role="radiogroup" aria-label="Power mode">
+        <button role="radio" data-power="high">High</button>
+        <button role="radio" data-power="medium">Medium</button>
+        <button role="radio" data-power="low">Low</button>
+      </div>
+      <p id="power-help" class="muted small"></p>
+      <label class="check"><input id="pw-reduced" type="checkbox"> Reduced screen <span class="hint">the screen's lowest resolution and refresh rate, no animations; always on in Low</span></label>
+      <p id="power-state" class="state"></p>
+      <p id="power-note" class="note"></p>
+    </div>
+
+    <form id="tr-form" class="card" autocomplete="off">
+      <h2>Translator</h2>
+      <p id="tr-state" class="state"></p>
+      <label>Translate messages into<select id="tr-to"></select></label>
+      <label class="check"><input id="tr-auto" type="checkbox"> Translate them without asking <span class="hint">otherwise press Translate under a message</span></label>
+      <p class="muted small">On the hub itself, no internet. Machine translation: the original stays above it.</p>
+      <div class="actions"><button class="btn" type="submit">Save</button><span id="tr-note" class="note"></span></div>
+    </form>
+
+    <div class="card">
+      <h2>Plugged in</h2>
+      <ul id="devlist" class="peers"></ul>
+      <h3>Lately</h3>
+      <ul id="devevents" class="peers"></ul>
+    </div>
+
+    <div class="card">
+      <h2>This Pi</h2>
+      <dl id="sys" class="facts"></dl>
+      <p id="clock-line" class="state" hidden></p>
+      <div class="actions">
+        <button id="sys-clock" class="btn ghost small" type="button" hidden>Set the hub's clock from this device</button>
+        <button id="sys-term" class="btn ghost small" type="button" hidden>Open a terminal</button>
+        <button id="sys-reboot" class="btn ghost small" type="button">Restart</button>
+        <button id="sys-off" class="btn ghost small" type="button">Switch off</button>
+      </div>
+      <p id="sys-note" class="note"></p>
     </div>
   </section>
   <section class="view help" id="view-help" role="tabpanel" aria-labelledby="tab-help" hidden>
@@ -251,7 +360,10 @@
   </form>
 </dialog>
 
+<div id="asleep" class="asleep" hidden><p>The screen is asleep. Press a key or move the mouse.</p></div>
+<p id="toast" class="toast" role="status" hidden></p>
 <script src="vendor/leaflet.js"></script>
+<script src="vendor/qrcode.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>

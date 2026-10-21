@@ -88,7 +88,7 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 function setNote(id, msg, bad) { $(id).textContent = msg; $(id).className = "note" + (bad ? " bad" : ""); }
 
 // ---- views ----
-const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings", "help"];
+const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings", "system", "help"];
 let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
 
 function setView(v) {
@@ -105,6 +105,7 @@ function setView(v) {
   if (v === "traffic") drawTraffic();
   if (v === "map") showMap();
   if (v === "help") loadHelp();
+  if (v === "system") sysSig = "";
 }
 for (const v of VIEWS) $("tab-" + v).addEventListener("click", () => setView(v));
 for (const b of document.querySelectorAll("[data-go]")) b.addEventListener("click", () => setView(b.dataset.go));
@@ -312,10 +313,20 @@ function bubble(t, all, { who, reply }) {
     li.append(el("span", { class: "quote", text: q ? `${q.mine ? "You" : nameOfNum(q.from)}: ${q.text}` : "An earlier message" }));
   }
   li.append(el("span", { class: "body", text: t.text }));
+  const tk = textKey(t), tr = translations.get(tk);
+  if (tr) li.append(el("span", { class: "tr-line", text: tr.error ? tr.error : `${tr.text} (machine translation from ${tr.fromName})` }));
   const meta = el("span", { class: "meta" }, clock(t.at));
   if (!t.mine) meta.append(`, ${db(t.snr)}, ${t.hops < 0 ? "?" : t.hops} relays${t.pki ? ", encrypted to this hub" : ""}`);
   const st = t.mine ? statusLine(t) : null;
   if (st) meta.append(" ", st);
+  if (!t.mine && !tr && canTranslate(t.text)) {
+    if (autoTranslate()) translateText(t);
+    else {
+      const tb = el("button", { class: "linkbtn", type: "button", text: "Translate" });
+      tb.addEventListener("click", (ev) => { ev.stopPropagation(); tb.disabled = true; tb.textContent = "Translating…"; translateText(t); });
+      meta.append(" ", tb);
+    }
+  }
   if (reply) {
     const rb = el("button", { class: "linkbtn", type: "button", text: "Reply" });
     rb.addEventListener("click", () => { replyTo = t; showReply(); $("msg").focus(); });
@@ -338,6 +349,7 @@ function renderMessages(r, convs) {
     lastRead[c.id] = c.texts[c.texts.length - 1].at;
     c.unread = 0;
     save("hub.read", lastRead);
+    if (last && last.unread) markSeen();
   }
   if (view !== "messages") return;
 
@@ -360,7 +372,7 @@ function renderMessages(r, convs) {
   $("thread-empty").hidden = c.texts.length > 0;
   $("thread-empty").textContent = c.id === "pub" ? "No messages heard yet." : "No messages yet. Write the first one below.";
 
-  const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + nodes().length;
+  const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + nodes().length + "|" + translations.size;
   if (sig === threadSig) return;
   threadSig = sig;
   const list = $("thread");
@@ -422,7 +434,7 @@ function renderHome(s, convs) {
   recent.sort((a, b) => Date.parse(a.t.at) - Date.parse(b.t.at));
   const show = recent.slice(-5);
   $("home-empty").hidden = show.length > 0;
-  const sig = show.map((x) => textKey(x.t) + x.t.status).join(",");
+  const sig = show.map((x) => textKey(x.t) + x.t.status).join(",") + "|" + translations.size;
   if (sig === homeSig) return;
   homeSig = sig;
   $("home-thread").replaceChildren(...show.map(({ t, c }) => {
@@ -632,7 +644,9 @@ function render(s) {
   const ready = r && r.ready && r.region !== "not set";
   for (const b of [$("hello"), document.querySelector("#send button"), document.querySelector("#home-send button")]) b.disabled = !ready;
   if (view === "settings") renderHubSettings(s);
+  if (view === "system") renderSystem(s);
   if (view === "help") fillHelp();
+  renderKitGlobal(s);
 }
 
 function renderRadios() {
@@ -691,15 +705,6 @@ function renderHubSettings(s) {
   }
 
   const sy = s.system;
-  const facts = [["Temperature", sy.tempC ? `${sy.tempC.toFixed(0)} °C` : "?"],
-    ["Memory free", sy.memTotalMB ? `${sy.memAvailMB} of ${sy.memTotalMB} MB` : "?"],
-    ["Card free", sy.diskSizeGB ? `${sy.diskFreeGB.toFixed(1)} of ${sy.diskSizeGB.toFixed(0)} GB` : "?"],
-    ["Running for", sy.uptime ? duration(sy.uptime) : "?"],
-    ["LoRa stick", sy.meshstick ? "plugged in" : "not found"],
-    ["Radio firmware", r && r.firmware ? `meshtasticd ${r.firmware}` : ""]];
-  for (const i of sy.interfaces || []) if (i.addrs && i.addrs.length) facts.push([i.name + (i.wifi ? " (WiFi)" : ""), i.addrs.join(", ")]);
-  $("sys").replaceChildren(...facts.filter(([, v]) => v).flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
-
   let url = s.appURL || location.origin + "/";
   if (/^http:\/\/(127\.|localhost|\[::1\])/.test(url)) { // on the screen: the address phones use instead
     const lan = (sy.interfaces || []).find((i) => i.name !== "bat0" && i.addrs && i.addrs.length);
@@ -710,9 +715,34 @@ function renderHubSettings(s) {
   $("app").replaceChildren(...app.flatMap(([k, v, c]) => [el("dt", { text: k }), el("dd", { class: c || "", text: v })]));
 }
 
+function renderSysFacts(s) {
+  const sy = s.system, r = s.radio;
+  const facts = [["Temperature", sy.tempC ? `${sy.tempC.toFixed(0)} °C` : "?"],
+    ["Memory free", sy.memTotalMB ? `${sy.memAvailMB} of ${sy.memTotalMB} MB` : "?"],
+    ["Card free", sy.diskSizeGB ? `${sy.diskFreeGB.toFixed(1)} of ${sy.diskSizeGB.toFixed(0)} GB` : "?"],
+    ["Running for", sy.uptime ? duration(sy.uptime) : "?"],
+    ["LoRa stick", sy.meshstick ? "plugged in" : "not found"],
+    ["Radio firmware", r && r.firmware ? `meshtasticd ${r.firmware}` : ""]];
+  for (const i of sy.interfaces || []) if (i.addrs && i.addrs.length) facts.push([i.name + (i.wifi ? " (WiFi)" : ""), i.addrs.join(", ")]);
+  $("sys").replaceChildren(...facts.filter(([, v]) => v).flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
+}
+
+let asking = false;
 async function poll() {
   try {
-    const res = await fetch("api/status", { cache: "no-store" });
+    const res = await fetch("api/status", { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
+    if (res.status === 401 || res.status === 429) {
+      // The hub's own WiFi is open to neighbours: reading the panel needs the PIN too.
+      $("onair").textContent = "This hub's WiFi is open to neighbours: the panel needs the hub PIN.";
+      $("onair").className = "onair down";
+      if (!asking && res.status === 401) {
+        asking = true;
+        const p = await askPIN();
+        asking = false;
+        if (p != null) { pin = p; try { sessionStorage.setItem("hubPIN", pin); } catch (e) { /* fine */ } poll(); }
+      }
+      return;
+    }
     if (!res.ok) throw new Error(res.status);
     render(await res.json());
   } catch (e) {
@@ -728,7 +758,7 @@ if (![120, 600, 3600].includes(win)) win = 600;
 
 async function pollTraffic() {
   try {
-    const res = await fetch(`api/traffic?since=${tr.seq}`, { cache: "no-store" });
+    const res = await fetch(`api/traffic?since=${tr.seq}`, { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
     if (!res.ok) return;
     const o = await res.json();
     if (o.seq < tr.seq) { tr.seq = 0; tr.frames = []; tr.drawnSeq = 0; return pollTraffic(); } // the hub restarted
@@ -989,6 +1019,390 @@ for (const b of document.querySelectorAll(".mesh button")) {
   });
 }
 
+// ---- the translator (decision 0030) ----
+const translations = new Map(); // message key -> {text, fromName} or {error}
+const translating = new Set();
+const pairs = () => (last && last.translate && last.translate.pairs) || [];
+const transTo = () => (last && last.settings && last.settings.translateTo) || "en";
+const autoTranslate = () => !!(last && last.settings && last.settings.translateAuto);
+// A quick look for a language the hub can translate into transTo(): German words, or letters English doesn't use.
+const DE = new Set("der die das und ist nicht ich du wir ihr sie es ein eine einen mit von zu auf für bei hat haben wer was wo wie noch schon auch aber oder wenn bitte danke hallo gibt jemand kein keine wasser heute morgen hier sind bin war mein uns im am zum zur nach gut ja nein mal wieder alles kann muss".split(" "));
+function guessLang(text) {
+  const words = text.toLowerCase().match(/[\p{L}']+/gu) || [];
+  let de = 0, en = 0;
+  for (const w of words) { if (DE.has(w)) de++; if (/[äöüß]/.test(w)) de++; if (["the", "and", "is", "you", "we", "have", "what", "anyone", "please", "thanks"].includes(w)) en++; }
+  return de > en ? "de" : en > de ? "en" : "";
+}
+function canTranslate(text) {
+  const to = transTo(), from = guessLang(text);
+  return from && from !== to && pairs().includes(`${from}-${to}`);
+}
+async function translateText(t) {
+  const k = textKey(t);
+  if (translating.has(k) || translations.has(k)) return;
+  translating.add(k);
+  try {
+    const out = await act("translate", { text: t.text, from: guessLang(t.text) });
+    translations.set(k, out);
+  } catch (e) { translations.set(k, { error: `Not translated: ${e.message}` }); }
+  translating.delete(k);
+  threadSig = ""; homeSig = "";
+  if (last) render(last);
+}
+// What you write, into German, for you to check before sending.
+$("msg-tr").addEventListener("click", async () => {
+  const text = $("msg").value.trim();
+  if (!text) return;
+  $("msg-tr").disabled = true;
+  try {
+    const out = await act("translate", { text, from: "en", to: "de" });
+    $("msg").value = out.text;
+    setNote("send-note", "Translated by the hub. Check it, then send.");
+  } catch (e) { setNote("send-note", e.message, true); }
+  $("msg-tr").disabled = false;
+});
+
+let seenAt = 0;
+function markSeen() {
+  if (Date.now() - seenAt < 3000) return;
+  seenAt = Date.now();
+  fetch("api/seen", { method: "POST", headers: { "Content-Type": "application/json", "X-Hub": "1" }, body: "{}" }).catch(() => {});
+}
+
+// ---- things every view shows: the sleeping screen, reduced mode, plug events ----
+let lastEventAt = null, toastTimer = 0;
+function toast(msg) {
+  $("toast").textContent = msg;
+  $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; }, 6000);
+}
+function renderKitGlobal(s) {
+  const pw = s.power, root = document.documentElement;
+  root.classList.toggle("reduced", !!(pw && pw.reduced));
+  const asleep = !!(screen && pw && !pw.screenOn);
+  root.classList.toggle("asleep", asleep);
+  $("asleep").hidden = !asleep;
+  const w = s.wifi;
+  $("sys-badge").hidden = !((w && w.mode === "own") || (pw && pw.underVoltage));
+  $("msg-tr").hidden = !pairs().includes("en-de");
+  const ev = s.devices && s.devices.events && s.devices.events[0];
+  if (ev) {
+    if (lastEventAt && ev.at !== lastEventAt && screen) toast(`${ev.plugged ? "Plugged in" : "Unplugged"}: ${ev.device.name}`);
+    lastEventAt = ev.at;
+  } else if (lastEventAt === null) lastEventAt = "";
+}
+
+// ---- the System view ----
+let sysSig = "";
+const sysDirty = new Set();
+for (const f of ["wifi-form", "sound-form", "light-form", "tr-form"]) $(f).addEventListener("input", () => sysDirty.add(f));
+const POWER_HELP = {
+  high: "Everything at full speed; the screen stays on. For mains power.",
+  medium: "The CPU up to 1 GHz, WiFi power saving, the screen sleeps after 10 minutes without a key and wakes for a message.",
+  low: "The CPU at 600 MHz, WiFi power saving, the Pi's lights off, a reduced screen that sleeps after 2 minutes and wakes only for a key. The radio, sound and LED keep working.",
+};
+const GPIO = [17, 27, 22, 23, 24, 25, 5, 6, 12, 13, 16, 19, 20, 21, 26, 4, 18];
+const PIN = { 4: 7, 5: 29, 6: 31, 12: 32, 13: 33, 16: 36, 17: 11, 18: 12, 19: 35, 20: 38, 21: 40, 22: 15, 23: 16, 24: 18, 25: 22, 26: 37, 27: 13 };
+for (const id of ["lt-led", "lt-btn"]) {
+  $(id).append(el("option", { value: "-1", text: "none" }), ...GPIO.map((g) => el("option", { value: String(g), text: `GPIO ${g} (pin ${PIN[g]})` })));
+}
+
+function mmss(sec) { return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`; }
+
+function wifiText(w) {
+  if (!w.available) return ["The hub's WiFi can't be managed here (no NetworkManager).", "bad"];
+  switch (w.mode) {
+    case "home": return [`On the home WiFi “${w.ssid || w.connection}”${w.signal ? `, signal ${w.signal} %` : ""}.`, "good"];
+    case "own": return [`The hub's own WiFi is on${w.startedBy === "auto" ? " (started by itself: no home WiFi)" : w.startedBy === "button" ? " (from the button)" : ""}: ${w.clients} device${w.clients === 1 ? "" : "s"} on it.`, "good"];
+    case "switching": return ["Switching the WiFi…", ""];
+  }
+  if (w.waiting) return ["No WiFi. The hub waits for the home WiFi, as you chose; start its own WiFi here when you need it.", "bad"];
+  if (w.fallbackIn >= 0) return [`No WiFi. The hub starts its own in ${mmss(w.fallbackIn)} unless the home WiFi comes back.`, "bad"];
+  return ["No WiFi.", "bad"];
+}
+
+function drawQR(box, text) {
+  box.replaceChildren();
+  if (!window.qrcode || !text) return;
+  qrcode.stringToBytes = qrcode.stringToBytesFuncs["UTF-8"];
+  const q = qrcode(0, "M");
+  q.addData(text);
+  q.make();
+  const n = q.getModuleCount();
+  let d = "";
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c} ${r}h1v1h-1z`;
+  const s = svg("svg", { viewBox: `0 0 ${n} ${n}`, "shape-rendering": "crispEdges" });
+  s.append(svg("path", { d, fill: "#000" }));
+  box.append(s);
+}
+const wifiEsc = (v) => v.replace(/([\;,:"])/g, "\\$1");
+const wifiQR = (w) => `WIFI:T:${w.open ? "nopass" : "WPA"};S:${wifiEsc(w.ownSSID)};${w.open ? "" : `P:${wifiEsc(w.password || "")};`};`;
+
+function renderWiFi(s) {
+  const w = s.wifi;
+  $("wifi-card").hidden = !w;
+  if (!w) return;
+  const [txt, cls] = wifiText(w);
+  $("wifi-state").textContent = txt + (w.error ? ` ${w.error}` : "");
+  $("wifi-state").className = "state " + (w.error ? "bad" : cls);
+  if (w.note && !$("wifi-note").dataset.mine) setNote("wifi-note", w.note);
+  const own = w.mode === "own";
+  $("wifi-own").hidden = own;
+  $("wifi-home").hidden = !own && w.mode !== "switching";
+  $("wifi-own").disabled = $("wifi-home").disabled = w.mode === "switching" || !w.available;
+  // The hub's own WiFi: its name, password and a QR code; the password only on the hub's screen.
+  const box = $("own-box");
+  box.hidden = !own;
+  if (own) {
+    const host = (s.system.hostname || "this-hub");
+    const facts = [["WiFi name", w.ownSSID]];
+    if (w.open) facts.push(["Password", "none: open to neighbours"]);
+    else facts.push(["Password", w.password || "shown on the hub's own screen", w.password ? "pin" : ""]);
+    facts.push(["Then open", `http://${w.addr}/hub/  or  http://${host}.local/hub/`], ["The house app", `http://${w.addr}/`]);
+    $("own-facts").replaceChildren(...facts.flatMap(([k, v, c]) => [el("dt", { text: k }), el("dd", { class: c || "", text: v })]));
+    if (w.open || w.password) drawQR($("wifi-qr"), wifiQR(w)); else $("wifi-qr").replaceChildren();
+    $("wifi-qr").hidden = !(w.open || w.password);
+    $("wifi-print").hidden = !(w.open || w.password);
+  }
+  if (!sysDirty.has("wifi-form")) {
+    $("wifi-auto").checked = w.auto;
+    $("wifi-after").value = String(w.afterMinutes);
+    $("wifi-neigh").checked = w.open;
+    $("wifi-ssid").value = w.ownSSID;
+  }
+  $("wifi-saved").replaceChildren(...(w.saved.length ? w.saved.map((n) => {
+    const li = el("li", { class: n.active ? "on" : "" }, n.ssid || n.name, n.default ? el("span", { class: "sub", text: " (joined first)" }) : null,
+      n.active ? el("span", { class: "sub", text: ", in use" }) : null);
+    if (!n.default) { const b = el("button", { class: "btn ghost small", type: "button", text: "Make it the default" }); b.addEventListener("click", () => wifiAct({ op: "default", name: n.name }, "Done: the hub joins it first from now on.")); li.append(b); }
+    const f = el("button", { class: "btn ghost small", type: "button", text: "Forget" });
+    f.addEventListener("click", () => { if (confirm(`Forget ${n.ssid || n.name}? The hub won't join it again until you give its password.`)) wifiAct({ op: "forget", name: n.name }, "Forgotten."); });
+    li.append(f);
+    return li;
+  }) : [el("li", { class: "empty", text: "None yet." })]));
+}
+
+async function wifiAct(body, ok) {
+  $("wifi-note").dataset.mine = "1";
+  setNote("wifi-note", body.op === "own" ? "Starting the hub's own WiFi…" : body.op === "home" ? "Going back to the home WiFi…" : body.op === "join" ? `Joining ${body.ssid}… (up to 40 s)` : "Working…");
+  try {
+    await act("wifi", body);
+    setNote("wifi-note", ok);
+    poll();
+  } catch (e) {
+    // A device on the WiFi that just changed loses the hub for a moment: say where to find it.
+    setNote("wifi-note", /fetch|network/i.test(e.message) ? "The hub's WiFi changed: if this page stops, join the network it is on now." : e.message, !/fetch|network/i.test(e.message));
+  }
+  setTimeout(() => { delete $("wifi-note").dataset.mine; }, 15000);
+}
+$("wifi-own").addEventListener("click", () => {
+  if (!(last && last.local) && !confirm("Start the hub's own WiFi? This device loses the hub until it joins the hub's WiFi (its name and password are on the hub's screen).")) return;
+  wifiAct({ op: "own" }, "The hub's own WiFi is on.");
+});
+$("wifi-home").addEventListener("click", () => wifiAct({ op: "home" }, "Back to the home WiFi."));
+$("wifi-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const neigh = $("wifi-neigh").checked;
+  if (neigh && !(last && last.wifi && last.wifi.open) && !confirm("Let neighbours in? The hub's own WiFi then has no password: anyone in range can join it and use the house app.")) return;
+  try {
+    await act("wifi", { op: "settings", auto: String($("wifi-auto").checked), afterMinutes: $("wifi-after").value, neighbours: String(neigh), ssid: $("wifi-ssid").value.trim() });
+    sysDirty.delete("wifi-form");
+    setNote("wifi-form-note", "Saved.");
+    poll();
+  } catch (e) { setNote("wifi-form-note", e.message, true); }
+});
+$("wifi-scan").addEventListener("click", async () => {
+  $("wifi-scan").disabled = true;
+  $("wifi-nearby").replaceChildren(el("li", { class: "empty", text: "Looking…" }));
+  try {
+    const out = await act("wifi", { op: "scan" });
+    $("wifi-nearby").replaceChildren(...(out.networks.length ? out.networks.map((n) => {
+      const li = el("li", { class: n.inUse ? "on" : "" }, n.ssid, el("span", { class: "sub", text: `, ${n.signal} %${n.security ? ", " + n.security : ", open"}${n.inUse ? ", in use" : n.saved ? ", known" : ""}` }));
+      if (!n.inUse) {
+        const b = el("button", { class: "btn ghost small", type: "button", text: n.saved ? "Join" : "Join…" });
+        b.addEventListener("click", () => {
+          if (n.saved) { wifiAct({ op: "join", ssid: n.ssid }, `On ${n.ssid}.`); return; }
+          openJoin(n.ssid, !n.security);
+        });
+        li.append(b);
+      }
+      return li;
+    }) : [el("li", { class: "empty", text: "No networks in range." })]));
+  } catch (e) { $("wifi-nearby").replaceChildren(el("li", { class: "empty", text: e.message })); }
+  $("wifi-scan").disabled = false;
+});
+function openJoin(ssid, open) {
+  $("join-form").hidden = false;
+  $("join-ssid").value = ssid || "";
+  $("join-pass").value = "";
+  $("join-pass").placeholder = open ? "open network: no password" : "";
+  (ssid ? $("join-pass") : $("join-ssid")).focus();
+}
+$("join-other").addEventListener("click", () => openJoin("", false));
+$("join-cancel").addEventListener("click", () => { $("join-form").hidden = true; });
+$("join-form").addEventListener("submit", (ev) => {
+  ev.preventDefault();
+  const ssid = $("join-ssid").value.trim();
+  $("join-form").hidden = true;
+  wifiAct({ op: "join", ssid, password: $("join-pass").value, hidden: String($("join-hidden").checked) }, `On ${ssid}. The hub joins it by itself from now on.`);
+  $("join-pass").value = "";
+});
+$("wifi-print").addEventListener("click", () => {
+  const w = last && last.wifi;
+  if (!w) return;
+  const card = el("div", { id: "wifi-print-card" }, el("h2", { text: `${$("hubname").textContent}: its own WiFi` }),
+    el("p", { text: `WiFi name: ${w.ownSSID}` }), el("p", { text: w.open ? "No password" : `Password: ${w.password}` }),
+    el("div", { class: "qr", id: "print-qr" }), el("p", { text: `Then open http://${w.addr}/` }));
+  document.body.append(card);
+  drawQR($("print-qr"), wifiQR(w));
+  document.body.classList.add("wifi-card-print");
+  window.print();
+  document.body.classList.remove("wifi-card-print");
+  card.remove();
+});
+
+function renderSound(s) {
+  const so = s.sound;
+  $("sound-form").hidden = !so;
+  if (!so) return;
+  const st = so.settings;
+  const where = so.output === "jack" ? "the audio jack" : so.output === "usb" ? `a USB speaker (${so.card})` : "";
+  $("sound-state").textContent = !where ? "No sound output found." : `Sound goes to ${where}.${so.output === "jack" ? " The Pi can't tell whether a speaker is plugged into the jack: press Play a test sound." : ""}${so.quietNow ? " Quiet hours now." : ""}${so.error ? " " + so.error : ""}`;
+  $("sound-state").className = "state" + (!where || so.error ? " bad" : "");
+  $("snd-speak-hint").textContent = so.canSpeak ? "" : "(espeak-ng is not installed)";
+  $("snd-speak").disabled = $("snd-read").disabled = !so.canSpeak;
+  if (sysDirty.has("sound-form")) return;
+  $("snd-on").checked = st.on; $("snd-out").value = st.output; $("snd-vol").value = String(st.volume);
+  $("snd-vol-v").textContent = `${st.volume} %`;
+  for (const [id, k] of [["snd-direct", "direct"], ["snd-public", "public"], ["snd-replies", "replies"], ["snd-delivered", "delivered"], ["snd-speak", "speak"], ["snd-read", "readAloud"], ["snd-quiet", "quiet"]]) $(id).checked = st[k];
+  $("snd-from").value = st.quietFrom; $("snd-to").value = st.quietTo;
+}
+$("snd-vol").addEventListener("input", () => { $("snd-vol-v").textContent = `${$("snd-vol").value} %`; });
+$("sound-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const b = (id) => String($(id).checked);
+  try {
+    await act("sound", { on: b("snd-on"), output: $("snd-out").value, volume: $("snd-vol").value, direct: b("snd-direct"), public: b("snd-public"),
+      replies: b("snd-replies"), delivered: b("snd-delivered"), speak: b("snd-speak"), readAloud: b("snd-read"), quiet: b("snd-quiet"),
+      quietFrom: $("snd-from").value, quietTo: $("snd-to").value });
+    sysDirty.delete("sound-form");
+    setNote("sound-note", "Saved.");
+    poll();
+  } catch (e) { setNote("sound-note", e.message, true); }
+});
+$("snd-test").addEventListener("click", async () => {
+  try { await act("sound", { op: "test" }); setNote("sound-note", "Playing a chime and a sentence. Nothing heard? Check the speaker's power, its plug and the volume."); }
+  catch (e) { setNote("sound-note", e.message, true); }
+});
+
+function renderLight(s) {
+  const l = s.light;
+  $("light-form").hidden = !l;
+  if (!l) return;
+  const st = l.settings, parts = [];
+  parts.push(st.led < 0 ? "No LED." : l.ledOK ? `LED on GPIO ${st.led} (pin ${l.ledPin})${l.blinking ? ", blinking: unread messages" : ""}.` : `LED on GPIO ${st.led}: not available.`);
+  parts.push(st.button < 0 ? "No button." : l.buttonOK ? `Button on GPIO ${st.button} (pin ${l.buttonPin})${new Date(l.lastPress).getFullYear() > 2000 ? `, last pressed ${ago(l.lastPress)}` : ""}.` : `Button on GPIO ${st.button}: not available.`);
+  $("light-state").textContent = parts.join(" ") + (l.error ? ` ${l.error}` : "");
+  $("light-state").className = "state" + (l.error ? " bad" : "");
+  if (sysDirty.has("light-form")) return;
+  $("lt-led").value = String(st.led); $("lt-btn").value = String(st.button);
+  $("lt-keep").checked = st.keepBlinking; $("lt-public").checked = st.public;
+}
+$("light-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await act("light", { led: $("lt-led").value, button: $("lt-btn").value, keepBlinking: String($("lt-keep").checked), public: String($("lt-public").checked) });
+    sysDirty.delete("light-form");
+    setNote("light-note", "Saved.");
+    poll();
+  } catch (e) { setNote("light-note", e.message, true); }
+});
+$("lt-test").addEventListener("click", async () => {
+  try { await act("light", { op: "test" }); setNote("light-note", "Five blinks. Nothing? Check the LED's legs (long leg to the pin side) and the resistor."); }
+  catch (e) { setNote("light-note", e.message, true); }
+});
+
+function renderPower(s) {
+  const pw = s.power;
+  if (!pw) return;
+  for (const b of document.querySelectorAll(".power button")) b.setAttribute("aria-checked", String(b.dataset.power === pw.settings.mode));
+  $("power-help").textContent = POWER_HELP[pw.settings.mode] || "";
+  $("pw-reduced").checked = pw.reduced;
+  $("pw-reduced").disabled = pw.settings.mode === "low";
+  const parts = [];
+  parts.push(pw.sleepsIn < 0 ? "The screen stays on." : !pw.screenOn ? "The screen is asleep." : `The screen sleeps in ${mmss(pw.sleepsIn)} without a key.`);
+  if (pw.uvKnown) parts.push(pw.underVoltage ? "The power supply is too weak right now: use a better power bank or a shorter, thicker cable." : pw.uvCount ? `The power supply was too weak ${pw.uvCount} time${pw.uvCount === 1 ? "" : "s"}, last ${ago(pw.uvLast)}.` : "The power supply is good.");
+  if (s.mesh && s.mesh.mode === "real") parts.push("The WiFi mesh stick uses about 1 W: switch the mesh off in Settings if you don't need it.");
+  $("power-state").textContent = parts.join(" ") + (pw.error ? ` ${pw.error}` : "");
+  $("power-state").className = "state" + (pw.underVoltage || pw.error ? " bad" : "");
+}
+for (const b of document.querySelectorAll(".power button")) {
+  b.addEventListener("click", async () => {
+    try { await act("power", { mode: b.dataset.power }); setNote("power-note", `Power mode ${b.textContent}.`); poll(); }
+    catch (e) { setNote("power-note", e.message, true); }
+  });
+}
+$("pw-reduced").addEventListener("change", async () => {
+  try { await act("power", { reduced: String($("pw-reduced").checked) }); poll(); }
+  catch (e) { setNote("power-note", e.message, true); }
+});
+
+function renderTranslator(s) {
+  const t = s.translate;
+  $("tr-form").hidden = !t;
+  if (!t) return;
+  const names = { de: "German", en: "English", uk: "Ukrainian", ru: "Russian", pl: "Polish", tr: "Turkish", ar: "Arabic", fr: "French" };
+  const nm = (c) => names[c] || c;
+  $("tr-state").textContent = !t.installed ? "The translator is not installed on this hub (deploy/pi/translate-setup.sh)." :
+    t.pairs.length ? `Installed: ${t.pairs.map((p) => p.split("-").map(nm).join(" → ")).join(", ")}.${t.loaded ? " Loaded and ready." : " It loads in a few seconds on first use."}${t.error ? " " + t.error : ""}` : "No languages installed.";
+  $("tr-state").className = "state" + (!t.installed || t.error ? " bad" : "");
+  if (sysDirty.has("tr-form")) return;
+  const targets = [...new Set(t.pairs.map((p) => p.split("-")[1]))];
+  if (!targets.includes("en")) targets.unshift("en");
+  $("tr-to").replaceChildren(...targets.map((c) => el("option", { value: c, text: nm(c) })));
+  $("tr-to").value = transTo();
+  $("tr-auto").checked = autoTranslate();
+}
+$("tr-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await act("settings", { translateTo: $("tr-to").value, translateAuto: String($("tr-auto").checked) });
+    sysDirty.delete("tr-form");
+    translations.clear();
+    setNote("tr-note", "Saved.");
+    poll();
+  } catch (e) { setNote("tr-note", e.message, true); }
+});
+
+const DEV_ICON = { screen: "🖥", keyboard: "⌨", mouse: "🖱", touch: "👆", sound: "🔊", lora: "📡", wifi: "📶", gps: "🛰", storage: "💾", usb: "🔌" };
+function renderDevices(s) {
+  const d = s.devices;
+  if (!d) return;
+  $("devlist").replaceChildren(...(d.devices.length ? d.devices.map((x) => el("li", {}, `${DEV_ICON[x.kind] || "•"} ${x.name}`, x.detail ? el("span", { class: "sub", text: `, ${x.detail}` }) : null))
+    : [el("li", { class: "empty", text: "Nothing found." })]));
+  $("devevents").replaceChildren(...((d.events || []).length ? d.events.slice(0, 6).map((e) => el("li", {}, `${e.plugged ? "Plugged in" : "Unplugged"}: ${e.device.name}`, el("span", { class: "sub", text: `, ${ago(e.at)}` })))
+    : [el("li", { class: "empty", text: "Nothing plugged in or out since the hub started." })]));
+}
+
+function renderSystem(s) {
+  renderWiFi(s); renderSound(s); renderLight(s); renderPower(s); renderTranslator(s); renderDevices(s); renderSysFacts(s);
+  $("sys-term").hidden = !s.local;
+  // A device with the right time can set the hub's clock (after a power cut without internet).
+  const off = Date.now() - Date.parse(s.system.time);
+  const wrong = !s.local && Math.abs(off) > 120e3;
+  $("clock-line").hidden = $("sys-clock").hidden = !wrong;
+  if (wrong) $("clock-line").textContent = `The hub's clock is ${duration(Math.abs(off) / 1000)} ${off > 0 ? "behind" : "ahead of"} this device's.`;
+}
+async function sysAct(body, ask) {
+  if (ask && !confirm(ask)) return;
+  try { const out = await act("system", body); setNote("sys-note", out.note || "Done."); }
+  catch (e) { setNote("sys-note", e.message, true); }
+}
+$("sys-term").addEventListener("click", () => sysAct({ op: "terminal" }));
+$("sys-reboot").addEventListener("click", () => sysAct({ op: "reboot" }, "Restart the hub? The radio and the panel are back in about a minute."));
+$("sys-off").addEventListener("click", () => sysAct({ op: "poweroff" }, "Switch the hub off? It only comes back when its power is unplugged and plugged in again."));
+$("sys-clock").addEventListener("click", () => sysAct({ op: "clock", ms: String(Date.now()) }));
+
 // ---- help: a page of its own in the binary, so it works offline ----
 let helpLoaded = false;
 async function loadHelp() {
@@ -1032,13 +1446,13 @@ function fillHelp() {
   for (const e of document.querySelectorAll("[data-fill]")) if (vals[e.dataset.fill]) e.textContent = vals[e.dataset.fill];
 }
 
-// Keys for the hub's own keyboard: 1 to 7 switch views; / starts a message.
+// Keys for the hub's own keyboard: 1 to 8 switch views; / starts a message.
 document.addEventListener("keydown", (ev) => {
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
   if (ev.key === "Escape") { if (replyTo) { replyTo = null; showReply(); } else if (typing) document.activeElement.blur(); return; }
   if (typing || ev.ctrlKey || ev.metaKey || ev.altKey || $("detail").open || $("pin").open) return;
   if (ev.key === "/") { ev.preventDefault(); setView("messages"); $("msg").focus(); }
-  const i = ["1", "2", "3", "4", "5", "6", "7"].indexOf(ev.key);
+  const i = ["1", "2", "3", "4", "5", "6", "7", "8"].indexOf(ev.key);
   if (i >= 0) setView(VIEWS[i]);
 });
 document.querySelector(".tabs").addEventListener("keydown", (ev) => {
@@ -1049,8 +1463,12 @@ document.querySelector(".tabs").addEventListener("keydown", (ev) => {
 window.addEventListener("resize", () => { if (view === "traffic") drawTraffic(); if (map && view === "map") map.invalidateSize(); });
 
 setView(view);
-poll();
-pollTraffic();
-setInterval(poll, 2000);
-setInterval(pollTraffic, 2000);
-setInterval(() => { if (view === "traffic") drawTraffic(); }, 1000);
+// The refresh slows down in low power and while the hub's screen sleeps (decision 0029).
+function every() {
+  const pw = last && last.power;
+  if (!pw) return 2000;
+  return 1000 * (screen ? pw.pollSeconds : Math.min(pw.pollSeconds, pw.settings.mode === "low" ? 5 : 2));
+}
+(async function loop() { await poll(); setTimeout(loop, every()); })();
+(async function loopTraffic() { await pollTraffic(); setTimeout(loopTraffic, every()); })();
+setInterval(() => { if (view === "traffic" && !document.documentElement.classList.contains("asleep")) drawTraffic(); }, 1000);

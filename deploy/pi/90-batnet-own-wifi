@@ -1,0 +1,15 @@
+#!/bin/sh
+# NetworkManager dispatcher: when the hub's own WiFi comes up without a
+# password (neighbours let in), load the firewall that leaves only the house
+# app; with a password, or when it goes down, remove it (decision 0028).
+[ "${CONNECTION_ID:-}" = batnet-own-wifi ] || exit 0
+case "$2" in
+  up)
+    if [ -z "$(nmcli -g 802-11-wireless-security.key-mgmt connection show batnet-own-wifi 2>/dev/null)" ]; then
+      nft -f /usr/local/lib/batnet/own-wifi-open.nft
+    else
+      nft delete table inet batnet_own 2>/dev/null
+    fi ;;
+  down) nft delete table inet batnet_own 2>/dev/null ;;
+esac
+exit 0

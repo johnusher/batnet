@@ -1,0 +1,34 @@
+#!/bin/sh
+# The hub's screen, inside the cage kiosk compositor (batnet-screen.service):
+# Chromium with the panel, and a loop that asks batnetd whether the screen
+# should sleep, wake or run reduced (decision 0029) and applies it with
+# wlr-randr. If anything here fails the screen just stays on.
+chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
+  --disable-session-crashed-bubble --disable-features=Translate --password-store=basic \
+  --ozone-platform=wayland --user-data-dir=/run/batnet-screen/chromium --app=http://127.0.0.1/hub/?screen=1 &
+browser=$!
+
+# apply on | off | "on reduced", to every screen.
+apply() {
+  for o in $(wlr-randr --json 2>/dev/null | jq -r '.[].name'); do
+    case "$1" in
+      off) wlr-randr --output "$o" --off ;;
+      "on reduced")
+        # The mode with the fewest pixels at 640 x 480 or more, at its lowest refresh rate.
+        m=$(wlr-randr --json | jq -r --arg o "$o" '.[] | select(.name == $o) | [.modes[] | select(.width >= 640 and .height >= 480)]
+              | sort_by(.width * .height, .refresh) | first | select(.) | "\(.width)x\(.height)@\(.refresh)Hz"')
+        if [ -n "$m" ]; then wlr-randr --output "$o" --on --mode "$m"; else wlr-randr --output "$o" --on; fi ;;
+      *) wlr-randr --output "$o" --on --preferred ;;
+    esac
+  done
+}
+
+state=on
+while kill -0 $browser 2>/dev/null; do
+  q=$(printf %s "$state" | sed 's/ /%20/g')
+  new=$(curl -fs -m 60 "http://127.0.0.1/hub/api/screen?state=$q") || { sleep 5; continue; }
+  if [ -n "$new" ] && [ "$new" != "$state" ]; then
+    apply "$new"
+    state=$new
+  fi
+done

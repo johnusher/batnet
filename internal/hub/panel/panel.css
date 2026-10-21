@@ -388,3 +388,36 @@ html.screen .view.help { overflow-y: auto; max-width: none; }
   .miss { display: revert !important; }
   .hs[hidden] { display: flex !important; }
 }
+
+/* System: WiFi, sound, light, power, translator, devices (plan 5a) */
+.view.system .head { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; justify-content: space-between; }
+.sub-card { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; padding-top: 0.4rem; border-top: 1px dotted var(--rule); }
+.wifi-cols { align-items: start; }
+.own-box { display: flex; flex-wrap: wrap; gap: 1rem 1.4rem; align-items: center; padding: 0.8rem; border: 1.5px solid var(--signal); border-radius: 0.5rem; }
+.own-box .facts dd { font-size: 1.1rem; }
+.own-box .facts dd.pin { font-size: 1.35rem; }
+.qr { width: 9.5rem; height: 9.5rem; background: #fff; padding: 0.4rem; border-radius: 0.3rem; flex: none; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.card label.check .mins { width: 4.2rem; }
+.card label.check input[type="time"] { width: auto; }
+.checks { border: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.checks legend { font-weight: 700; padding: 0; margin-bottom: 0.25rem; }
+.checks .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; }
+.join { display: flex; flex-direction: column; gap: 0.5rem; }
+.peers li .btn { margin-left: 0.4rem; }
+.peers li.on { font-weight: 700; }
+.state.good { color: var(--ok); }
+.tr-line { display: block; margin-top: 0.3rem; font-style: italic; }
+.tr-line::before { content: "↳ "; font-style: normal; color: var(--muted); }
+.asleep { position: fixed; inset: 0; z-index: 2000; background: #000; color: #555; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+.asleep[hidden] { display: none; }
+.toast { position: fixed; right: 1rem; bottom: 1rem; z-index: 1500; background: var(--ink); color: var(--paper); padding: 0.5rem 0.9rem; border-radius: 0.4rem; font-weight: 700; max-width: min(90vw, 28rem); }
+html.reduced *, html.reduced *::before, html.reduced *::after { animation: none !important; transition: none !important; }
+html.screen .view.system { overflow-y: auto; }
+@media print {
+  body.wifi-card-print > *:not(#wifi-print-card) { display: none !important; }
+}
+#wifi-print-card { display: none; }
+body.wifi-card-print #wifi-print-card { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding: 2rem; font-size: 1.4rem; }
+body.wifi-card-print #wifi-print-card .qr { width: 14rem; height: 14rem; }
+.sub-card > .linkbtn { align-self: flex-start; }

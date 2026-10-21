@@ -1,0 +1,8 @@
+# batnet power modes (decision 0029): the CPU, WiFi power saving and the Pi's
+# lights for one mode. batnetd starts it through polkit (50-batnet.rules).
+[Unit]
+Description=batnet: power mode %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/batnet/batnet-power %i

@@ -47,6 +47,13 @@ type hubSettings struct {
 	HelloMinutes int `json:"helloMinutes,omitempty"`
 	// Where the hub stands, for the panel's map; never sent by radio.
 	Where *hub.Where `json:"where,omitempty"`
+	// The power-cut kit (plan 5a).
+	WiFi          hub.WiFiSettings  `json:"wifi"`
+	Sound         hub.SoundSettings `json:"sound"`
+	Light         hub.LightSettings `json:"light"`
+	Power         hub.PowerSettings `json:"power"`
+	TranslateTo   string            `json:"translateTo,omitempty"`
+	TranslateAuto bool              `json:"translateAuto,omitempty"`
 }
 
 // The real mesh: bat0 in 172.27.0.0/16, broadcasts on UDP 4200, repairs on HTTP 4201.
@@ -85,7 +92,8 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		return err
 	}
 	h := &hubRun{data: data, listen: listen, radioAddr: radioAddr, meshBin: "/usr/local/lib/batnet/batnet-mesh"}
-	h.settings = hubSettings{Mode: hub.ModeOff, House: "Hub House"}
+	h.settings = hubSettings{Mode: hub.ModeOff, House: "Hub House", Sound: hub.DefaultSound, Light: hub.DefaultLight,
+		Power: hub.PowerSettings{Mode: hub.PowerHigh}}
 	if b, err := os.ReadFile(filepath.Join(data, "hub.json")); err == nil {
 		json.Unmarshal(b, &h.settings)
 	}
@@ -114,6 +122,10 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		return err
 	}
 	adminPIN, err := loadPIN(filepath.Join(data, "admin-pin"))
+	if err != nil {
+		return err
+	}
+	wifiPass, err := loadWiFiPassword(filepath.Join(data, "wifi-password"))
 	if err != nil {
 		return err
 	}
@@ -211,11 +223,13 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	settings := func() hub.HubSettings {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		return hub.HubSettings{HelloMinutes: h.settings.HelloMinutes, Where: h.settings.Where}
+		return hub.HubSettings{HelloMinutes: h.settings.HelloMinutes, Where: h.settings.Where,
+			TranslateTo: h.settings.TranslateTo, TranslateAuto: h.settings.TranslateAuto}
 	}
 	saveSettings := func(hs hub.HubSettings) error {
 		h.mu.Lock()
 		h.settings.HelloMinutes, h.settings.Where = hs.HelloMinutes, hs.Where
+		h.settings.TranslateTo, h.settings.TranslateAuto = hs.TranslateTo, hs.TranslateAuto
 		err := h.save()
 		h.mu.Unlock()
 		setHello(hs.HelloMinutes)
@@ -234,9 +248,13 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		Busy:       traffic.Busy,
 	})
 
+	kit := h.startKit(ctx, radio, id, wifiPass)
+
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
 		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic,
-		Settings: settings, SaveSettings: saveSettings})
+		Settings: settings, SaveSettings: saveSettings,
+		WiFi: kit.wifi, Sound: kit.sound, Light: kit.light, Power: kit.power, Devices: kit.devices, Translator: kit.translator,
+		Notifier: kit.notifier, Run: hub.Exec})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())

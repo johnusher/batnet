@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+# batnet-translate: offline translation of short messages, run by batnetd as
+# a helper process (decision 0005: heavy work stays out of the Go daemon).
+# It uses CTranslate2 and SentencePiece directly with Argos Translate's model
+# packages; argostranslate itself is not needed (it pulls in torch and stanza).
+#
+# Usage: batnet-translate --models DIR [--threads N] [--beam N]
+#
+# DIR holds one folder per language pair, named <from>-<to> (de-en, en-de, ...):
+#   DIR/de-en/model/model.bin              CTranslate2 model (from the Argos package)
+#   DIR/de-en/model/config.json
+#   DIR/de-en/model/shared_vocabulary.json
+#   DIR/de-en/sentencepiece.model          the pair's SentencePiece tokenizer
+#   DIR/de-en/metadata.json                Argos package metadata (optional)
+# (model files straight in DIR/de-en/ without the model/ folder work too.)
+# translate-setup.sh lays this out from the Argos packages.
+#
+# Protocol: JSON lines on stdin and stdout, one request per line, one answer
+# per line, in order. Nothing else is written to stdout; logs go to stderr.
+#   {"id":1,"op":"pairs"}
+#     -> {"id":1,"pairs":["de-en","en-de"]}
+#   {"id":2,"from":"de","to":"en","text":"Wasser ist bei uns wieder da."}
+#     -> {"id":2,"text":"We have water again."}
+#     or {"id":2,"error":"a message in plain words"}
+# A pair with no folder of its own is translated through English when both
+# halves exist (uk-de = uk-en then en-de). A pair's model is loaded on first
+# use and stays loaded. The text is split into sentences (and lines), which
+# are translated in one batch and joined again.
+import argparse
+import json
+import os
+import re
+import sys
+import time
+
+MAX_TEXT = 2000  # characters; radio messages are at most 230 bytes
+PAIR_RE = re.compile(r"^[a-z]{2,3}-[a-z]{2,3}$")
+# A sentence ends at . ! ? or … (maybe a closing quote or bracket after it)
+# before a space, unless a small letter follows ("z.B. morgen", "ca. drei").
+SENTENCE_END = re.compile(r"(?:(?<=[.!?…])|(?<=[.!?…][\"'»«”“)\]]))\s+(?![a-zäöüß])")
+
+
+def log(*a):
+    print("batnet-translate:", *a, file=sys.stderr, flush=True)
+
+
+def model_dir(pair_dir):
+    sub = os.path.join(pair_dir, "model")
+    if os.path.isfile(os.path.join(sub, "model.bin")):
+        return sub
+    if os.path.isfile(os.path.join(pair_dir, "model.bin")):
+        return pair_dir
+    return None
+
+
+def find_pairs(models):
+    pairs = {}
+    try:
+        names = sorted(os.listdir(models))
+    except OSError as e:
+        log("cannot read the models folder:", e)
+        return pairs
+    for name in names:
+        d = os.path.join(models, name)
+        if not PAIR_RE.match(name) or not os.path.isdir(d):
+            continue
+        md = model_dir(d)
+        sp = os.path.join(d, "sentencepiece.model")
+        if md and os.path.isfile(sp):
+            pairs[name] = (md, sp)
+        else:
+            log("skipping", name + ": no model.bin or sentencepiece.model")
+    return pairs
+
+
+class Pair:
+    def __init__(self, name, md, sp, threads, beam):
+        import ctranslate2
+        import sentencepiece
+
+        t0 = time.monotonic()
+        self.name = name
+        self.beam = beam
+        self.sp = sentencepiece.SentencePieceProcessor(model_file=sp)
+        self.tr = ctranslate2.Translator(
+            md, device="cpu", compute_type="int8", inter_threads=1, intra_threads=threads
+        )
+        log("loaded %s in %.2f s" % (name, time.monotonic() - t0))
+
+    def translate(self, sentences):
+        tokens = [self.sp.encode(s, out_type=str) for s in sentences]
+        longest = max(len(t) for t in tokens)
+        out = self.tr.translate_batch(
+            tokens,
+            beam_size=self.beam,
+            length_penalty=0.2,
+            replace_unknowns=True,
+            max_decoding_length=min(512, 2 * longest + 16),
+        )
+        return [self.sp.decode(r.hypotheses[0]).strip() for r in out]
+
+
+class Translator:
+    def __init__(self, models, threads, beam):
+        self.models = models
+        self.threads = threads
+        self.beam = beam
+        self.loaded = {}
+
+    def pairs(self):
+        return sorted(find_pairs(self.models))
+
+    def get(self, name):
+        if name not in self.loaded:
+            found = find_pairs(self.models).get(name)
+            if not found:
+                return None
+            self.loaded[name] = Pair(name, found[0], found[1], self.threads, self.beam)
+        return self.loaded[name]
+
+    def route(self, src, dst):
+        """The pairs to run, in order: the direct one, or through English."""
+        have = set(self.pairs())
+        if src + "-" + dst in have:
+            return [src + "-" + dst]
+        if src != "en" and dst != "en" and src + "-en" in have and "en-" + dst in have:
+            return [src + "-en", "en-" + dst]
+        return None
+
+    def translate(self, src, dst, text):
+        route = self.route(src, dst)
+        if route is None:
+            return None
+        lines = text.split("\n")
+        pieces = [[s for s in SENTENCE_END.split(line.strip()) if s] for line in lines]
+        flat = [s for p in pieces for s in p]
+        if not flat:
+            return text
+        for name in route:
+            flat = self.get(name).translate(flat)
+        it = iter(flat)
+        return "\n".join(" ".join(next(it) for _ in p) for p in pieces)
+
+
+def answer(tr, req):
+    if not isinstance(req, dict):
+        return {"error": "The request is not a JSON object."}
+    out = {"id": req.get("id")}
+    if req.get("op") == "pairs":
+        out["pairs"] = tr.pairs()
+        return out
+    if req.get("op") not in (None, "translate"):
+        out["error"] = "Unknown request: %s." % req.get("op")
+        return out
+    src, dst, text = req.get("from"), req.get("to"), req.get("text")
+    if not isinstance(src, str) or not isinstance(dst, str) or not isinstance(text, str):
+        out["error"] = "A translation needs from, to and text."
+        return out
+    src, dst = src.strip().lower(), dst.strip().lower()
+    if src == dst or not text.strip():
+        out["text"] = text
+        return out
+    if len(text) > MAX_TEXT:
+        out["error"] = "The text is too long to translate (at most %d characters)." % MAX_TEXT
+        return out
+    try:
+        result = tr.translate(src, dst, text)
+    except Exception as e:  # a broken model folder, out of memory, ...
+        log("translating %s-%s failed: %r" % (src, dst, e))
+        out["error"] = "The translation failed on this hub."
+        return out
+    if result is None:
+        out["error"] = "This hub cannot translate from %s to %s." % (src, dst)
+        return out
+    out["text"] = result
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Offline translation helper for batnetd (JSON lines).")
+    ap.add_argument("--models", required=True, help="folder with one folder per pair (de-en, en-de, ...)")
+    ap.add_argument("--threads", type=int, default=2,
+                    help="CPU threads per translation (default 2: fastest on a Pi 4; 4 is slower)")
+    ap.add_argument("--beam", type=int, default=2, help="beam size (default 2; 1 is fastest)")
+    args = ap.parse_args()
+    tr = Translator(args.models, args.threads, args.beam)
+    log("pairs:", " ".join(tr.pairs()) or "none")
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except ValueError:
+            reply = {"id": None, "error": "The request is not valid JSON."}
+        else:
+            reply = answer(tr, req)
+        sys.stdout.write(json.dumps(reply, ensure_ascii=False) + "\n")
+        sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()

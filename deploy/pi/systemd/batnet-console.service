@@ -1,0 +1,8 @@
+# The panel's Terminal button (decision 0031): the hub's screen switches to a
+# normal text login on tty2. Ctrl+Alt+F1 goes back to the panel.
+[Unit]
+Description=batnet: a text login on the hub's screen
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/chvt 2

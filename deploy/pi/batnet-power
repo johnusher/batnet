@@ -1,0 +1,28 @@
+#!/bin/sh
+# batnet power modes (decision 0029), the part that needs root: the CPU's top
+# speed, WiFi power saving and the Pi's own lights. Run as
+# batnet-power@<high|medium|low>.service; batnetd does the screen's sleep.
+set -u
+mode=${1:?usage: batnet-power high|medium|low}
+cpu=/sys/devices/system/cpu/cpufreq/policy0
+max=$(cat $cpu/cpuinfo_max_freq)
+min=$(cat $cpu/cpuinfo_min_freq)
+case $mode in
+  high)   gov=ondemand;  top=$max;    ps=off; lights=on ;;
+  medium) gov=ondemand;  top=1000000; ps=on;  lights=on ;;
+  low)    gov=powersave; top=$min;    ps=on;  lights=off ;;
+  *) echo "unknown mode $mode" >&2; exit 2 ;;
+esac
+[ "$top" -gt "$max" ] && top=$max
+echo "$top" >$cpu/scaling_max_freq
+echo "$gov" >$cpu/scaling_governor
+# Not while the built-in WiFi is the hub's own (an access point): that says no.
+/usr/sbin/iw dev wlan0 set power_save $ps 2>/dev/null || true
+led() { # name, trigger when on
+  [ -d /sys/class/leds/$1 ] || return 0
+  if [ $lights = on ]; then echo "$2" >/sys/class/leds/$1/trigger
+  else echo none >/sys/class/leds/$1/trigger; echo 0 >/sys/class/leds/$1/brightness; fi
+}
+led ACT mmc0
+led PWR default-on
+echo "batnet power $mode: CPU $gov up to $((top / 1000)) MHz, WiFi power saving $ps, the Pi's lights $lights"

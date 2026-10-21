@@ -36,8 +36,12 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [x] Hub panel: messages to one radio and replies with delivery ticks, a traffic view of everything on the air (readable, encrypted, unreadable, sent, passed on)
 - [x] Hub panel: a simple Home, a map of shared positions, click a radio or a packet for what it says, Settings for the radio (preset, relays, power, listen-only), the name on the air and the hub; the bench hub is "lorabatnet 🐰🦇"
 - [ ] Offline map tiles for the village's area on the hub (L17)
-- [ ] The hub's own WiFi when the home WiFi is gone, so phones reach it in a power cut (B41); meanwhile try a laptop on a cable straight into the hub
-- [ ] Measure the bench hub's power with and without the screen (the help says 3 to 4 W, the screen 1 to 3 W unmeasured)
+- [x] The hub's own WiFi when the home WiFi is gone (B41): from the panel, the button or by itself after 3 minutes, password and QR, neighbours let in only by an admin, back home always ([0028](/decisions/0028-hub-own-wifi.md), [test](/tests/2026-10-21-hub-power-cut-kit.md))
+- [x] Plan 5a, the power-cut kit: joining other WiFi, sound on the jack, an LED and a button on GPIO, power modes with a sleeping and reduced screen, devices plugged in at any time, a terminal button, the offline translator, restart, switch off and the clock from a phone ([plan](https://github.com/johnusher/batnet/blob/main/docs/plans/2026-10-21-m1-plan-5a-hub-power-cut-kit.md))
+- [ ] Try the power-cut kit with hands at the hub: a phone on the hub's own WiFi (QR, captive portal, the PIN when open), the router off for the fallback, the screen's sleep and reduced mode (B42), a screen and keyboard plugged in later, an LED on pin 11 and a button on pin 13, a speaker on the jack
+- [ ] Meanwhile try a laptop on a cable straight into the hub
+- [ ] Measure the bench hub's power with and without the screen, and in each power mode (the help says 3 to 4 W, the screen 1 to 3 W unmeasured)
+- [ ] Next for the kit (suggested): a battery HAT that reports its charge, so the hub switches to low power by itself; the button on GPIO edge events (B43); a German voice for speech; a second WiFi stick for the hub's own WiFi alongside the home WiFi
 - [x] Help in the panel, offline and printable: start here, no power, no network, troubleshooting, commands, radio words, good manners
 - [ ] The bench hub's antenna outside and high on a short low-loss cable (RG-58 or thicker), or a 5 dBi collinear: inside, it hears nothing ([research](/research/meshtastic-presets-berlin.md))
 - [ ] Maybe: Berlin's coordination channel "BerlinMesh" as a secondary channel on the hub, to read the community (its key is on the Chaos Mesh page; kept on the hub only, never in the repo)
@@ -64,6 +68,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 - [ ] 0014 speech pipeline (draft): confirm after the speech bench test
 - [ ] 0025 hub panel and mesh modes, 0026 no extra handshake for batnet radios (drafts, 2026-10-21): confirm
+- [ ] 0028 the hub's own WiFi, 0029 power modes, 0030 offline translator, 0031 root actions through polkit and the console terminal (drafts, 2026-10-21): confirm
 - [ ] Final project name (the repo is "batnet" for now)
 
 # Done

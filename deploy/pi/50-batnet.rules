@@ -1,0 +1,25 @@
+// batnet (decision 0031): what the batnet user (batnetd) may do as root,
+// and nothing else: run the WiFi through NetworkManager, start a few fixed
+// batnet units, reboot, switch off and set the clock.
+polkit.addRule(function(action, subject) {
+    if (subject.user != "batnet") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") == 0) {
+        return polkit.Result.YES;
+    }
+    if (action.id == "org.freedesktop.systemd1.manage-units") {
+        var unit = action.lookup("unit"), verb = action.lookup("verb");
+        if (/^batnet-(power@(high|medium|low)|console|screen)\.service$/.test(unit) &&
+            (verb == "start" || verb == "restart" || verb == "stop")) {
+            return polkit.Result.YES;
+        }
+    }
+    if (/^org\.freedesktop\.login1\.(reboot|power-off)(-multiple-sessions|-ignore-inhibit)?$/.test(action.id)) {
+        return polkit.Result.YES;
+    }
+    if (action.id == "org.freedesktop.timedate1.set-time" || action.id == "org.freedesktop.timedate1.set-ntp") {
+        return polkit.Result.YES;
+    }
+    return polkit.Result.NOT_HANDLED;
+});

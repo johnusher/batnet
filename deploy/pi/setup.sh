@@ -24,7 +24,8 @@ dpkg -l | awk '/^rc/{print $2}' | xargs -r dpkg --purge >/dev/null
 # Files from the Pi's earlier use stay in place: nothing of theirs starts on boot.
 
 say "Packages"
-$APT install batctl iw cage chromium curl jq pipx fonts-noto-color-emoji >/dev/null
+$APT install batctl iw cage chromium curl jq pipx fonts-noto-color-emoji \
+  alsa-utils espeak-ng wlr-randr nftables polkitd >/dev/null
 
 say "meshtasticd (Meshtastic's Linux daemon) from its Debian 13 repository"
 if [ ! -f /etc/apt/sources.list.d/meshtastic.sources ]; then
@@ -54,6 +55,20 @@ install -m644 networkmanager-batnet.conf /etc/NetworkManager/conf.d/batnet.conf
 install -d /usr/local/lib/batnet
 install -m755 batnet-mesh /usr/local/lib/batnet/batnet-mesh
 
+say "The power-cut kit: own WiFi, power modes, terminal, sound, LED (plan 5a)"
+# What batnetd may do as root, through polkit (decision 0031).
+install -m644 50-batnet.rules /etc/polkit-1/rules.d/50-batnet.rules
+install -m755 batnet-power batnet-kiosk /usr/local/lib/batnet/
+# The hub's own WiFi open to neighbours: a firewall that leaves only the app,
+# and every name pointing at the hub (a captive portal) (decision 0028).
+install -m644 own-wifi-open.nft /usr/local/lib/batnet/own-wifi-open.nft
+install -m755 90-batnet-own-wifi /etc/NetworkManager/dispatcher.d/90-batnet-own-wifi
+install -d /etc/NetworkManager/dnsmasq-shared.d
+install -m644 dnsmasq-batnet.conf /etc/NetworkManager/dnsmasq-shared.d/batnet.conf
+# The text login the Terminal button switches to says how to come back.
+install -d /etc/issue.d
+install -m644 batnet.issue /etc/issue.d/batnet.issue
+
 say "Watchdogs"
 # The Pi's hardware watchdog reboots it if the system hangs for 15 s.
 install -d /etc/systemd/system.conf.d
@@ -64,19 +79,25 @@ id batnet >/dev/null 2>&1 || useradd --system --home-dir /var/lib/batnet --shell
 id batnet-screen >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/batnet-screen \
   --shell /usr/sbin/nologin --groups video,render,input,audio batnet-screen
 if [ -f batnetd ]; then install -m755 batnetd /usr/local/bin/batnetd; fi
-install -m644 systemd/batnet-hub.service systemd/batnet-screen.service systemd/batnet-clock.service systemd/batnet-clock.timer /etc/systemd/system/
+install -m644 systemd/batnet-hub.service systemd/batnet-screen.service systemd/batnet-clock.service systemd/batnet-clock.timer \
+  systemd/batnet-power@.service systemd/batnet-console.service /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable --now batnet-clock.timer >/dev/null
 systemctl enable meshtasticd.service >/dev/null
 systemctl restart meshtasticd.service
 if [ -x /usr/local/bin/batnetd ]; then
   systemctl enable batnet-hub.service batnet-screen.service >/dev/null
-  systemctl restart batnet-hub.service batnet-screen.service
+  systemctl restart batnet-hub.service
+  # Only with a screen plugged in (batnetd starts and stops it as screens come and go).
+  if grep -qsx connected /sys/class/drm/card*-HDMI-A-*/status; then systemctl restart batnet-screen.service || true; fi
 fi
 
 say "Meshtastic command-line tool for the pi user (meshtastic --host localhost ...)"
 user=$(getent passwd 1000 | cut -d: -f1)
 sudo -u "$user" pipx install meshtastic >/dev/null 2>&1 || sudo -u "$user" pipx upgrade meshtastic >/dev/null 2>&1 || true
+
+say "Offline translator (German and English; decision 0030)"
+./translate-setup.sh || echo "The translator did not install (it needs the internet once); the hub works without it."
 
 say "Done"
 systemctl --no-pager --lines=0 status meshtasticd batnet-hub batnet-screen | grep -E "●|Active:"
