@@ -31,6 +31,8 @@ for batnet yet.
 - [ ] Power: the USB WiFi stick; a pocket node on a power bank
 - [ ] Moonshine on Pi 4, Pi 5, Zero 2 W; raw vs denoised audio
 
+- [ ] Read the bike-ride log against the GPS track ([test](/tests/2026-10-21-bike-ride-log.md)): radios heard, signal against distance, hello answers, power
+
 # Known problems to fix first
 
 - [ ] B19 sessions and lockouts in SQLite, so a reboot keeps people signed in
@@ -56,6 +58,7 @@ for batnet yet.
 
 # Done
 
+- 2026-10-21: the hub's log (every packet, samples, hellos every 5 min; on across power cuts) and the first field log, on a bike ride
 - 2026-10-21: the first real hub on the bench ([pi7](/hardware/bench-pi7.md)): meshtasticd on a Meshstick, `batnetd -hub` with the control panel and mesh modes, the HDMI kiosk, autostart and watchdogs ([test](/tests/2026-10-21-pi7-hub-bring-up.md))
 
 - 2026-10-15 (review): B21-B25 sign-in hardening; B13, B10, B14, B12, B15 (flooding), B17, B26-B31, B2-B4 fixed; decision [0024](/decisions/0024-ask-soon-for-what-was-lost.md) makes farms pass and a festival of pocket nodes pass

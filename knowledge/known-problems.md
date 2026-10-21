@@ -35,6 +35,7 @@ No Linear for batnet yet: this page is the list.
 | B36 | Two batnet nodes could pick the same mesh address (172.27.a.b from the first two bytes of the node key: a 1 in 65 000 chance per pair) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
 | B37 | A second hub joins the village only by copying `village.key` by hand (until the QR join of plan 5) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
 | B38 | meshtasticd serves one TCP API client at a time: a second client (the Meshtastic command-line tool, a phone app over WiFi, another batnetd) pushes the hub off the radio; the hub reconnects within 5 s and pushes it off in turn. Use the command-line tool briefly, or stop the hub first | pi7 screen 2026-10-21 | `internal/meshtastic` |
+| B39 | With no internet the Pi's clock is wrong after a power cut: it restarts from the time saved before (`batnet-clock.timer`, every minute), behind by the time without power. A hub needs a time source of its own: GPS (spec: GPS time), a phone's time, or a clock HAT | bike ride 2026-10-21 | `deploy/pi`, plan 5 |
 | B33 | A beacon nudge (decision 0024) needs another gateway's beacon or a partial message: a post whose every frame was lost at a receiver, with no beacon heard since, still waits for the receiver's own quarter-hour beacon | review 2026-10-15 | `internal/lora/bridge.go` |
 
 
