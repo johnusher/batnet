@@ -17,6 +17,7 @@ generated: { by: claude-code/claude-opus-5-5, at: 2026-10-14T18:10:00Z }
 | SF | Spreading factor: higher = longer range, slower, more airtime |
 | Duty cycle | Share of time a device may transmit; 1% or 10% in EU868 sub-bands |
 | LongFast | Meshtastic's default modem preset (SF11, 250 kHz in the EU) |
+| MediumFast | A faster Meshtastic preset (SF9, 250 kHz, the same 869.525 MHz in the EU): a third of LongFast's airtime, a little less range; what Berlin's mesh uses ([presets in Berlin](/research/meshtastic-presets-berlin.md)) |
 | meshtasticd | Meshtastic running natively on Linux, driving an SPI LoRa HAT |
 | MeshCore | A LoRa messenger for the same boards as Meshtastic, with distinct companion, repeater and room-server roles; see [existing projects](/research/existing-projects.md) |
 | Reticulum | An encrypted, transport-agnostic network stack (LoRa, WiFi, serial, IP) with LXMF messaging; a possible future interop target |

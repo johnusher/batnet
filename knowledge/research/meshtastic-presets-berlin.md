@@ -44,6 +44,24 @@ note, so the balance may have moved since:
 * A visitor on LF heard almost no one. Others blame LTE interference too:
   repeaters with band-pass filters do much better than bare boards.
 
+What else the people in that thread report, which matters for batnet:
+
+* **Antennas decide it.** A user with a ground-plane antenna on a mast on a
+  top-floor terrace holds conversations across half the city on MF. Another,
+  after fitting a better antenna, counts more than 170 nodes but hears only
+  four directly (two of them well-placed routers), and traceroutes succeed in
+  5–10% of tries within three hops.
+* **Splitting a mesh has a cost.** In another city part of the community
+  moved to ShortFast: radios at the edge then heard no one, the remaining
+  LongFast users were cut off, and a few enthusiasts were left talking among
+  themselves. MediumFast was suggested as the compromise.
+* **There is no automatic way to follow a local preset.** Someone asked for
+  one (a map of congested areas); the answer was that it is a community
+  decision, made in Berlin's Telegram group. A proposal for telling a radio
+  that two communities share an area exists, but nothing more.
+* **The wave is just starting:** "1,000 new users a week" in one channel;
+  crowded areas will grow.
+
 Since then the move has gone further:
 
 * Freifunk Berlin's repeaters switched one after the other: "After
@@ -92,6 +110,7 @@ Since then the move has gone further:
 * On LongFast, at home and on a bike ride on 2026-10-21, it decoded nothing;
   at the far end of the ride it heard one probable answer to a hello, too
   weak to read ([test](/tests/2026-10-21-bike-ride-log.md)).
+* The [test report](/tests/2026-10-21-presets-and-antenna.md) has the evening's numbers.
 * With the antenna moved up near the roof the same evening, 20 minutes on
   each preset, back to back:
 

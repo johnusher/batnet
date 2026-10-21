@@ -28,6 +28,10 @@ not hear each other. A hub on the wrong one is alone on the public channel.
 * When accepted, this supersedes 0008's "LongFast by default" in part: 0008's
   one-radio design stays, its preset becomes this setting.
 
+Splitting a mesh has a cost: in one city a move to ShortFast left the edges
+and the LongFast users cut off ([research](/research/meshtastic-presets-berlin.md)).
+A village follows its neighbours' preset; it does not start a new one.
+
 # Revisit when
 
 Meshtastic gains a way to bridge presets on one radio, or a region agrees on

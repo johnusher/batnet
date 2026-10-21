@@ -21,7 +21,7 @@ address, login, MACs and radio node ID are private and stay out of this repo
 | Board | Raspberry Pi 4 Model B rev 1.5, **2 GB** RAM (1.8 GB usable) |
 | Storage | 32 GB microSD, about 18 GB free after set-up |
 | OS | Raspberry Pi OS (Debian 13 trixie, arm64, the desktop image), kernel 6.18 |
-| LoRa | Elecrow **Meshstick**: USB, a CH341 USB-to-SPI bridge (USB ID `1a86:5512`) driving an SX1262; EU868; its own antenna |
+| LoRa | Elecrow **Meshstick**: USB, a CH341 USB-to-SPI bridge (USB ID `1a86:5512`) driving an SX1262; EU868; its own stock antenna, on its SMA. Near the roof it hears the city's mesh; inside it hears nothing ([test](/tests/2026-10-21-presets-and-antenna.md)): it needs to go outside on a cable |
 | WiFi | built-in (brcmfmac) on the home network for now; a USB WiFi stick for batman-adv still to be plugged in (it becomes `wlan1`) |
 | Panel | six views. **Home**: how many radios were heard in the last hour, the latest messages with a box to answer everyone, and the radar (click a radio for its details). **Messages**: the public channel and one conversation per radio, replies, delivery ticks. **Map**: the radios that shared a position, rough ones as rings, on OpenStreetMap (needs the internet; without it a plain grid), and where the hub stands if set. **Radios**: the radar and the list, Info and Message on each. **Traffic**: everything on the air by time and SNR, readable or not; click a packet for what it says (a position, a battery, a name, a route). **Settings**: the radio preset, relays, power and listen-only, the name on the air, hellos, where the hub stands, the log, the WiFi mesh, the Pi, the PINs, light or dark. Keys on the hub: 1 to 6 switch views, / starts a message |
 | Screen | a small HDMI display, 800 × 480 (its EDID also offers 1080p, but 800 × 480 is native), on HDMI 0, and a USB keyboard. The panel's screen layout fits it without scrolling |
@@ -58,7 +58,7 @@ hangs for 15 s. The kiosk's browser profile lives in memory and is new on every 
 
 # Radio settings
 
-EU_868, MediumFast (869.525 MHz) since the evening of 2026-10-21: it heard five times more radios than LongFast at this house ([presets in Berlin](/research/meshtastic-presets-berlin.md)); the antenna near the roof ([presets in Berlin](/research/meshtastic-presets-berlin.md)); hop limit 3, 27 dBm configured (the
+EU_868, MediumFast (869.525 MHz) since the evening of 2026-10-21: it heard five times more radios than LongFast at this house ([test](/tests/2026-10-21-presets-and-antenna.md)); hop limit 3, 27 dBm configured (the
 Meshstick's SX1262 tops out at 22 dBm; the band allows 27 dBm ERP), node name
 "lorabatnet 🐰🦇", short name 🦇 (until 2026-10-21 "batnet hub 1", BH1). Meshtastic's firmware keeps the EU868 duty
 cycle; the panel adds a 5 s gap between sends; the log says hello every 5 minutes, or as `helloMinutes` in `hub.json` says (60 at home overnight; negative: listen only).

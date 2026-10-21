@@ -51,6 +51,15 @@ at Berrybase that day. Prices and stock change: re-check before publishing total
 | 868 MHz 5 dBi antenna, magnetic foot | Berrybase | WS-24412 | | 4.90 | optional, SMA |
 | TP-Link CPE210 outdoor link | reichelt | TPLINK CPE210 | CPE210 | 41.99 each | optional, buy in pairs, 1–3 km |
 
+**Where the LoRa antenna goes matters more than which radio.** In Berlin the
+bench hub heard 32 radios in 20 minutes with its antenna near the roof and
+none in an hour with it inside: the margin was about 1.5 dB
+([test](/tests/2026-10-21-presets-and-antenna.md)). Plan for the Pi indoors and
+the antenna outside and high, on a short, low-loss cable: at 868 MHz thin
+RG-174 loses about 1 dB a metre, RG-58 about 0.5 dB, and thicker cable less
+again. The 5 dBi antenna above adds margin where the stock antenna is not
+enough.
+
 # Extras: house speaker, button and GPS ([0018](/decisions/0018-notifications-and-house-speaker.md), [0019](/decisions/0019-location.md))
 
 | Part | Shop | Article no. | € | Notes |
