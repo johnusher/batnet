@@ -18,6 +18,12 @@ sources:
   - id: chaosmesh
     resource: https://potatomesh.net/pages/about
     title: Berlin Chaos Mesh (PotatoMesh) - the settings Berlin's mesh community publishes
+  - id: ff-list
+    resource: https://lists.berlin.freifunk.net/pipermail/berlin/2024-November/043130.html
+    title: Berlin Freifunk list - Meshtastic and Freifunk (monthly meetup at c-base)
+  - id: mt-telegram
+    resource: https://meshtastic.discourse.group/t/meshtastic-telegram-groups/7003
+    title: Meshtastic forum - Meshtastic Telegram groups (undated)
   - id: raspberry-tips
     resource: https://raspberry.tips/?p=19026
     title: raspberry.tips - German regional presets, after Mesh Dresden's overview
@@ -85,6 +91,16 @@ Since then the move has gone further:
   budgets: LongFast 153 dB at 1.07 kbit/s, MediumSlow 150.5 dB at 1.95,
   MediumFast 148 dB at 3.52, ShortSlow 145.5 dB at 6.25, ShortFast 143 dB at
   10.94, ShortTurbo 140 dB at 21.88. [mt-blog]
+
+# Where Berlin's mesh people talk
+
+The Reddit thread mentions a Berlin Meshtastic Telegram group, where the
+preset tests were run, but gives no name or link, and none was found. What
+can be reached: Berlin Chaos Mesh's Matrix room #berlinmesh:c-base.org and its
+forum, forum.chaosmesh.net [chaosmesh]; Freifunk Berlin's monthly meetup,
+the first Wednesday at c-base [ff-list]; the national Telegram group
+@meshtasticgermany, from an undated post [mt-telegram]; and the public
+MediumFast channel itself.
 
 # What it means for a hub
 
