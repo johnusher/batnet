@@ -45,9 +45,11 @@ note, so the balance may have moved since:
   differ across one city. Draft decision
   [0027](/decisions/0027-preset-follows-the-local-mesh.md) makes the preset a
   village setting.
-* On a faster preset each hello and each message costs less shared airtime,
-  but reaches a little less far (about 2.5 dB less link budget from SF11 to
-  SF9).
+* MediumFast sends about 3.5 kbit/s against LongFast's 1 kbit/s, so each
+  hello and message takes about a third of the airtime (a 150-byte message:
+  about 0.4 s against 1.4 s). It needs a stronger signal: it decodes down to
+  about −12.5 dB SNR against −17.5 dB, about 5 dB less link budget (2.5 dB
+  per spreading-factor step), so somewhat less range.
 
 # What the bench hub saw
 
