@@ -68,7 +68,7 @@ was in a bag at about hip height.
 
 # Next time
 
-* Log meshtasticd's "Ignore received packet" lines too (B40).
+* Log meshtasticd's "Ignore received packet" lines too (B40): done the same day, they are `unreadable` lines in the log now.
 * The antenna up and outside the bag; stop for a few minutes at a few
   distances, since standing still gives the radio time to hear more.
 * The second Meshstick at home, to measure the hub's own range directly.

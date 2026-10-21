@@ -38,6 +38,7 @@ type Logbook struct {
 	lines   int
 	packets int
 	hellos  int
+	unread  int
 	heard   map[string]bool
 	lastErr string
 }
@@ -51,8 +52,10 @@ type LogStatus struct {
 	Packets int       `json:"packets"`
 	Hellos  int       `json:"hellos"`
 	Radios  int       `json:"radios"` // other radios heard in this log
-	Error   string    `json:"error,omitempty"`
-	Files   []LogFile `json:"files"`
+	// Unreadable counts packets the radio heard but could not read (too weak).
+	Unreadable int       `json:"unreadable"`
+	Error      string    `json:"error,omitempty"`
+	Files      []LogFile `json:"files"`
 }
 
 // LogFile is one saved log.
@@ -83,7 +86,7 @@ func (l *Logbook) Start() error {
 	if err != nil {
 		return err
 	}
-	l.f, l.name, l.started, l.lines, l.packets, l.hellos, l.heard, l.lastErr = f, name, now, 0, 0, 0, map[string]bool{}, ""
+	l.f, l.name, l.started, l.lines, l.packets, l.hellos, l.unread, l.heard, l.lastErr = f, name, now, 0, 0, 0, 0, map[string]bool{}, ""
 	l.writeLocked(map[string]any{"kind": "start", "boot": l.boot,
 		"note": "times are the Pi's clock: without internet or GPS it may be off by the time the Pi was unplugged; 'up' (seconds since boot) is exact"})
 	if l.persist != nil {
@@ -99,7 +102,7 @@ func (l *Logbook) Stop() error {
 	if l.f == nil {
 		return nil
 	}
-	l.writeLocked(map[string]any{"kind": "stop", "lines": l.lines, "packets": l.packets, "radios": len(l.heard)})
+	l.writeLocked(map[string]any{"kind": "stop", "lines": l.lines, "packets": l.packets, "radios": len(l.heard), "unreadable": l.unread})
 	l.f.Sync()
 	l.f.Close()
 	l.f = nil
@@ -124,6 +127,22 @@ func (l *Logbook) Event(e meshtastic.Event) {
 	var m map[string]any
 	json.Unmarshal(b, &m)
 	delete(m, "t")
+	l.writeLocked(m)
+}
+
+// Unreadable logs a packet the radio heard but could not read.
+func (l *Logbook) Unreadable(u meshtastic.Unreadable) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f == nil {
+		return
+	}
+	l.unread++
+	b, _ := json.Marshal(u)
+	var m map[string]any
+	json.Unmarshal(b, &m)
+	delete(m, "t")
+	m["kind"] = "unreadable"
 	l.writeLocked(m)
 }
 
@@ -222,7 +241,7 @@ func (l *Logbook) Run(ctx context.Context, dataDir string) {
 // Status reports the log and the saved files, newest first.
 func (l *Logbook) Status() LogStatus {
 	l.mu.Lock()
-	st := LogStatus{On: l.f != nil, Lines: l.lines, Packets: l.packets, Hellos: l.hellos, Radios: len(l.heard), Error: l.lastErr}
+	st := LogStatus{On: l.f != nil, Lines: l.lines, Packets: l.packets, Hellos: l.hellos, Radios: len(l.heard), Unreadable: l.unread, Error: l.lastErr}
 	if st.On {
 		st.File, st.Started = l.name, l.started
 	}

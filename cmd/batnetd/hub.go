@@ -197,6 +197,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 	go logbook.Run(ctx, data)
 	go radio.Run(ctx)
+	go meshtastic.WatchJournal(ctx, "meshtasticd.service", logbook.Unreadable)
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
 		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook})

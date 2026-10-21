@@ -7,6 +7,8 @@ StartLimitIntervalSec=0
 [Service]
 Type=notify
 User=batnet
+# Reads meshtasticd's log for packets heard but too weak to read.
+SupplementaryGroups=systemd-journal
 StateDirectory=batnet
 ExecStart=/usr/local/bin/batnetd -hub -data /var/lib/batnet -listen :80
 # batnetd tells systemd it is alive every 10 s; silent for 30 s means stuck: restart.

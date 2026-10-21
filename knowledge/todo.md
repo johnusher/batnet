@@ -31,7 +31,8 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [ ] Moonshine on Pi 4, Pi 5, Zero 2 W; raw vs denoised audio
 
 - [x] Read the bike-ride log against the GPS track ([test](/tests/2026-10-21-bike-ride-log.md)): one probable answer to a hello at 1.7 km, too weak to read
-- [ ] The hub's log picks up packets meshtasticd heard but could not read (B40)
+- [x] The hub's log picks up packets meshtasticd heard but could not read (B40)
+- [ ] The second Meshstick on pi7 as a roving listener: a second meshtasticd (own `--fsdir`, `--port`, `--hwid`), each instance pinned to its stick by USB serial, receive only, stepping through the EU presets a few minutes each, logged beside the first
 
 # Known problems to fix first
 

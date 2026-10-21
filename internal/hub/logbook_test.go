@@ -21,8 +21,9 @@ func TestLogbook(t *testing.T) {
 	lat := 52.5
 	l.Event(meshtastic.Event{At: time.Now(), Kind: "packet", From: "!a1b2c3d4", Port: "position", Lat: &lat, SNR: -7.25})
 	l.Event(meshtastic.Event{At: time.Now(), Kind: "packet", From: "!a1b2c3d4", Port: "text", Text: "hi"})
+	l.Unreadable(meshtastic.Unreadable{From: "!deadbeef", To: "everyone", SNR: -20.75, RSSI: -94, Error: -7})
 	st := l.Status()
-	if !st.On || st.Packets != 2 || st.Radios != 1 || len(st.Files) != 1 {
+	if !st.On || st.Packets != 2 || st.Radios != 1 || st.Unreadable != 1 || len(st.Files) != 1 {
 		t.Fatalf("status %+v", st)
 	}
 	name := st.File
@@ -48,11 +49,14 @@ func TestLogbook(t *testing.T) {
 			t.Errorf("line without times: %v", m)
 		}
 		kinds = append(kinds, m["kind"].(string))
+		if m["kind"] == "unreadable" && (m["snr"] != -20.75 || m["from"] != "!deadbeef") {
+			t.Errorf("unreadable %v", m)
+		}
 		if m["port"] == "position" && m["lat"] != 52.5 {
 			t.Errorf("position %v", m)
 		}
 	}
-	if len(kinds) != 4 || kinds[0] != "start" || kinds[3] != "stop" {
+	if len(kinds) != 5 || kinds[0] != "start" || kinds[3] != "unreadable" || kinds[4] != "stop" {
 		t.Errorf("kinds %v", kinds)
 	}
 }
