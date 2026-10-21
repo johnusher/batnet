@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -112,10 +113,35 @@ type WiFi struct {
 	lastHome  time.Time // when the home WiFi was last up (or the start)
 	lastBusy  time.Time // when a device was last on the hub's own WiFi
 	waiting   bool
+	retrying  bool // tryHome is under way
 	saved     []SavedWiFi
 	savedAt   time.Time
 	err, note string
 	onChange  func(mode string)
+
+	startedFile string
+}
+
+func (w *WiFi) readStarted() string { // caller holds mu
+	if w.startedFile != "" {
+		if b, err := os.ReadFile(w.startedFile); err == nil {
+			if s := strings.TrimSpace(string(b)); s == "auto" || s == "you" || s == "button" {
+				return s
+			}
+		}
+	}
+	return "you"
+}
+
+func (w *WiFi) writeStarted(by string) { // caller holds mu
+	if w.startedFile == "" {
+		return
+	}
+	if by == "" {
+		os.Remove(w.startedFile)
+		return
+	}
+	os.WriteFile(w.startedFile, []byte(by+"\n"), 0o600)
 }
 
 // WiFiConfig wires a WiFi.
@@ -128,6 +154,9 @@ type WiFiConfig struct {
 	Save        func(WiFiSettings) error
 	// OnChange is called when the mode changes (for sounds and the LED).
 	OnChange func(mode string)
+	// StartedFile keeps who started the hub's own WiFi (you, auto, button)
+	// across a restart of batnetd ("": not kept).
+	StartedFile string
 }
 
 // NewWiFi returns the WiFi manager; Run starts it.
@@ -135,7 +164,7 @@ func NewWiFi(c WiFiConfig) *WiFi {
 	if c.Iface == "" {
 		c.Iface = "wlan0"
 	}
-	w := &WiFi{run: c.Run, iface: c.Iface, password: c.Password, save: c.Save, set: c.Settings, defSSID: c.DefaultSSID,
+	w := &WiFi{run: c.Run, iface: c.Iface, password: c.Password, save: c.Save, set: c.Settings, defSSID: c.DefaultSSID, startedFile: c.StartedFile,
 		now: time.Now, tryHomeEvery: 10 * time.Minute, homeWait: 45 * time.Second, step: 3 * time.Second, onChange: c.OnChange, mode: "none"}
 	w.lastHome = w.now()
 	return w
@@ -214,6 +243,15 @@ func (w *WiFi) homeNets() []SavedWiFi {
 // it starts again.
 func (w *WiFi) tryHome() {
 	w.setNote("Looking for the home WiFi; the hub's own WiFi is back in a minute if it isn't there.")
+	// A try is not news: no chime or blink for the WiFi going down and up again.
+	w.mu.Lock()
+	w.retrying = true
+	w.mu.Unlock()
+	defer func() {
+		w.mu.Lock()
+		w.retrying = false
+		w.mu.Unlock()
+	}()
 	w.nm(30*time.Second, "connection", "down", OwnWiFiName)
 	tries := 1
 	if w.step > 0 {
@@ -227,6 +265,9 @@ func (w *WiFi) tryHome() {
 		w.mu.Unlock()
 		if home {
 			w.setNote("Back on the home WiFi by itself.")
+			if w.onChange != nil {
+				go w.onChange("home")
+			}
 			return
 		}
 	}
@@ -268,6 +309,9 @@ func (w *WiFi) refresh() {
 		w.mode = "home"
 		w.lastHome = w.now()
 		w.waiting = false
+		if w.startedBy != "" {
+			w.writeStarted("")
+		}
 		w.startedBy = ""
 	default:
 		w.mode = "none"
@@ -277,7 +321,7 @@ func (w *WiFi) refresh() {
 	if w.mode == "own" && w.ownSince.IsZero() {
 		w.ownSince = w.now()
 		if w.startedBy == "" {
-			w.startedBy = "you"
+			w.startedBy = w.readStarted() // running already when batnetd started
 		}
 	}
 	if w.mode != "own" {
@@ -305,7 +349,7 @@ func (w *WiFi) refresh() {
 	if fresh {
 		w.saved, w.savedAt = saved, w.now()
 	}
-	if prev != w.mode && w.onChange != nil {
+	if prev != w.mode && w.onChange != nil && !w.retrying {
 		go w.onChange(w.mode)
 	}
 }
@@ -364,8 +408,9 @@ func (w *WiFi) readSaved() []SavedWiFi {
 	return list
 }
 
-// ensureOwn creates the hub's own WiFi connection, or makes it again with the
-// current settings.
+// ensureOwn creates the hub's own WiFi connection, or brings an existing one
+// in line with the settings by changing it in place: a running one stays up
+// (a restart of batnetd must not drop the devices on it).
 func (w *WiFi) ensureOwn() error {
 	w.mu.Lock()
 	ssid, open := w.ownSSID(), w.set.Neighbours
@@ -373,7 +418,21 @@ func (w *WiFi) ensureOwn() error {
 	if ssid == "" {
 		return errors.New("no name for it")
 	}
-	w.nm(15*time.Second, "connection", "delete", "id", OwnWiFiName) // not there the first time
+	if cur, err := w.nm(10*time.Second, "-g", "802-11-wireless.ssid", "connection", "show", "id", OwnWiFiName); err == nil {
+		key, _ := w.nm(10*time.Second, "-g", "802-11-wireless-security.key-mgmt", "connection", "show", "id", OwnWiFiName)
+		if unescape(strings.TrimSpace(cur)) == ssid && (strings.TrimSpace(key) == "") == open {
+			return nil
+		}
+		if _, err := w.nm(15*time.Second, "connection", "modify", "id", OwnWiFiName, "802-11-wireless.ssid", ssid); err != nil {
+			return err
+		}
+		if open {
+			_, err = w.nm(15*time.Second, "connection", "modify", "id", OwnWiFiName, "remove", "802-11-wireless-security")
+		} else {
+			_, err = w.nm(15*time.Second, append([]string{"connection", "modify", "id", OwnWiFiName}, w.security()...)...)
+		}
+		return err
+	}
 	args := []string{"connection", "add", "type", "wifi", "ifname", w.iface, "con-name", OwnWiFiName,
 		"autoconnect", "no", "ssid", ssid,
 		"802-11-wireless.mode", "ap", "802-11-wireless.band", "bg", "802-11-wireless.channel", "6",
@@ -383,11 +442,16 @@ func (w *WiFi) ensureOwn() error {
 		if len(w.password) < 8 {
 			return errors.New("the password is too short")
 		}
-		args = append(args, "wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", w.password, "wifi-sec.proto", "rsn",
-			"wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp", "wifi-sec.pmf", "1")
+		args = append(args, w.security()...)
 	}
 	_, err := w.nm(20*time.Second, args...)
 	return err
+}
+
+// security is WPA2 with the hub's password.
+func (w *WiFi) security() []string {
+	return []string{"wifi-sec.key-mgmt", "wpa-psk", "wifi-sec.psk", w.password, "wifi-sec.proto", "rsn",
+		"wifi-sec.pairwise", "ccmp", "wifi-sec.group", "ccmp", "wifi-sec.pmf", "1"}
 }
 
 // up starts the hub's own WiFi; by is you, auto or button.
@@ -403,6 +467,7 @@ func (w *WiFi) up(by string) error {
 	if err == nil {
 		w.startedBy, w.ownSince, w.lastBusy, w.err = by, w.now(), w.now(), ""
 		w.note = ""
+		w.writeStarted(by)
 	}
 	w.mu.Unlock()
 	w.refresh()
@@ -467,6 +532,9 @@ func (w *WiFi) Configure(s WiFiSettings) error {
 	}
 	if s.AfterMinutes < 0 || s.AfterMinutes > 120 {
 		return errors.New("Start it after 1 to 120 minutes.")
+	}
+	if s.SSID == w.defSSID {
+		s.SSID = "" // the default, shown in the form: not a choice
 	}
 	w.op.Lock()
 	defer w.op.Unlock()
@@ -671,11 +739,13 @@ func (w *WiFi) Status(withSecret bool) WiFiStatus {
 	return st
 }
 
-// OpenToAll reports whether the hub runs its own WiFi without a password.
+// OpenToAll reports whether neighbours are let in: the hub's own WiFi, when
+// it runs, has no password. Whatever the mode (it may be switching), so a
+// request from the hub's own WiFi is never let through unchecked.
 func (w *WiFi) OpenToAll() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.mode == "own" && w.set.Neighbours
+	return w.set.Neighbours
 }
 
 // OnOwnWiFi reports whether a remote address is on the hub's own WiFi.

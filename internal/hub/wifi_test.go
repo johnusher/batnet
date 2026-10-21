@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -14,6 +15,7 @@ import (
 type fakeNM struct {
 	mu       sync.Mutex
 	conns    map[string]string // name -> SSID
+	open     map[string]bool   // no password
 	prio     map[string]int
 	active   string
 	homeHere bool // the home network is in range
@@ -22,7 +24,7 @@ type fakeNM struct {
 }
 
 func newFakeNM() *fakeNM {
-	return &fakeNM{conns: map[string]string{"home": "Home Net"}, prio: map[string]int{}, homeHere: true, active: "home"}
+	return &fakeNM{conns: map[string]string{"home": "Home Net"}, open: map[string]bool{}, prio: map[string]int{}, homeHere: true, active: "home"}
 }
 
 func (f *fakeNM) run(_ context.Context, name string, args ...string) (string, error) {
@@ -41,7 +43,31 @@ func (f *fakeNM) run(_ context.Context, name string, args ...string) (string, er
 		return "GENERAL.STATE:100 (connected)\nGENERAL.CONNECTION:" + f.active, nil
 	case strings.Contains(a, "connection show id"):
 		n := args[len(args)-1]
-		return f.conns[n], nil
+		ssid, ok := f.conns[n]
+		if !ok {
+			return "", errors.New("Error: no such connection profile")
+		}
+		if strings.Contains(a, "key-mgmt") {
+			if f.open[n] {
+				return "", nil
+			}
+			return "wpa-psk", nil
+		}
+		return ssid, nil
+	case strings.Contains(a, "connection modify"):
+		n := args[4] // -t connection modify id NAME
+		if strings.Contains(a, "remove 802-11-wireless-security") {
+			f.open[n] = true
+		}
+		if strings.Contains(a, "wifi-sec.key-mgmt") {
+			f.open[n] = false
+		}
+		for i, x := range args {
+			if x == "802-11-wireless.ssid" {
+				f.conns[n] = args[i+1]
+			}
+		}
+		return "", nil
 	case strings.Contains(a, "connection show"):
 		var b strings.Builder
 		for n := range f.conns {
@@ -61,6 +87,7 @@ func (f *fakeNM) run(_ context.Context, name string, args ...string) (string, er
 		return "", nil
 	case strings.Contains(a, "connection add"):
 		f.conns[OwnWiFiName] = "batnet-test"
+		f.open[OwnWiFiName] = !strings.Contains(a, "wifi-sec")
 		return "", nil
 	case strings.Contains(a, "connection up"):
 		n := args[len(args)-1]
@@ -270,5 +297,55 @@ func TestSplitTerse(t *testing.T) {
 	}
 	if !OnOwnWiFi("10.42.0.17:5555") || OnOwnWiFi("192.168.1.2:80") {
 		t.Fatal("OnOwnWiFi")
+	}
+}
+
+// A restart of batnetd keeps the hub's own WiFi up, and remembers that it
+// started by itself (so it still goes home by itself).
+func TestWiFiRestartKeepsOwnWiFi(t *testing.T) {
+	f := newFakeNM()
+	started := t.TempDir() + "/wifi-started"
+	w, clk := newTestWiFi(f)
+	w.startedFile = started
+	w.ensureOwn()
+	f.set(func(f *fakeNM) { f.homeHere, f.active = false, "" })
+	w.Tick()
+	clk.t = clk.t.Add(4 * time.Minute)
+	w.Tick()
+	if w.Status(false).StartedBy != "auto" {
+		t.Fatal("not started by itself")
+	}
+	// batnetd restarts.
+	f.calls = nil
+	w2, clk2 := newTestWiFi(f)
+	w2.startedFile = started
+	if err := w2.ensureOwn(); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range f.calls {
+		if strings.Contains(c, "delete") || strings.Contains(c, "modify") || strings.Contains(c, "down") {
+			t.Fatalf("the restart touched the running WiFi: %q", c)
+		}
+	}
+	w2.Tick()
+	if st := w2.Status(false); st.Mode != "own" || st.StartedBy != "auto" {
+		t.Fatalf("after the restart: %+v", st)
+	}
+	// Opening it to neighbours changes it in place.
+	if err := w2.Configure(WiFiSettings{Neighbours: true}); err != nil {
+		t.Fatal(err)
+	}
+	if !f.open[OwnWiFiName] {
+		t.Fatal("still has a password")
+	}
+	// The power comes back: home, and the file is gone.
+	f.set(func(f *fakeNM) { f.homeHere = true })
+	clk2.t = clk2.t.Add(11 * time.Minute)
+	w2.Tick()
+	if st := w2.Status(false); st.Mode != "home" {
+		t.Fatalf("%+v", st)
+	}
+	if _, err := os.Stat(started); err == nil {
+		t.Fatal("wifi-started left behind")
 	}
 }

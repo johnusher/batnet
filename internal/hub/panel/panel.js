@@ -727,12 +727,15 @@ function renderSysFacts(s) {
   $("sys").replaceChildren(...facts.filter(([, v]) => v).flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { text: v })]));
 }
 
-let asking = false;
+let asking = false, locked = false;
 async function poll() {
   try {
     const res = await fetch("api/status", { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
-    if (res.status === 401 || res.status === 429) {
+    locked = res.status === 401 || res.status === 429;
+    if (locked) {
       // The hub's own WiFi is open to neighbours: reading the panel needs the PIN too.
+      // A PIN that was refused is dropped, so the polls don't keep guessing with it.
+      if (res.status === 401 && pin) { pin = ""; try { sessionStorage.removeItem("hubPIN"); } catch (e) { /* fine */ } }
       $("onair").textContent = "This hub's WiFi is open to neighbours: the panel needs the hub PIN.";
       $("onair").className = "onair down";
       if (!asking && res.status === 401) {
@@ -757,6 +760,7 @@ let win = load("hub.win", 600);
 if (![120, 600, 3600].includes(win)) win = 600;
 
 async function pollTraffic() {
+  if (locked) return;
   try {
     const res = await fetch(`api/traffic?since=${tr.seq}`, { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
     if (!res.ok) return;
@@ -1136,7 +1140,7 @@ function drawQR(box, text) {
   s.append(svg("path", { d, fill: "#000" }));
   box.append(s);
 }
-const wifiEsc = (v) => v.replace(/([\;,:"])/g, "\\$1");
+const wifiEsc = (v) => v.replace(/([\\;,:"])/g, "\\$1");
 const wifiQR = (w) => `WIFI:T:${w.open ? "nopass" : "WPA"};S:${wifiEsc(w.ownSSID)};${w.open ? "" : `P:${wifiEsc(w.password || "")};`};`;
 
 function renderWiFi(s) {

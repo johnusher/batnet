@@ -278,6 +278,9 @@ func (s *Server) system(r *http.Request, b map[string]string) (any, error) {
 		}
 		runFor(run, 15*time.Second, "timedatectl", "--no-ask-password", "set-ntp", "false")
 		_, err = runFor(run, 15*time.Second, "timedatectl", "--no-ask-password", "set-time", t.Local().Format("2006-01-02 15:04:05"))
+		// timesyncd moves the clock forward to its saved time when it starts:
+		// save the new time first, or a clock set back would jump ahead again.
+		StartUnit(run, "batnet-clock.service", false)
 		runFor(run, 15*time.Second, "timedatectl", "--no-ask-password", "set-ntp", "true")
 		if err != nil {
 			return nil, errors.New("The clock was not set: " + err.Error())

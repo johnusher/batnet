@@ -48,7 +48,7 @@ func TestButtonsNeedThePINFromTheLAN(t *testing.T) {
 	if code, _ := post(h, "/hub/api/mode", "10.0.0.0:5000", "246810", `{"mode":"real"}`, true); code != 200 || got != "real" {
 		t.Errorf("LAN with PIN: %d %q", code, got)
 	}
-	for i := 0; i < failsAllowed-1; i++ { // one wrong already
+	for i := 0; i < failsAllowed; i++ { // the empty PIN above was not a guess
 		post(h, "/hub/api/mode", "10.0.0.0:5000", "000000", `{"mode":"off"}`, true)
 	}
 	if code, _ := post(h, "/hub/api/mode", "10.0.0.1:5000", "246810", `{"mode":"off"}`, true); code != 429 {

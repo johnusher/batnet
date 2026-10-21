@@ -19,9 +19,11 @@ used "generally at the hub's own keyboard".
 # Decision
 
 * **polkit, not sudo.** `/etc/polkit-1/rules.d/50-batnet.rules` lets the user
-  `batnet` do exactly: every NetworkManager action; start or restart
-  `batnet-power@{high,medium,low}`, `batnet-console` and `batnet-screen`; reboot
-  and power off; set the time. Nothing else. batnetd calls `nmcli`, `systemctl`
+  `batnet` do exactly: switch, scan, save and share WiFi through NetworkManager
+  (`network-control`, `settings.modify.system`, `wifi.scan`, `wifi.share.*`);
+  start, restart or stop `batnet-power@{high,medium,low}`, `batnet-console`,
+  `batnet-screen` and `batnet-clock`; reboot and power off; set the time.
+  Nothing else. batnetd calls `nmcli`, `systemctl`
   and `timedatectl`, which ask over D-Bus; the hub's unit keeps its restrictions.
 * **The terminal is the Pi's console.** *Open a terminal* (shown and allowed only
   on the hub's own screen) starts `batnet-console.service`, which switches the

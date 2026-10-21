@@ -293,6 +293,9 @@ func (s *Server) checkPIN(pin string) *failure {
 	if len(s.failures) >= failsAllowed {
 		return &failure{http.StatusTooManyRequests, "Too many wrong PINs. Try again in a few minutes, or use the screen on the hub."}
 	}
+	if pin == "" { // not a guess: a page that hasn't asked yet (or polls while locked)
+		return &failure{http.StatusUnauthorized, "The hub PIN is shown on the hub's screen."}
+	}
 	if s.cfg.HubPIN == "" || subtle.ConstantTimeCompare([]byte(pin), []byte(s.cfg.HubPIN)) != 1 {
 		s.failures = append(s.failures, now)
 		return &failure{http.StatusUnauthorized, "The hub PIN is shown on the hub's screen."}

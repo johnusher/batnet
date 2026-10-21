@@ -44,7 +44,7 @@ type Client struct {
 	// (nil: 10 minutes).
 	IdleStop func() time.Duration
 
-	mu      sync.Mutex
+	mu      sync.Mutex // the helper and the cache; held for a whole translation
 	cmd     *exec.Cmd
 	in      io.WriteCloser
 	out     *bufio.Scanner
@@ -53,6 +53,16 @@ type Client struct {
 	err     string
 	cache   map[string]string
 	order   []string
+
+	smu    sync.Mutex // what Status reports, never held for long
+	loaded bool
+	serr   string
+}
+
+func (c *Client) setState(loaded bool, err string) {
+	c.smu.Lock()
+	c.loaded, c.serr = loaded, err
+	c.smu.Unlock()
 }
 
 // New returns a client for the helper and models folder (empty: the defaults).
@@ -98,9 +108,9 @@ func (c *Client) Status() Status {
 	if st.Pairs == nil {
 		st.Pairs = []string{}
 	}
-	c.mu.Lock()
-	st.Loaded, st.Error = c.cmd != nil, c.err
-	c.mu.Unlock()
+	c.smu.Lock()
+	st.Loaded, st.Error = c.loaded, c.serr
+	c.smu.Unlock()
 	return st
 }
 
@@ -141,6 +151,7 @@ func (c *Client) Translate(ctx context.Context, from, to, text string) (string, 
 	}
 	if err := c.start(); err != nil {
 		c.err = err.Error()
+		c.setState(false, c.err)
 		return "", errors.New("The translator did not start: " + err.Error())
 	}
 	c.id++
@@ -176,12 +187,14 @@ func (c *Client) Translate(ctx context.Context, from, to, text string) (string, 
 	if r.err != nil {
 		c.stop()
 		c.err = r.err.Error()
+		c.setState(false, c.err)
 		return "", errors.New("The translator stopped.")
 	}
 	if r.a.Error != "" {
 		return "", errors.New(r.a.Error)
 	}
 	c.err = ""
+	c.setState(true, "")
 	c.remember(key, r.a.Text)
 	return r.a.Text, nil
 }
@@ -231,6 +244,9 @@ func (c *Client) stop() { // caller holds mu
 	c.cmd.Process.Kill()
 	c.cmd.Wait()
 	c.cmd, c.in, c.out = nil, nil, nil
+	c.smu.Lock()
+	c.loaded = false
+	c.smu.Unlock()
 }
 
 // Run stops the helper when it has been idle, until ctx ends.

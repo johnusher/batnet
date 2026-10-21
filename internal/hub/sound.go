@@ -129,7 +129,7 @@ func (s *Sound) Notify(kind, who, text string) {
 	case "delivered", "failed":
 		ok = ok && set.Delivered
 	}
-	if ok && kind != "direct" && !strings.HasPrefix(kind, "wifi") && quietNow(set, now) {
+	if ok && kind != "direct" && quietNow(set, now) {
 		ok = false
 	}
 	s.mu.Unlock()

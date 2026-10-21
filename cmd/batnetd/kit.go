@@ -7,6 +7,7 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -60,8 +61,8 @@ func (h *hubRun) startKit(ctx context.Context, radio *meshtastic.Client, id ledg
 	var mu sync.Mutex
 	lastMode := ""
 	k.wifi = hub.NewWiFi(hub.WiFiConfig{Run: hub.Exec, Password: wifiPass, DefaultSSID: fmt.Sprintf("batnet-%x", id[:2]),
-		Settings: set.WiFi,
-		Save:     func(s hub.WiFiSettings) error { return h.saver(func(x *hubSettings) { x.WiFi = s })() },
+		Settings: set.WiFi, StartedFile: filepath.Join(h.data, "wifi-started"),
+		Save: func(s hub.WiFiSettings) error { return h.saver(func(x *hubSettings) { x.WiFi = s })() },
 		OnChange: func(mode string) {
 			mu.Lock()
 			prev := lastMode
