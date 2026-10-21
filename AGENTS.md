@@ -18,8 +18,9 @@ implementation follows the plans in `docs/plans/`.
 | `prototypes/` | Throwaway design prototypes. `village-sim/`: the in-browser village model + web app mockup (`sim.js` runs in node too) |
 | `docs/specs/` | Design specs, one per milestone, written after the design is agreed. Milestone 1: `2026-10-15-m1-design.md` (approved) |
 | `docs/plans/` | Implementation plans, one per subsystem of a milestone |
-| `cmd/batnetd/` | The node daemon. Today: `-mock N` runs a pretend village |
-| `internal/` | Go packages: `hlc`, `ledger` (+ `sqlstore`), `seal`, `meshsync`, `mock`, `sim` (virtual time, the WiFi world model, villages of real nodes, scenarios, reports, the page API) |
+| `cmd/batnetd/` | The node daemon. `-hub` runs a house hub on a Pi (the app, the control panel on `/hub/`, the radio, the WiFi mesh off/mock/real); `-mock N` runs a pretend village; `-sim` judges scenarios |
+| `internal/` | Go packages: `hlc`, `ledger` (+ `sqlstore`), `seal`, `meshsync`, `mock`, `sim` (virtual time, the WiFi world model, villages of real nodes, scenarios, reports, the page API), `state`, `auth`, `web` (the house app), `lora`, `prio`, `meshtastic` (meshtasticd's TCP API, hand-decoded protobuf), `udplink` (meshsync over bat0), `hub` (the control panel) |
+| `deploy/pi/` | Turning a Pi into a hub: `deploy.sh <ssh-host>` from a laptop runs `setup.sh` on the Pi (clean-up, meshtasticd + Meshstick, batman-adv, kiosk, systemd units, watchdogs). The bench hub: `knowledge/hardware/bench-pi7.md` |
 | `scenarios/` | Village scenarios (JSON) run by `batnetd -sim`, CI and the simulator's real engine |
 | `cmd/batnetwasm/` | The real code for the simulator page (`GOOS=js GOARCH=wasm`) |
 | `docs/img/` | Screenshots for the README; take new ones with `prototypes/village-sim/shoot.sh` |

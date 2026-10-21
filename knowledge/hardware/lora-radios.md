@@ -34,3 +34,5 @@ ESP32 + SX1262 boards (Heltec V3, LilyGo T-Beam) flashed with Meshtastic, on USB
 # Bench kit
 
 2026-10-15: two Elecrow Meshsticks (USB, EU868) bought for the first bench test: two Pis with meshtasticd, one stick each. Results go in [tests](/tests/).
+
+2026-10-21: the first Meshstick runs on the [bench hub](/hardware/bench-pi7.md) with meshtasticd 2.7.26 and its `lora-usb-meshstick-1262.yaml` config ([test](/tests/2026-10-21-pi7-hub-bring-up.md)).

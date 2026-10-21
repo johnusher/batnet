@@ -30,6 +30,10 @@ No Linear for batnet yet: this page is the list.
 | B19 | Sessions and PIN lockouts live in memory: a reboot signs everyone out, and a guesser can move to another house, or take another address on the hotspot, to reset the lockout (it is per phone address and name since B22) | plan 4a | `internal/auth`, `internal/web` |
 | B20 | Two people with the same name and the same PIN at one house can't be told apart at sign-in | plan 4a | `internal/web/api.go` |
 | B32 | Village over other seeds (simulator): seed 2 has 6 posts late against 15 min after the 10 min power cut of a hamlet's only gateway; the backlog, its catch-up beacons every 2 min and the others' recoveries share one busy channel. Farms seed 2: 1 late | review 2026-10-15 | `internal/lora` |
+| B34 | Real mode: heartbeats on bat0 are flooded to the whole mesh (`udplink.BroadcastLocal` is a plain broadcast), not sent one hop as [0021](/decisions/0021-one-hop-heartbeats.md) asks; fine for a few Pis, not for 40 houses. Real mode itself is untested until a USB WiFi stick and a second Pi are on the bench | pi7 bring-up 2026-10-21 | `internal/udplink` |
+| B35 | meshtasticd listens on the whole LAN: its TCP API (4403) and web client (9443) let anyone on the network change the radio, with no password. Bench only; a house node should firewall both to localhost | pi7 bring-up 2026-10-21 | `deploy/pi` |
+| B36 | Two batnet nodes could pick the same mesh address (172.27.a.b from the first two bytes of the node key: a 1 in 65 000 chance per pair) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
+| B37 | A second hub joins the village only by copying `village.key` by hand (until the QR join of plan 5) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
 | B33 | A beacon nudge (decision 0024) needs another gateway's beacon or a partial message: a post whose every frame was lost at a receiver, with no beacon heard since, still waits for the receiver's own quarter-hour beacon | review 2026-10-15 | `internal/lora/bridge.go` |
 
 
@@ -48,6 +52,8 @@ No Linear for batnet yet: this page is the list.
 | L8 | Everyone-channel posts don't yet go out as plain Meshtastic text for users holding the key (done-when check 3); public-channel text interop isn't built | plan 3b (meshtasticd client) |
 | L9 | A signed entry costs about 100 bytes before its text on LoRa (origin key and signature): two packets for a 100-character post | a compact LoRa form, later |
 | L6 | An author signing two different entries with the same seq would not be detected (vectors hold seqs, not content) | plan 1 review; needs a protocol decision |
+| L14 | The hub's screen shows the hub PIN and the house admin PIN to anyone standing at it: physical access is trusted on the bench | [0025](/decisions/0025-hub-panel-and-mesh-modes.md); plan 5 decides for real houses |
+| L15 | The hub panel shows the public channel raw; the app's "Neighbourhood (public)" group and plain-text posts on the private channel come with the LoRa bridge in plan 3b (L8) | plan 3b |
 | L7 | Sealed packets can be replayed (no sequence or associated data in `seal`); harmless today (dedup), to settle with the HTTPS transport | plan 1 review |
 
 # Deferred minors (from reviews)
@@ -68,7 +74,9 @@ No Linear for batnet yet: this page is the list.
 * USB WiFi stick current; a pocket node on a power bank ([power budget](/research/power-budget.md)).
 * Moonshine speed on Pi 4, Pi 5, Zero 2 W; raw vs denoised audio ([0014](/decisions/0014-speech-pipeline.md)).
 * Captive-portal pop-up on each phone; desktop notifications past the warning; Android background tab; iOS Wake Lock.
-* Two Meshsticks with meshtasticd: range, airtime, priority queue.
+* Two Meshsticks with meshtasticd: range, airtime, priority queue (the first hub runs: [bring-up](/tests/2026-10-21-pi7-hub-bring-up.md)).
+* The hub's real HDMI screen and keyboard; a monitor plugged in after boot.
+* Real mesh mode with a USB WiFi stick and a second Pi (IBSS, batman-adv, sync over bat0).
 
 # Resolved
 

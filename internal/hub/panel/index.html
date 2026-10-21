@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>batnet hub</title>
+<link rel="stylesheet" href="panel.css">
+</head>
+<body>
+<header class="top">
+  <div class="name">
+    <h1>batnet hub</h1>
+    <p id="house" class="muted"></p>
+  </div>
+  <p id="onair" class="onair" aria-live="polite">Connecting to the radio…</p>
+  <p id="clock" class="clock"></p>
+</header>
+
+<main class="grid">
+  <section class="air" aria-labelledby="air-h">
+    <div class="head">
+      <h2 id="air-h">Who is out there</h2>
+      <button id="hello" class="btn">Say hello</button>
+    </div>
+    <p class="muted">Every radio this hub has heard. The closer to the middle, the fewer relays between us.</p>
+    <svg id="plot" viewBox="-160 -160 320 320" role="img" aria-label="Radios heard, by number of relays"></svg>
+    <p class="legend"><span class="k direct"></span>heard directly <span class="k relayed"></span>through relays <span class="k bn"></span>runs batnet</p>
+  </section>
+
+  <section class="nodes" aria-labelledby="nodes-h">
+    <h2 id="nodes-h">Radios nearby <span id="ncount" class="count"></span></h2>
+    <table>
+      <thead><tr><th scope="col">Name</th><th scope="col">Signal</th><th scope="col">Relays</th><th scope="col">Last heard</th></tr></thead>
+      <tbody id="nodelist"></tbody>
+    </table>
+    <p id="nodes-empty" class="empty" hidden>Only this hub so far. Press Say hello: radios in range answer with their names.</p>
+  </section>
+
+  <section class="chat" aria-labelledby="chat-h">
+    <h2 id="chat-h">Public channel</h2>
+    <p class="muted">Meshtastic's open LongFast channel: anyone with a Meshtastic radio nearby can read it. Don't send anything private.</p>
+    <ol id="texts" class="texts"></ol>
+    <p id="texts-empty" class="empty">No messages heard yet.</p>
+    <form id="send" class="send" autocomplete="off">
+      <label class="sr" for="msg">Message for the public channel</label>
+      <input id="msg" maxlength="200" placeholder="Write to everyone in range (press / to type)">
+      <button class="btn onair-btn" type="submit">Send by radio</button>
+    </form>
+    <p id="send-note" class="note" aria-live="polite"></p>
+  </section>
+
+  <section class="side">
+    <div class="block" aria-labelledby="mesh-h">
+      <h2 id="mesh-h">WiFi mesh</h2>
+      <div class="modes" role="radiogroup" aria-label="Mesh mode">
+        <button role="radio" data-mode="off">Off</button>
+        <button role="radio" data-mode="mock">Mock</button>
+        <button role="radio" data-mode="real">Real</button>
+      </div>
+      <p id="mode-help" class="muted"></p>
+      <p id="mesh-state" class="state"></p>
+      <ul id="peers" class="peers"></ul>
+    </div>
+
+    <div class="block" aria-labelledby="pi-h">
+      <h2 id="pi-h">This Pi</h2>
+      <dl id="sys" class="facts"></dl>
+    </div>
+
+    <div class="block" aria-labelledby="app-h">
+      <h2 id="app-h">The house app</h2>
+      <p class="muted">Phones open it in a browser on this hub's network.</p>
+      <dl id="app" class="facts"></dl>
+    </div>
+  </section>
+</main>
+
+<dialog id="pin">
+  <form method="dialog" id="pinform">
+    <h2>Hub PIN</h2>
+    <p class="muted">The buttons need the hub PIN when you use them from another device. It is shown on the hub's own screen.</p>
+    <label for="pinin">PIN</label>
+    <input id="pinin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required>
+    <p id="pin-err" class="note"></p>
+    <div class="row"><button class="btn ghost" value="cancel" formnovalidate>Cancel</button><button class="btn" value="ok">Unlock</button></div>
+  </form>
+</dialog>
+
+<script src="panel.js"></script>
+</body>
+</html>

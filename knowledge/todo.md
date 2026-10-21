@@ -18,13 +18,14 @@ for batnet yet.
 - [x] Plan 3: LoRa bridge and priority, in the simulator (2026-10-15)
 - [x] Plan 4a: the house server - state from the log, PIN accounts and admin approval, captive portal, API and live events, a first real app; `batnetd -mock 3 -web` (2026-10-15)
 - [x] Plan 4b: the full app - outbox, bedside mode, speaker and notification settings, German, help, admin alerts; the real app inside the simulator's phone (2026-10-15)
-- [ ] **Plan 3b: meshtasticd client on real radios - waits for the two Meshsticks; includes everyone-channel posts as plain Meshtastic text (done-when check 3) and public-channel interop (next, when the radios arrive)**
-- [ ] Plan 5: Pi set-up, radios, kiosk, speaker - first boot, QR join, radio detection, batman-adv and hostapd, one-hop heartbeats on the mesh interface, cage + Chromium kiosk, speaker/button/LED, GPS time
+- [ ] **Plan 3b: meshtasticd client on real radios - includes everyone-channel posts as plain Meshtastic text (done-when check 3) and public-channel interop (next).** Started 2026-10-21: `internal/meshtastic` reads the radio, the node list and texts and sends text and hellos; the private channel, envelopes and the bridge to the log remain
+- [ ] Plan 5: Pi set-up, radios, kiosk, speaker - first boot, QR join, radio detection, batman-adv and hostapd, one-hop heartbeats on the mesh interface, cage + Chromium kiosk, speaker/button/LED, GPS time. Started 2026-10-21 on the [bench hub](/hardware/bench-pi7.md): `deploy/pi/` (set-up script, systemd units, watchdogs), the kiosk, batman-adv bring-up (`batnet-mesh`), sync over bat0 (`internal/udplink`), the hub panel ([0025](/decisions/0025-hub-panel-and-mesh-modes.md))
 - [ ] Plan 6: image, installer, CI hardening - the batnet.zip, Imager scripts, signed releases, gitleaks in CI
 
 # Bench tests (need hardware)
 
-- [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups
+- [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups (one hub is up: set up the second Pi with `deploy/pi/deploy.sh`, copy `village.key`)
+- [ ] The hub's HDMI screen and keyboard; real mesh mode with the USB WiFi stick
 - [ ] Microphone and WebRTC after the certificate warning on a real iPhone and Android (decision 0004 depends on it)
 - [ ] Captive-portal pop-up on each phone type; desktop notifications past the warning; Android background tab; iOS Wake Lock
 - [ ] Power: the USB WiFi stick; a pocket node on a power bank
@@ -50,9 +51,12 @@ for batnet yet.
 # Decisions waiting
 
 - [ ] 0014 speech pipeline (draft): confirm after the speech bench test
+- [ ] 0025 hub panel and mesh modes, 0026 no extra handshake for batnet radios (drafts, 2026-10-21): confirm
 - [ ] Final project name (the repo is "batnet" for now)
 
 # Done
+
+- 2026-10-21: the first real hub on the bench ([pi7](/hardware/bench-pi7.md)): meshtasticd on a Meshstick, `batnetd -hub` with the control panel and mesh modes, the HDMI kiosk, autostart and watchdogs ([test](/tests/2026-10-21-pi7-hub-bring-up.md))
 
 - 2026-10-15 (review): B21-B25 sign-in hardening; B13, B10, B14, B12, B15 (flooding), B17, B26-B31, B2-B4 fixed; decision [0024](/decisions/0024-ask-soon-for-what-was-lost.md) makes farms pass and a festival of pocket nodes pass
 - 2026-10-15: one-hop heartbeats (0021); MIT licence (0011); GitHub Pages with the real engine

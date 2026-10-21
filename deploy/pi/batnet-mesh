@@ -1,0 +1,41 @@
+#!/bin/sh
+# batnet-mesh up|down|status: runs batman-adv on the USB WiFi stick.
+# IBSS (ad-hoc) on channel 8, 2447 MHz; bat0 gets 172.27.x.y/16 from the
+# address given (batnetd derives it from the node's key).
+# Needs CAP_NET_ADMIN (batnet-hub.service grants it); batman-adv is loaded at boot.
+set -e
+IF=${BATNET_MESH_IF:-wlan1}
+SSID=batnet-mesh
+FREQ=2447
+case "$1" in
+up)
+  ADDR=$2
+  [ -e "/sys/class/net/$IF/phy80211" ] || { echo "no USB WiFi stick ($IF)"; exit 3; }
+  ip link set "$IF" down
+  iw dev "$IF" set type ibss
+  ip link set "$IF" mtu 1560 2>/dev/null || true # room for batman's header; fine if the driver refuses
+  ip link set "$IF" up
+  iw dev "$IF" ibss leave 2>/dev/null || true
+  iw dev "$IF" ibss join "$SSID" "$FREQ" HT20 fixed-freq
+  batctl meshif bat0 interface add "$IF" 2>/dev/null || batctl if add "$IF"
+  ip link set bat0 up
+  [ -n "$ADDR" ] && ip addr replace "$ADDR/16" dev bat0
+  echo "mesh up on $IF"
+  ;;
+down)
+  batctl meshif bat0 interface del "$IF" 2>/dev/null || batctl if del "$IF" 2>/dev/null || true
+  ip link del bat0 2>/dev/null || true
+  if [ -e "/sys/class/net/$IF" ]; then
+    iw dev "$IF" ibss leave 2>/dev/null || true
+    ip link set "$IF" down 2>/dev/null || true
+  fi
+  echo "mesh down"
+  ;;
+status)
+  [ -e /sys/class/net/bat0 ] || { echo "no bat0"; exit 1; }
+  batctl n -H 2>/dev/null || batctl n
+  ;;
+*)
+  echo "usage: batnet-mesh up ADDR | down | status"; exit 2
+  ;;
+esac

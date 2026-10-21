@@ -26,3 +26,5 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0022 Gateways suppress duplicates](0022-gateways-suppress-duplicates.md) - any gateway may send after a per-post delay; hearing it sent cancels the rest; supersedes 0017's hash assignment
 * [0023 Hold on a first fragment](0023-hold-on-a-first-fragment.md) - hearing another gateway start a post holds ours; the whole post cancels it; if the rest never comes, ours goes; refines 0022
 * [0024 Ask soon for what was lost](0024-ask-soon-for-what-was-lost.md) - a gateway holding part of a message, or hearing a beacon ahead of its own log, beacons within two minutes; farms and festival pass; refines 0022
+* [0025 Hub panel and mesh modes](0025-hub-panel-and-mesh-modes.md) - batnetd -hub serves the app and a control panel on the LAN and on HDMI; the WiFi mesh runs off, mock or real
+* [0026 Recognising batnet radios](0026-recognising-batnet-radios.md) - no extra handshake: the private channel and signed entries mark batnet nodes; nothing extra on the public channel

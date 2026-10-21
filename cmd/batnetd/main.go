@@ -1,11 +1,12 @@
-// Command batnetd is the batnet node daemon. In milestone 1, plan 1 it runs a
-// mock village on one machine: houses in a line over an in-process mesh,
-// posting messages and printing what arrives where.
+// Command batnetd is the batnet node daemon. -hub runs a house hub on a Pi
+// (the app, the control panel, the radio, the WiFi mesh); -mock runs a mock
+// village on one machine; -sim judges village scenarios.
 package main
 
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -15,6 +16,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/johnusher/batnet/internal/hlc"
@@ -41,14 +44,30 @@ func main() {
 	dur := flag.Duration("for", 15*time.Second, "how long the mock village runs")
 	simFiles := flag.Bool("sim", false, "run the scenario files given as arguments and judge them")
 	withWeb := flag.Bool("web", false, "with -mock: serve the batnet app for every house on 127.0.0.1:8001 and up")
+	asHub := flag.Bool("hub", false, "run as a house hub on a Pi: the house app, the control panel on /hub/, the radio and the WiFi mesh")
+	data := flag.String("data", "/var/lib/batnet", "with -hub: the folder for the log, keys, PINs and settings")
+	listen := flag.String("listen", ":80", "with -hub: the address the app and panel listen on")
+	radio := flag.String("radio", "127.0.0.1:4403", "with -hub: meshtasticd's TCP API")
+	meshMode := flag.String("mode", "", "with -hub: start the WiFi mesh in this mode (off, mock or real) and keep it; default: the saved mode")
+	house := flag.String("house", "", "with -hub: the house's name (saved)")
 	flag.Parse()
 	if *simFiles {
 		os.Exit(runScenarios(flag.Args()))
 	}
+	if *asHub {
+		err := runHub(*data, *listen, *radio, *meshMode, *house)
+		if errors.Is(err, errRestart) {
+			restartSelf()
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if *houses < 2 {
 		fmt.Fprintln(os.Stderr, "usage: batnetd -mock N [-loss 0.3] [-for 20s] [-web]   (N >= 2; -for 0 runs until Ctrl-C)")
 		fmt.Fprintln(os.Stderr, "       batnetd -sim scenarios/*.json")
-		fmt.Fprintln(os.Stderr, "Real radios arrive with plan 5 of milestone 1.")
+		fmt.Fprintln(os.Stderr, "       batnetd -hub [-data /var/lib/batnet] [-listen :80] [-mode off|mock|real]")
 		os.Exit(2)
 	}
 	if err := runMock(*houses, *loss, *dur, *withWeb); err != nil {
@@ -215,4 +234,27 @@ func runScenarios(paths []string) int {
 		}
 	}
 	return status
+}
+
+// restartSelf starts batnetd again in place, in the mode just saved: the
+// same command without -mode, which would override the saved choice.
+func restartSelf() {
+	exe, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var args []string
+	for i := 0; i < len(os.Args); i++ {
+		a := os.Args[i]
+		if a == "-mode" || a == "--mode" {
+			i++
+			continue
+		}
+		if strings.HasPrefix(a, "-mode=") || strings.HasPrefix(a, "--mode=") {
+			continue
+		}
+		args = append(args, a)
+	}
+	log.Printf("restarting in the new mode")
+	log.Fatal(syscall.Exec(exe, args, os.Environ()))
 }

@@ -33,7 +33,7 @@ id = "email-address"
 description = "Email address — use placeholders such as anna@example.org"
 regex = '''[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'''
 [rules.allowlist]
-regexes = ['''@example\.(org|com|net)''', '''noreply@''', '''@lists\.''']
+regexes = ['''@example\.(org|com|net)''', '''noreply@''', '''@lists\.''', '''@[A-Za-z0-9-]+\.(service|socket|target|timer)\b''']  # the last: systemd unit instances such as getty@tty1.service
 
 [allowlist]
 description = "Placeholders and documentation examples"

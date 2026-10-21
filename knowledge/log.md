@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-10-21
+* **Creation**: The first real hub. [pi7](/hardware/bench-pi7.md) (a Pi 4 with an Elecrow Meshstick) runs meshtasticd, `batnetd -hub` and the HDMI kiosk, starts by itself and has watchdogs; [bring-up test](/tests/2026-10-21-pi7-hub-bring-up.md); draft decisions [0025 hub panel and mesh modes](/decisions/0025-hub-panel-and-mesh-modes.md) and [0026 no extra handshake for batnet radios](/decisions/0026-recognising-batnet-radios.md); [known problems](/known-problems.md) B34-B37, L14, L15; [to do](/todo.md) updated.
+
 ## 2026-10-15
 * **Update**: The README gained *How batnet differs from Meshtastic and the others* (MeshCore, Reticulum, phone-to-phone apps, and where batnet is weaker); [existing projects](/research/existing-projects.md) gained MeshCore's roles, LXMF propagation nodes and Briar/Bridgefy, with sources; glossary gained MeshCore and Reticulum.
 * **Update**: The film, cut 2: a thicker accent, lines from 'Allo 'Allo! and Dad's Army, two new scenes (why two radios, with a voice becoming text for LoRa; what it costs, the pocket node first at about €45; what people ask) and the technical facts through the rest (priority, hops, airtime, signatures, the logical clock); Black Rock City dropped; Berlin on the real map with the six dark localities, and its facts corrected (September, pylons: [research](/research/berlin-blackout-2025.md)); four and a half minutes now; the film is on YouTube only (the MP4 and GIF were taken out of the repo again; one branch, no large media). The README leads with the cheapest build and a preview GIF that plays the film; the `making-the-film` skill gained the cue mechanism, the gag list and the Chrome trap.

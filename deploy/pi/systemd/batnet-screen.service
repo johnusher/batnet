@@ -1,0 +1,33 @@
+# The HDMI screen: the hub's control panel full screen in Chromium, inside the
+# cage kiosk compositor, on tty1. Not a desktop login: the batnet-screen user
+# has no shell and no password. Ctrl+Alt+F2 gives a normal login prompt.
+[Unit]
+Description=batnet screen: the control panel on the HDMI display
+Wants=batnet-hub.service
+After=batnet-hub.service systemd-user-sessions.service plymouth-quit-wait.service
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=0
+
+[Service]
+User=batnet-screen
+PAMName=login
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+TTYVTDisallocate=yes
+StandardInput=tty-fail
+StandardOutput=journal
+StandardError=journal
+UtmpIdentifier=tty1
+UtmpMode=user
+Environment=XDG_SESSION_TYPE=wayland
+# Wait (up to a minute) for the panel to answer, so the screen never shows an error page at boot.
+ExecStartPre=/bin/sh -c 'for i in $(seq 60); do curl -fs -o /dev/null http://127.0.0.1/hub/ && exit 0; sleep 1; done; exit 0'
+ExecStart=/usr/bin/cage -s -- /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
+  --disable-session-crashed-bubble --disable-features=Translate --password-store=basic \
+  --ozone-platform=wayland --app=http://127.0.0.1/hub/?screen=1
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target multi-user.target
