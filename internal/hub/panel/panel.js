@@ -88,7 +88,7 @@ const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v
 function setNote(id, msg, bad) { $(id).textContent = msg; $(id).className = "note" + (bad ? " bad" : ""); }
 
 // ---- views ----
-const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings"];
+const VIEWS = ["home", "messages", "map", "radios", "traffic", "settings", "help"];
 let view = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
 
 function setView(v) {
@@ -104,6 +104,7 @@ function setView(v) {
   if (last) render(last);
   if (v === "traffic") drawTraffic();
   if (v === "map") showMap();
+  if (v === "help") loadHelp();
 }
 for (const v of VIEWS) $("tab-" + v).addEventListener("click", () => setView(v));
 for (const b of document.querySelectorAll("[data-go]")) b.addEventListener("click", () => setView(b.dataset.go));
@@ -631,6 +632,7 @@ function render(s) {
   const ready = r && r.ready && r.region !== "not set";
   for (const b of [$("hello"), document.querySelector("#send button"), document.querySelector("#home-send button")]) b.disabled = !ready;
   if (view === "settings") renderHubSettings(s);
+  if (view === "help") fillHelp();
 }
 
 function renderRadios() {
@@ -987,13 +989,56 @@ for (const b of document.querySelectorAll(".mesh button")) {
   });
 }
 
-// Keys for the hub's own keyboard: 1 to 6 switch views; / starts a message.
+// ---- help: a page of its own in the binary, so it works offline ----
+let helpLoaded = false;
+async function loadHelp() {
+  if (!helpLoaded) {
+    try {
+      const res = await fetch("help.html", { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status);
+      $("help-body").innerHTML = await res.text(); // our own file, served by the hub
+      helpLoaded = true;
+    } catch (e) { $("help-body").textContent = "The help could not load: " + e.message; return; }
+    for (const b of document.querySelectorAll(".toc button")) b.addEventListener("click", () => $(b.dataset.to).scrollIntoView({ behavior: "smooth", block: "start" }));
+    $("help-print").addEventListener("click", () => window.print());
+    $("help-find").addEventListener("input", () => {
+      const q = $("help-find").value.trim().toLowerCase();
+      const has = (e) => e.textContent.toLowerCase().includes(q);
+      for (const s of document.querySelectorAll(".hs")) {
+        const whole = !q || has(s.querySelector("h2"));
+        let any = whole;
+        for (const item of s.querySelectorAll("p, li, tbody tr:not(.grp), dt")) {
+          // a term and its explanation show or hide together
+          const pair = item.tagName === "DT" ? [item, item.nextElementSibling] : [item];
+          const hit = whole || pair.some(has);
+          for (const x of pair) x.classList.toggle("miss", !hit);
+          any = any || hit;
+        }
+        s.hidden = !any;
+      }
+    });
+  }
+  fillHelp();
+}
+
+// fillHelp puts this hub's own name and addresses into the help.
+function fillHelp() {
+  if (!helpLoaded || !last) return;
+  const sy = last.system, r = last.radio, me = nodes().find((n) => n.self);
+  const lan = (sy.interfaces || []).find((i) => i.name !== "bat0" && i.addrs && i.addrs.length);
+  const ip = lan ? lan.addrs[0].split("/")[0] : "";
+  const vals = { name: (me && me.longName) || "this hub", preset: (r && r.preset) || "its preset", host: sy.hostname || "this-hub",
+    url: ip ? `http://${ip}/hub/` : `http://${sy.hostname || "this-hub"}.local/hub/`, local: `http://${sy.hostname || "this-hub"}.local/hub/` };
+  for (const e of document.querySelectorAll("[data-fill]")) if (vals[e.dataset.fill]) e.textContent = vals[e.dataset.fill];
+}
+
+// Keys for the hub's own keyboard: 1 to 7 switch views; / starts a message.
 document.addEventListener("keydown", (ev) => {
   const typing = ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName);
   if (ev.key === "Escape") { if (replyTo) { replyTo = null; showReply(); } else if (typing) document.activeElement.blur(); return; }
   if (typing || ev.ctrlKey || ev.metaKey || ev.altKey || $("detail").open || $("pin").open) return;
   if (ev.key === "/") { ev.preventDefault(); setView("messages"); $("msg").focus(); }
-  const i = ["1", "2", "3", "4", "5", "6"].indexOf(ev.key);
+  const i = ["1", "2", "3", "4", "5", "6", "7"].indexOf(ev.key);
   if (i >= 0) setView(VIEWS[i]);
 });
 document.querySelector(".tabs").addEventListener("keydown", (ev) => {

@@ -23,6 +23,7 @@
   <button role="tab" id="tab-radios" aria-controls="view-radios" data-view="radios">Radios</button>
   <button role="tab" id="tab-traffic" aria-controls="view-traffic" data-view="traffic">Traffic</button>
   <button role="tab" id="tab-settings" aria-controls="view-settings" data-view="settings">Settings</button>
+  <button role="tab" id="tab-help" aria-controls="view-help" data-view="help">Help</button>
   <p id="flash" class="flash" role="status" hidden><span id="flash-text"></span> <button id="flash-open" class="btn small">Open</button></p>
 </nav>
 
@@ -222,8 +223,11 @@
         <button role="radio" data-theme="light">Light</button>
         <button role="radio" data-theme="dark">Dark</button>
       </div>
-      <p class="muted small">Keys on the hub's keyboard: 1 to 6 switch views, / starts a message.</p>
+      <p class="muted small">Keys on the hub's keyboard: 1 to 7 switch views, / starts a message.</p>
     </div>
+  </section>
+  <section class="view help" id="view-help" role="tabpanel" aria-labelledby="tab-help" hidden>
+    <div id="help-body"><p class="empty">Loading the help…</p></div>
   </section>
 </main>
 

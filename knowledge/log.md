@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-21
+* **Update**: The hub panel gained Help, offline and printable (no power, no network, troubleshooting, commands, radio words); [B41](/known-problems.md) no LAN in a power cut; [to do](/todo.md).
 * **Creation**: Test report [MediumFast against LongFast, and the antenna's place](/tests/2026-10-21-presets-and-antenna.md); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained what the community reports (antennas, the cost of splitting a mesh, no automatic preset); [existing projects](/research/existing-projects.md) gained Berlin's MeshCore and Reticulum settings; the [shopping list](/hardware/shopping-list-eu.md) where the antenna goes and cable loss; glossary MediumFast; draft [0027](/decisions/0027-preset-follows-the-local-mesh.md) follows the neighbours, never starts a new preset.
 * **Update**: [Presets in Berlin](/research/meshtastic-presets-berlin.md): the antenna inside heard nothing where near the roof it heard 32 radios in 20 minutes; the margin was about 1.5 dB.
 * **Update**: The hub panel became six views (Home, Messages, Map, Radios, Traffic, Settings): packets and radios open their details, shared positions on a map, the radio's preset, relays, power and name set from the panel. The bench hub is "lorabatnet 🐰🦇" ([0026](/decisions/0026-recognising-batnet-radios.md)); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained Freifunk's repeaters, Berlin Chaos Mesh's settings and Meshtastic's own advice; L17, L18.

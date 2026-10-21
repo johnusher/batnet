@@ -347,3 +347,44 @@ html.screen .stats dd { font-size: 1.05rem; }
 html.screen .legend { font-size: 0.75rem; }
 html.screen .plot .ringlabel { font-size: 15px; }
 html.screen .plot .lbl { font-size: 16px; }
+
+/* help */
+.view.help { max-width: 60rem; }
+.help-tools { display: flex; gap: 0.6rem; }
+.help-tools input { flex: 1; min-width: 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.4rem 0 0.6rem; }
+.toc button { font: inherit; font-weight: 700; color: var(--ink); background: var(--sheet); border: 1.5px solid var(--rule); border-radius: 1rem; padding: 0.2rem 0.75rem; cursor: pointer; }
+.toc button:hover { border-color: var(--ink); }
+.hs { display: flex; flex-direction: column; gap: 0.6rem; padding: 1rem 0 1.2rem; border-top: 1px solid var(--rule); scroll-margin-top: 1rem; }
+.hs h2 { font-size: 1.35rem; }
+.hs h3 { margin-top: 0.4rem; }
+.hs p, .hs li { max-width: 68ch; }
+.hs ul, .hs ol { margin: 0; padding-left: 1.3rem; display: flex; flex-direction: column; gap: 0.35rem; }
+.hs code { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em; background: var(--sheet); border: 1px solid var(--rule); border-radius: 0.25rem; padding: 0 0.3em; overflow-wrap: anywhere; }
+.hs kbd { font: inherit; font-size: 0.85em; font-weight: 700; border: 1.5px solid var(--rule); border-bottom-width: 3px; border-radius: 0.3rem; padding: 0 0.35em; }
+.hs table.plain td, .hs table.cmds td { vertical-align: top; }
+.hs table.cmds td:first-child { width: 40%; }
+.hs table.cmds tr.grp th { text-align: left; padding-top: 0.9rem; font-size: 0.95rem; color: var(--ink); border-bottom: 1px solid var(--ink); }
+.trouble { display: grid; grid-template-columns: minmax(10rem, 0.35fr) 1fr; gap: 0.45rem 1.2rem; }
+.trouble dt { font-weight: 800; }
+.trouble dd { margin: 0; }
+.words { grid-template-columns: minmax(8rem, auto) 1fr; }
+.words dd { font-weight: 400; }
+.miss { display: none !important; }
+@media (max-width: 700px) { .trouble { grid-template-columns: 1fr; } .trouble dd { margin-bottom: 0.4rem; } .hs table.cmds td:first-child { width: auto; } }
+html.screen .view.help { overflow-y: auto; max-width: none; }
+
+/* A paper copy of the help: black on white, everything open. */
+@media print {
+  :root, :root[data-theme="dark"] { --paper: #fff; --sheet: #fff; --ink: #000; --muted: #333; --rule: #999; }
+  body { background: #fff; color: #000; font-size: 10.5pt; height: auto !important; overflow: visible !important; display: block !important; }
+  .top, .tabs, .help-tools, .toc, dialog, .view:not(.help) { display: none !important; }
+  .views, .view.help { display: block !important; padding: 0; max-width: none; overflow: visible !important; }
+  .view.help[hidden] { display: block !important; }
+  .hs { break-inside: auto; padding: 0.6rem 0; }
+  .hs h2 { break-after: avoid; }
+  .hs tr, .trouble dt, .trouble dd { break-inside: avoid; }
+  .hs tr.grp, .trouble dt, .hs h3 { break-after: avoid; }
+  .miss { display: revert !important; }
+  .hs[hidden] { display: flex !important; }
+}

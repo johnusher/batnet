@@ -1,0 +1,173 @@
+<!-- The hub's help: loaded into the Help view, offline. Placeholders
+     (data-fill) are filled from the hub's own status; nothing private is
+     written here. -->
+<div class="help-tools">
+  <label class="sr" for="help-find">Find in the help</label>
+  <input id="help-find" type="search" placeholder="Find: power, clock, antenna, restart…">
+  <button id="help-print" class="btn ghost" type="button">Print a paper copy</button>
+</div>
+<nav class="toc" aria-label="Help topics">
+  <button type="button" data-to="h-start">Start here</button>
+  <button type="button" data-to="h-power">No power</button>
+  <button type="button" data-to="h-net">No network</button>
+  <button type="button" data-to="h-trouble">Something is wrong</button>
+  <button type="button" data-to="h-cmds">Commands</button>
+  <button type="button" data-to="h-words">Radio words</button>
+  <button type="button" data-to="h-manners">Good manners</button>
+</nav>
+
+<section id="h-start" class="hs">
+  <h2>Start here</h2>
+  <p>This box is a <b>hub</b>: a small computer (a Raspberry Pi) with a LoRa radio stick. LoRa radios reach a few kilometres with very little power and need no phone network, no internet and no electricity grid apart from the box's own power. The hub talks to the <b>Meshtastic</b> radios around it: other people's handheld radios and the repeaters on hills and towers that pass messages on.</p>
+  <p>This hub is <b data-fill="name">this hub</b>, on <b data-fill="preset">its preset</b>. Its panel is at <b data-fill="url">http://this-hub/hub/</b> on the home network, and always on its own screen.</p>
+  <dl class="facts">
+    <dt>Home</dt><dd>how many radios were heard, the latest messages, who is out there</dd>
+    <dt>Messages</dt><dd>write to everyone nearby, or to one radio; ✓ means a radio passed it on, ✓✓ that it arrived</dd>
+    <dt>Map</dt><dd>radios that shared where they are (the map itself needs internet)</dd>
+    <dt>Radios</dt><dd>every radio heard, with its signal; click one for more</dd>
+    <dt>Traffic</dt><dd>everything on the air, even what could not be read</dd>
+    <dt>Settings</dt><dd>the radio, the name, the log, the PINs</dd>
+    <dt>Help</dt><dd>this page; it works without internet</dd>
+  </dl>
+  <p>On the hub's own keyboard: keys <kbd>1</kbd> to <kbd>7</kbd> switch views, <kbd>/</kbd> starts a message, <kbd>Esc</kbd> cancels. From another computer the buttons ask for the <b>hub PIN</b>, which is shown on the hub's screen under Settings.</p>
+</section>
+
+<section id="h-power" class="hs">
+  <h2>When the power is out</h2>
+  <p>The hub needs about <b>3 to 4 watts</b>: a Pi 4 uses about 2.7 W doing nothing, the radio stick a little more when it sends. A small screen adds roughly 1 to 3 W (not measured yet). Messages themselves cost almost nothing.</p>
+  <table class="plain">
+    <thead><tr><th scope="col">Power from</th><th scope="col">Lasts about</th><th scope="col">How</th></tr></thead>
+    <tbody>
+      <tr><td>A 10,000 mAh power bank</td><td>8 hours (5 with the screen on)</td><td>USB-C cable into the Pi. A 20,000 mAh bank doubles it. The hub ran a whole bike ride on one.</td></tr>
+      <tr><td>A car's 12 V socket</td><td>as long as the engine runs</td><td>A USB car charger with at least 3 A. With the engine off, a car battery would run the hub for days, but don't flatten the battery you need to start the car.</td></tr>
+      <tr><td>A 12 V leisure battery (100 Ah)</td><td>a week or more</td><td>Through a 12 V to USB converter (3 A).</td></tr>
+      <tr><td>Solar</td><td>depends on the season</td><td>The hub needs about 85 Wh a day. A 20 W panel gives that on a sunny summer day, much less in winter: use it to charge a power bank or battery, not to run the Pi directly.</td></tr>
+    </tbody>
+  </table>
+  <h3>To make it last longer</h3>
+  <ul>
+    <li>Switch the screen off, or unplug it: <code>sudo systemctl stop batnet-screen</code>. The radio and the log keep going. <code>sudo systemctl start batnet-screen</code> brings it back.</li>
+    <li>Keep the hub listening rather than sending: Settings, Say hello: never.</li>
+    <li>Check the power from time to time: <code>vcgencmd get_throttled</code> should say <code>throttled=0x0</code>. Anything else means the power is too weak: use a better power bank or a shorter, thicker cable.</li>
+  </ul>
+  <h3>Switching off and on</h3>
+  <ul>
+    <li>Best: <code>sudo poweroff</code>, wait until the green light stops blinking, then unplug.</li>
+    <li>If you have to, just pull the plug. The hub survives it; the log loses at most the last 30 seconds.</li>
+    <li>Plug in again: everything starts by itself in about 25 seconds. If logging was on, it carries on in a new file.</li>
+  </ul>
+  <h3>The clock after a power cut</h3>
+  <p>The Pi has no clock battery. With no internet it starts from the time it saved a minute before the power went, so it is behind by however long it was off. Set it by hand from a phone's time: <code>sudo date -s "2026-10-21 19:30"</code>. The log also records the seconds since the hub started, so times can be corrected later.</p>
+</section>
+
+<section id="h-net" class="hs">
+  <h2>When there is no network</h2>
+  <p>In a power cut the home router is off too. <b>What still works:</b> the radio, messages by radio, the log, and the hub's own screen and keyboard. <b>What doesn't:</b> the panel from phones and laptops over WiFi, the map's streets, and setting the clock from the internet.</p>
+  <h3>Ways to reach the hub</h3>
+  <ol>
+    <li><b>Its own screen and keyboard.</b> Needs nothing else. If the screen shows a login prompt instead of the panel, press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd>.</li>
+    <li><b>A network cable straight from a laptop</b> into the hub's network socket. Then open <b data-fill="local">http://this-hub.local/hub/</b>. This should work without any router (the two find each other by themselves), but it has not been tried yet.</li>
+    <li><b>The hub's own WiFi</b>, for phones: planned, not on this hub yet. For now its WiFi joins the home WiFi, and that is gone when the router is.</li>
+  </ol>
+  <p>A login on the hub itself: on its keyboard press <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F2</kbd>, log in with the Pi's user name and password, and the commands below work there too. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd> goes back to the panel.</p>
+</section>
+
+<section id="h-trouble" class="hs">
+  <h2>Something is wrong</h2>
+  <dl class="trouble">
+    <dt>"Radio offline"</dt>
+    <dd>Is the radio stick plugged in? (Settings, This Pi, "LoRa stick".) Unplug it, wait 5 seconds, plug it back; the radio restarts by itself. Still offline: <code>sudo systemctl restart meshtasticd</code>.</dd>
+    <dt>No other radios heard</dt>
+    <dd>Most often the antenna: indoors this hub heard nothing for an hour, near the roof 32 radios in 20 minutes. Put the antenna outside or high up, by a window at least. Then the preset: radios only hear others on the same one, and Berlin's mesh uses MediumFast (Settings, Radio). The Traffic view shows whether anything at all arrives, even unreadable.</dd>
+    <dt>Lots of "unreadable" in Traffic</dt>
+    <dd>With a weak signal (near the dashed line) the radio is too far or the antenna too low. With a strong signal, packets collided: the channel is busy, nothing to fix here.</dd>
+    <dt>A message says "Not delivered"</dt>
+    <dd>The other radio is off, out of reach, or doesn't know this hub's key yet (that comes when it hears this hub say hello). Try again later, or write to everyone.</dd>
+    <dt>The screen is black</dt>
+    <dd>Wait a minute after switching on. Plugged in the screen later? <code>sudo systemctl restart batnet-screen</code>. Still nothing: the screen belongs in the HDMI socket next to the power socket (HDMI 0).</dd>
+    <dt>The panel doesn't open on a laptop</dt>
+    <dd>Is the laptop on the same WiFi? Try the address shown on the hub's screen under Settings instead of the name. Without a router, see "When there is no network".</dd>
+    <dt>Forgot the hub PIN</dt>
+    <dd>It is on the hub's own screen under Settings, The house app. Or: <code>sudo cat /var/lib/batnet/hub-pin</code>.</dd>
+    <dt>The time is wrong</dt>
+    <dd>See "The clock after a power cut".</dd>
+    <dt>The card is full</dt>
+    <dd>Settings, This Pi, "Card free". Old logs are in <code>/var/lib/batnet/logs/</code>; download them first (Settings, Log), then delete the oldest.</dd>
+    <dt>It is hot</dt>
+    <dd>Up to about 70 °C is fine; above 80 °C the Pi slows down to protect itself. Give it air and shade.</dd>
+    <dt>Everything is stuck</dt>
+    <dd>The hub restarts its own programs when they hang, and the Pi reboots itself if the whole system hangs. If nothing moves for a few minutes: pull the power, wait 5 seconds, plug it in again.</dd>
+  </dl>
+</section>
+
+<section id="h-cmds" class="hs">
+  <h2>Commands</h2>
+  <p>For a login on the hub (its keyboard, <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F2</kbd>) or from a laptop: <code>ssh <i>user</i>@<span data-fill="host">this-hub</span>.local</code>. <code>sudo</code> runs a command as the administrator; it asks for the password.</p>
+  <table class="cmds">
+    <thead><tr><th scope="col">To</th><th scope="col">Type</th></tr></thead>
+    <tbody>
+      <tr class="grp"><th colspan="2" scope="rowgroup">See how it is doing</th></tr>
+      <tr><td>are the three programs running</td><td><code>systemctl status meshtasticd batnet-hub batnet-screen</code></td></tr>
+      <tr><td>watch the hub's log as it happens (Ctrl+C stops)</td><td><code>journalctl -u batnet-hub -f</code></td></tr>
+      <tr><td>watch the radio's log</td><td><code>journalctl -u meshtasticd -f</code></td></tr>
+      <tr><td>temperature</td><td><code>vcgencmd measure_temp</code></td></tr>
+      <tr><td>is the power good enough (0x0 = yes)</td><td><code>vcgencmd get_throttled</code></td></tr>
+      <tr><td>card space, memory</td><td><code>df -h /</code> and <code>free -h</code></td></tr>
+      <tr><td>network addresses</td><td><code>ip -br a</code></td></tr>
+      <tr><td>is the radio stick there</td><td><code>lsusb | grep 1a86</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">Restart things</th></tr>
+      <tr><td>the hub's program (the panel, the app)</td><td><code>sudo systemctl restart batnet-hub</code></td></tr>
+      <tr><td>the radio</td><td><code>sudo systemctl restart meshtasticd</code></td></tr>
+      <tr><td>the screen</td><td><code>sudo systemctl restart batnet-screen</code></td></tr>
+      <tr><td>the whole Pi</td><td><code>sudo reboot</code></td></tr>
+      <tr><td>switch off safely</td><td><code>sudo poweroff</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">The radio (Meshtastic's own tool; stop the hub first, they cannot both talk to the radio)</th></tr>
+      <tr><td>pause the hub</td><td><code>sudo systemctl stop batnet-hub</code></td></tr>
+      <tr><td>the radio's settings and the radios it knows</td><td><code>meshtastic --host localhost --info</code> and <code>--nodes</code></td></tr>
+      <tr><td>change the preset</td><td><code>meshtastic --host localhost --set lora.modem_preset MEDIUM_FAST</code></td></tr>
+      <tr><td>send a message to everyone</td><td><code>meshtastic --host localhost --sendtext "hello"</code></td></tr>
+      <tr><td>start the hub again</td><td><code>sudo systemctl start batnet-hub</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">Files</th></tr>
+      <tr><td>the hub's settings</td><td><code>/var/lib/batnet/hub.json</code></td></tr>
+      <tr><td>the logs, one file per start</td><td><code>/var/lib/batnet/logs/</code></td></tr>
+      <tr><td>the house app's messages</td><td><code>/var/lib/batnet/house.db</code></td></tr>
+      <tr><td>the PINs</td><td><code>/var/lib/batnet/hub-pin</code>, <code>admin-pin</code></td></tr>
+      <tr><td>the radio's settings</td><td><code>/etc/meshtasticd/</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">The clock</th></tr>
+      <tr><td>what time the Pi thinks it is, and whether it is synced</td><td><code>timedatectl</code></td></tr>
+      <tr><td>set it by hand</td><td><code>sudo date -s "2026-10-21 19:30"</code></td></tr>
+      <tr class="grp"><th colspan="2" scope="rowgroup">The WiFi mesh (when it is on, with the USB WiFi stick)</th></tr>
+      <tr><td>other hubs in reach</td><td><code>sudo batctl n</code></td></tr>
+      <tr><td>the WiFi sticks and what they do</td><td><code>sudo iw dev</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="h-words" class="hs">
+  <h2>Radio words</h2>
+  <dl class="facts words">
+    <dt>LoRa</dt><dd>"long range": a way of sending small messages slowly, a few kilometres, with very little power.</dd>
+    <dt>Meshtastic</dt><dd>the free software most LoRa radios run; every radio passes others' messages on, so they hop further.</dd>
+    <dt>Preset</dt><dd>the speed setting. Radios only hear others on the same one. LongFast reaches furthest but is slow, so a busy city clogs; MediumFast is three times faster and what Berlin uses.</dd>
+    <dt>Relay, hop</dt><dd>a radio that passed a message on. "Heard directly" means no relay in between; most messages here come through a few relays.</dd>
+    <dt>SNR</dt><dd>how far a signal stands above the background noise, in dB. LoRa can read signals below the noise: MediumFast down to about −12.5 dB, LongFast to about −17.5 dB. Higher is better.</dd>
+    <dt>RSSI</dt><dd>how strong the signal is, in dBm; −120 is very faint. SNR says more about whether it can be read.</dd>
+    <dt>Unreadable</dt><dd>heard but damaged: too weak, or two radios sent at once.</dd>
+    <dt>Encrypted</dt><dd>sent on someone else's private channel. Anyone can see that it was sent, only its group can read it.</dd>
+    <dt>Public channel</dt><dd>Meshtastic's open channel: everyone with a radio nearby can read it.</dd>
+    <dt>Airtime, duty cycle</dt><dd>how long a radio is on the air. In this band a radio may send at most 10% of each hour, and the software keeps to it.</dd>
+    <dt>Node ID</dt><dd>a radio's number, like !a1b2c3d4. The short name (up to four letters, or one emoji) is what small screens show.</dd>
+    <dt>Antenna gain, dBi</dt><dd>how much an antenna focuses the signal; a 5 dBi antenna hears and reaches further than a stubby one.</dd>
+  </dl>
+</section>
+
+<section id="h-manners" class="hs">
+  <h2>Good manners on the air</h2>
+  <ul>
+    <li><b>Never switch the radio on without its antenna screwed on.</b> Sending into no antenna can damage it.</li>
+    <li>The public channel is public: don't send anything private there. A message to one radio is private once the two radios know each other's keys, which they learn when they hear each other say hello.</li>
+    <li>Say hello rarely. Every hello asks every radio in range to answer, and in a busy mesh that crowds everyone out.</li>
+    <li>Stay on the preset your neighbours use. A new preset splits the mesh and leaves people out.</li>
+    <li>Positions are shared on purpose by the people who choose to. This hub does not send its own.</li>
+  </ul>
+</section>

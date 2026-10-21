@@ -36,6 +36,7 @@ This page is the list.
 | B37 | A second hub joins the village only by copying `village.key` by hand (until the QR join of plan 5) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
 | B38 | meshtasticd serves one TCP API client at a time: a second client (the Meshtastic command-line tool, a phone app over WiFi, another batnetd) pushes the hub off the radio; the hub reconnects within 5 s and pushes it off in turn. Use the command-line tool briefly, or stop the hub first | pi7 screen 2026-10-21 | `internal/meshtastic` |
 | B39 | With no internet the Pi's clock is wrong after a power cut: it restarts from the time saved before (`batnet-clock.timer`, every minute), behind by the time without power. A hub needs a time source of its own: GPS (spec: GPS time), a phone's time, or a clock HAT | bike ride 2026-10-21 | `deploy/pi`, plan 5 |
+| B41 | In a power cut the home router is off, and the bench hub's built-in WiFi only joins the home WiFi: phones and laptops cannot reach the panel, only the hub's own screen and keyboard can (or, untested, a laptop on a cable straight into the hub at `http://<hub>.local/hub/`). The house hotspot of the milestone 1 spec is not on the bench hub yet | help pages 2026-10-21 | `deploy/pi`, plan 4/5 |
 | B33 | A beacon nudge (decision 0024) needs another gateway's beacon or a partial message: a post whose every frame was lost at a receiver, with no beacon heard since, still waits for the receiver's own quarter-hour beacon | review 2026-10-15 | `internal/lora/bridge.go` |
 
 
