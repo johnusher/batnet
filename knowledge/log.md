@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-21
+* **Creation**: Research note [Meshtastic presets in Berlin](/research/meshtastic-presets-berlin.md) (the city split between LongFast and MediumFast, which share 869.525 MHz in the EU) and draft decision [0027 the preset follows the local mesh](/decisions/0027-preset-follows-the-local-mesh.md); the bench hub listens on MediumFast overnight, hellos hourly (`helloMinutes`).
 * **Update**: [B40](/known-problems.md) resolved: the hub's log records packets heard but too weak to read, from meshtasticd's journal; [to do](/todo.md) gained the second Meshstick as a roving listener.
 * **Update**: [The bike ride](/tests/2026-10-21-bike-ride-log.md) results: 12 hellos, one probable answer at 1.7 km, heard but below the decode limit; [B40](/known-problems.md) the log misses packets that fail their checksum; [to do](/todo.md) updated.
 * **Creation**: The hub's log and its first field use: [the hub on a bike ride](/tests/2026-10-21-bike-ride-log.md) (results to come); [B38](/known-problems.md) meshtasticd serves one TCP client, B39 the clock after a power cut without internet; the [bench hub](/hardware/bench-pi7.md) gained its 800 × 480 screen, the log and the clock timer.

@@ -57,7 +57,9 @@ was in a bag at about hip height.
   higher antenna, or a better position at the stop) would probably have been
   enough.
 * Nothing at all was heard near home or on the way: the neighbourhood is
-  quiet on LongFast, or the antenna in a bag at hip height hears little.
+  quiet on LongFast, or the antenna in a bag at hip height hears little. Much
+  of Berlin is on MediumFast, which a LongFast radio cannot hear at all
+  ([presets in Berlin](/research/meshtastic-presets-berlin.md)).
 * **The log misses packets that fail CRC.** meshtasticd drops them before its
   API, so batnetd never sees them; they were found only in meshtasticd's
   journal ([B40](/known-problems.md)). For field logs those near misses are

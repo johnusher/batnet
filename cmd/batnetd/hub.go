@@ -42,6 +42,9 @@ type hubSettings struct {
 	Mode  string `json:"mode"`
 	House string `json:"house"`
 	Log   bool   `json:"log"` // logging the radio; stays on across restarts
+	// HelloMinutes is the time between the log's hellos: 0 or unset, every 5
+	// minutes; negative, none (listen only).
+	HelloMinutes int `json:"helloMinutes,omitempty"`
 }
 
 // The real mesh: bat0 in 172.27.0.0/16, broadcasts on UDP 4200, repairs on HTTP 4201.
@@ -190,6 +193,12 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		return h.save()
 	})
 	radio.OnEvent(logbook.Event)
+	switch m := h.settings.HelloMinutes; {
+	case m < 0:
+		logbook.SetHelloEvery(0)
+	case m > 0:
+		logbook.SetHelloEvery(time.Duration(m) * time.Minute)
+	}
 	if h.settings.Log {
 		if err := logbook.Start(); err != nil {
 			log.Printf("log: %v", err)

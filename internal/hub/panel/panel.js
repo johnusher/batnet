@@ -159,7 +159,7 @@ function render(s) {
     lb.textContent = lg.on ? "Stop logging" : "Start logging";
     lb.className = "btn" + (lg.on ? " onair-btn" : "");
     $("log-state").textContent = lg.on
-      ? `Logging since ${clock(lg.started)}: ${lg.packets} packet${lg.packets === 1 ? "" : "s"} from ${lg.radios} radio${lg.radios === 1 ? "" : "s"}, ${lg.hellos} hello${lg.hellos === 1 ? "" : "s"} sent${lg.unreadable ? `, ${lg.unreadable} heard too weak to read` : ""}`
+      ? `Logging since ${clock(lg.started)}: ${lg.packets} packet${lg.packets === 1 ? "" : "s"} from ${lg.radios} radio${lg.radios === 1 ? "" : "s"}, ${lg.hellos} hello${lg.hellos === 1 ? "" : "s"} sent (${lg.helloMinutes ? `one every ${lg.helloMinutes} min` : "listening only"})${lg.unreadable ? `, ${lg.unreadable} heard too weak to read` : ""}`
       : "Not logging.";
     $("log-state").className = "state" + (lg.error ? " bad" : "");
     if (lg.error) $("log-state").textContent += ` Error: ${lg.error}`;

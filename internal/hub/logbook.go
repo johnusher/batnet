@@ -16,8 +16,10 @@ import (
 
 const (
 	sampleEvery = 30 * time.Second
-	// HelloEvery is how often a running log says hello: one NodeInfo packet,
-	// about a second of airtime, well inside the 10% duty cycle.
+	// HelloEvery is how often a running log says hello by default: one
+	// NodeInfo packet, about a second of airtime, well inside the 10% duty
+	// cycle. Every radio that hears it answers, so a hub that stays put for
+	// long says hello less often (SetHelloEvery).
 	HelloEvery = meshtastic.HelloGap
 )
 
@@ -30,6 +32,7 @@ type Logbook struct {
 	radio   *meshtastic.Client
 	persist func(on bool) error
 	boot    string
+	every   time.Duration // between hellos; 0 means no hellos
 
 	mu      sync.Mutex
 	f       *os.File
@@ -53,9 +56,11 @@ type LogStatus struct {
 	Hellos  int       `json:"hellos"`
 	Radios  int       `json:"radios"` // other radios heard in this log
 	// Unreadable counts packets the radio heard but could not read (too weak).
-	Unreadable int       `json:"unreadable"`
-	Error      string    `json:"error,omitempty"`
-	Files      []LogFile `json:"files"`
+	Unreadable int `json:"unreadable"`
+	// HelloMinutes is the time between hellos; 0: it only listens.
+	HelloMinutes float64   `json:"helloMinutes"`
+	Error        string    `json:"error,omitempty"`
+	Files        []LogFile `json:"files"`
 }
 
 // LogFile is one saved log.
@@ -67,7 +72,14 @@ type LogFile struct {
 // NewLogbook keeps logs in dir; persist saves whether logging is on.
 func NewLogbook(dir string, radio *meshtastic.Client, persist func(bool) error) *Logbook {
 	b, _ := os.ReadFile("/proc/sys/kernel/random/boot_id")
-	return &Logbook{dir: dir, radio: radio, persist: persist, boot: strings.TrimSpace(string(b)), heard: map[string]bool{}}
+	return &Logbook{dir: dir, radio: radio, persist: persist, boot: strings.TrimSpace(string(b)), every: HelloEvery, heard: map[string]bool{}}
+}
+
+// SetHelloEvery sets the time between hellos; 0 stops them. Call it before Run.
+func (l *Logbook) SetHelloEvery(d time.Duration) {
+	l.mu.Lock()
+	l.every = d
+	l.mu.Unlock()
 }
 
 // Start opens a new log file.
@@ -210,7 +222,10 @@ func (l *Logbook) Run(ctx context.Context, dataDir string) {
 		st := l.radio.Status()
 		l.Note("sample", map[string]any{"tempC": sys.TempC, "memAvailMB": sys.MemAvailMB, "load1": sys.Load1,
 			"radioConnected": st.Connected, "radioReady": st.Ready, "nodes": len(st.Nodes), "packetsIn": st.PacketsIn})
-		if time.Since(lastHello) >= HelloEvery && st.Ready {
+		l.mu.Lock()
+		every := l.every
+		l.mu.Unlock()
+		if every > 0 && time.Since(lastHello) >= every && st.Ready {
 			err := l.radio.SayHello()
 			f := map[string]any{"ok": err == nil}
 			if err != nil {
@@ -241,7 +256,7 @@ func (l *Logbook) Run(ctx context.Context, dataDir string) {
 // Status reports the log and the saved files, newest first.
 func (l *Logbook) Status() LogStatus {
 	l.mu.Lock()
-	st := LogStatus{On: l.f != nil, Lines: l.lines, Packets: l.packets, Hellos: l.hellos, Radios: len(l.heard), Unreadable: l.unread, Error: l.lastErr}
+	st := LogStatus{On: l.f != nil, Lines: l.lines, Packets: l.packets, Hellos: l.hellos, Radios: len(l.heard), Unreadable: l.unread, HelloMinutes: l.every.Minutes(), Error: l.lastErr}
 	if st.On {
 		st.File, st.Started = l.name, l.started
 	}

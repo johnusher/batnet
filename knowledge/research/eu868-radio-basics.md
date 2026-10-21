@@ -47,7 +47,7 @@ sources:
 # The band
 
 * Europe's 863–870 MHz short-range-device band is licence-free, sliced with a power and duty limit per slice.[^srd][^erc7003] Main slices: 865–868 MHz 25 mW ERP 1%; 868.0–868.6 MHz 25 mW 1% (LoRaWAN 868.1/868.3/868.5); 868.7–869.2 MHz 25 mW 0.1%; **869.4–869.65 MHz 500 mW ERP, 10% duty cycle or LBT+AFA**; slivers at 868.6–868.7, 869.2–869.4 and 869.65–869.7 MHz for alarms; 869.7–870 MHz 5 mW voice or 25 mW 1%.[^srd] ERC/REC 70-03 has been amended many times, most recently in 2026; check the current Annex 1 before relying on these.
-* Meshtastic EU_868 = 869.4–869.65 MHz, one LongFast slot centred on 869.525 MHz, 27 dBm ERP, 10% hourly duty cycle on a rolling hour; the radio stops sending at the limit unless "override duty cycle" is set.[^mesh-radio][^mesh-lora] Turbo (500 kHz) presets are not offered in EU_868.[^mesh-radio]
+* Meshtastic EU_868 = 869.4–869.65 MHz, one LongFast slot centred on 869.525 MHz (every 250 kHz preset, MediumFast too, uses that same frequency; they differ in spreading factor and cannot hear each other: [presets in Berlin](/research/meshtastic-presets-berlin.md)), 27 dBm ERP, 10% hourly duty cycle on a rolling hour; the radio stops sending at the limit unless "override duty cycle" is set.[^mesh-radio][^mesh-lora] Turbo (500 kHz) presets are not offered in EU_868.[^mesh-radio]
 * LoRaWAN gateways also use 869.525 MHz for their RX2 downlinks, so Meshtastic shares its slot with them.
 * Wireless M-Bus meters (T-mode) send at 868.95 MHz.
 

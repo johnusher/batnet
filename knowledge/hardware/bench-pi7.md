@@ -57,10 +57,10 @@ hangs for 15 s. The kiosk's browser profile lives in memory and is new on every 
 
 # Radio settings
 
-EU_868, LongFast (869.525 MHz), hop limit 3, 27 dBm configured (the
+EU_868, LongFast (869.525 MHz) until the evening of 2026-10-21, then MediumFast (also 869.525 MHz) to compare, since much of Berlin uses it ([presets in Berlin](/research/meshtastic-presets-berlin.md)); hop limit 3, 27 dBm configured (the
 Meshstick's SX1262 tops out at 22 dBm; the band allows 27 dBm ERP), node name
 "batnet hub 1", short name BH1. Meshtastic's firmware keeps the EU868 duty
-cycle; the panel adds a 5 s gap between sends and one hello every 5 minutes.
+cycle; the panel adds a 5 s gap between sends; the log says hello every 5 minutes, or as `helloMinutes` in `hub.json` says (60 at home overnight; negative: listen only).
 
 # Rebuilding it
 

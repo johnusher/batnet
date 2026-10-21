@@ -28,3 +28,4 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0024 Ask soon for what was lost](0024-ask-soon-for-what-was-lost.md) - a gateway holding part of a message, or hearing a beacon ahead of its own log, beacons within two minutes; farms and festival pass; refines 0022
 * [0025 Hub panel and mesh modes](0025-hub-panel-and-mesh-modes.md) - batnetd -hub serves the app and a control panel on the LAN and on HDMI; the WiFi mesh runs off, mock or real
 * [0026 Recognising batnet radios](0026-recognising-batnet-radios.md) - no extra handshake: the private channel and signed entries mark batnet nodes; nothing extra on the public channel
+* [0027 The preset follows the local mesh](0027-preset-follows-the-local-mesh.md) - the Meshtastic preset is a village setting, measured first; a second radio listens to the other preset (draft)
