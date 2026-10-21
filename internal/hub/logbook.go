@@ -1,0 +1,252 @@
+package hub
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/johnusher/batnet/internal/meshtastic"
+)
+
+const (
+	sampleEvery = 30 * time.Second
+	// HelloEvery is how often a running log says hello: one NodeInfo packet,
+	// about a second of airtime, well inside the 10% duty cycle.
+	HelloEvery = meshtastic.HelloGap
+)
+
+// Logbook writes everything the radio hears to a JSON-lines file, one per
+// run, for trips such as a bike ride: every packet with its signal, a sample
+// of the radio and the Pi every 30 s, and a hello every 5 minutes. Once on, it
+// stays on across restarts until stopped.
+type Logbook struct {
+	dir     string
+	radio   *meshtastic.Client
+	persist func(on bool) error
+	boot    string
+
+	mu      sync.Mutex
+	f       *os.File
+	name    string
+	started time.Time
+	lines   int
+	packets int
+	hellos  int
+	heard   map[string]bool
+	lastErr string
+}
+
+// LogStatus is what the panel shows.
+type LogStatus struct {
+	On      bool      `json:"on"`
+	File    string    `json:"file,omitempty"`
+	Started time.Time `json:"started,omitempty"`
+	Lines   int       `json:"lines"`
+	Packets int       `json:"packets"`
+	Hellos  int       `json:"hellos"`
+	Radios  int       `json:"radios"` // other radios heard in this log
+	Error   string    `json:"error,omitempty"`
+	Files   []LogFile `json:"files"`
+}
+
+// LogFile is one saved log.
+type LogFile struct {
+	Name string `json:"name"`
+	Size int64  `json:"size"`
+}
+
+// NewLogbook keeps logs in dir; persist saves whether logging is on.
+func NewLogbook(dir string, radio *meshtastic.Client, persist func(bool) error) *Logbook {
+	b, _ := os.ReadFile("/proc/sys/kernel/random/boot_id")
+	return &Logbook{dir: dir, radio: radio, persist: persist, boot: strings.TrimSpace(string(b)), heard: map[string]bool{}}
+}
+
+// Start opens a new log file.
+func (l *Logbook) Start() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f != nil {
+		return nil
+	}
+	if err := os.MkdirAll(l.dir, 0o750); err != nil {
+		return err
+	}
+	now := time.Now()
+	name := "log-" + now.Format("20060102-150405") + ".jsonl"
+	f, err := os.OpenFile(filepath.Join(l.dir, name), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o640)
+	if err != nil {
+		return err
+	}
+	l.f, l.name, l.started, l.lines, l.packets, l.hellos, l.heard, l.lastErr = f, name, now, 0, 0, 0, map[string]bool{}, ""
+	l.writeLocked(map[string]any{"kind": "start", "boot": l.boot,
+		"note": "times are the Pi's clock: without internet or GPS it may be off by the time the Pi was unplugged; 'up' (seconds since boot) is exact"})
+	if l.persist != nil {
+		return l.persist(true)
+	}
+	return nil
+}
+
+// Stop closes the log.
+func (l *Logbook) Stop() error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f == nil {
+		return nil
+	}
+	l.writeLocked(map[string]any{"kind": "stop", "lines": l.lines, "packets": l.packets, "radios": len(l.heard)})
+	l.f.Sync()
+	l.f.Close()
+	l.f = nil
+	if l.persist != nil {
+		return l.persist(false)
+	}
+	return nil
+}
+
+// Event logs one radio event, if logging is on.
+func (l *Logbook) Event(e meshtastic.Event) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f == nil {
+		return
+	}
+	if e.Kind == "packet" {
+		l.packets++
+		l.heard[e.From] = true
+	}
+	b, _ := json.Marshal(e)
+	var m map[string]any
+	json.Unmarshal(b, &m)
+	delete(m, "t")
+	l.writeLocked(m)
+}
+
+// Note logs a line of its own kind.
+func (l *Logbook) Note(kind string, fields map[string]any) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f == nil {
+		return
+	}
+	m := map[string]any{"kind": kind}
+	for k, v := range fields {
+		m[k] = v
+	}
+	l.writeLocked(m)
+}
+
+func uptime() float64 {
+	b, err := os.ReadFile("/proc/uptime")
+	if err != nil {
+		return 0
+	}
+	var up float64
+	fmt.Sscan(string(b), &up)
+	return up
+}
+
+func (l *Logbook) writeLocked(m map[string]any) {
+	m["t"] = time.Now().Format(time.RFC3339Nano)
+	m["up"] = uptime()
+	b, err := json.Marshal(m)
+	if err != nil {
+		return
+	}
+	if _, err := l.f.Write(append(b, '\n')); err != nil {
+		l.lastErr = err.Error()
+		return
+	}
+	l.lines++
+}
+
+// Run samples and says hello while logging is on, until ctx ends.
+func (l *Logbook) Run(ctx context.Context, dataDir string) {
+	sample := time.NewTicker(sampleEvery)
+	defer sample.Stop()
+	var lastHello time.Time
+	for {
+		select {
+		case <-ctx.Done():
+			l.mu.Lock()
+			if l.f != nil {
+				l.writeLocked(map[string]any{"kind": "shutdown"})
+				l.f.Sync()
+				l.f.Close()
+				l.f = nil // still on in hub.json: the next start opens a new file
+			}
+			l.mu.Unlock()
+			return
+		case <-sample.C:
+		}
+		if !l.Status().On {
+			continue
+		}
+		sys := readSystem(dataDir)
+		st := l.radio.Status()
+		l.Note("sample", map[string]any{"tempC": sys.TempC, "memAvailMB": sys.MemAvailMB, "load1": sys.Load1,
+			"radioConnected": st.Connected, "radioReady": st.Ready, "nodes": len(st.Nodes), "packetsIn": st.PacketsIn})
+		if time.Since(lastHello) >= HelloEvery && st.Ready {
+			err := l.radio.SayHello()
+			f := map[string]any{"ok": err == nil}
+			if err != nil {
+				f["error"] = err.Error()
+			} else {
+				lastHello = time.Now()
+				l.mu.Lock()
+				l.hellos++
+				l.mu.Unlock()
+			}
+			var heard []map[string]any
+			for _, n := range st.Nodes {
+				if !n.Self {
+					heard = append(heard, map[string]any{"id": n.ID, "name": n.LongName, "snr": n.SNR, "rssi": n.RSSI, "hops": n.Hops, "lastHeard": n.LastHeard})
+				}
+			}
+			f["nodes"] = heard
+			l.Note("hello", f)
+		}
+		l.mu.Lock()
+		if l.f != nil {
+			l.f.Sync() // a bike ride ends by pulling the power
+		}
+		l.mu.Unlock()
+	}
+}
+
+// Status reports the log and the saved files, newest first.
+func (l *Logbook) Status() LogStatus {
+	l.mu.Lock()
+	st := LogStatus{On: l.f != nil, Lines: l.lines, Packets: l.packets, Hellos: l.hellos, Radios: len(l.heard), Error: l.lastErr}
+	if st.On {
+		st.File, st.Started = l.name, l.started
+	}
+	l.mu.Unlock()
+	ents, _ := os.ReadDir(l.dir)
+	for _, e := range ents {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".jsonl") {
+			if info, err := e.Info(); err == nil {
+				st.Files = append(st.Files, LogFile{Name: e.Name(), Size: info.Size()})
+			}
+		}
+	}
+	sort.Slice(st.Files, func(i, j int) bool { return st.Files[i].Name > st.Files[j].Name })
+	return st
+}
+
+// Path returns a saved log's path, or "" if name is not one.
+func (l *Logbook) Path(name string) string {
+	if name != filepath.Base(name) || !strings.HasPrefix(name, "log-") || !strings.HasSuffix(name, ".jsonl") {
+		return ""
+	}
+	p := filepath.Join(l.dir, name)
+	if _, err := os.Stat(p); err != nil {
+		return ""
+	}
+	return p
+}

@@ -152,6 +152,23 @@ function render(s) {
   st.className = "state" + (m.ok ? "" : " bad");
   $("peers").replaceChildren(...(m.peers || []).map((p) => el("li", {}, p.name, p.detail ? el("span", { class: "sub", text: `, ${p.detail}` }) : null)));
 
+  const lg = s.log;
+  const lb = $("logbtn");
+  lb.disabled = !lg;
+  if (lg) {
+    lb.textContent = lg.on ? "Stop logging" : "Start logging";
+    lb.className = "btn" + (lg.on ? " onair-btn" : "");
+    $("log-state").textContent = lg.on
+      ? `Logging since ${clock(lg.started)}: ${lg.packets} packet${lg.packets === 1 ? "" : "s"} from ${lg.radios} radio${lg.radios === 1 ? "" : "s"}, ${lg.hellos} hello${lg.hellos === 1 ? "" : "s"} sent`
+      : "Not logging.";
+    $("log-state").className = "state" + (lg.error ? " bad" : "");
+    if (lg.error) $("log-state").textContent += ` Error: ${lg.error}`;
+    const q = s.local ? "" : `?pin=${encodeURIComponent(pin)}`;
+    $("logfiles").replaceChildren(...(lg.files || []).slice(0, 5).map((f) => el("li", {},
+      el("a", { href: `logs/${f.name}${q}`, download: f.name, text: f.name.replace(/^log-|\.jsonl$/g, "") }),
+      el("span", { class: "sub", text: `, ${(f.size / 1024).toFixed(0)} KB` }))));
+  }
+
   const sy = s.system;
   const facts = [["Temperature", sy.tempC ? `${sy.tempC.toFixed(0)} °C` : "?"],
     ["Memory free", sy.memTotalMB ? `${sy.memAvailMB} of ${sy.memTotalMB} MB` : "?"],
@@ -233,6 +250,14 @@ $("hello").addEventListener("click", async () => {
     p.classList.remove("go"); void p.getBBox(); p.classList.add("go");
     note("Hello sent. Radios in range answer over the next minute or so.");
   } catch (e) { note(e.message, true); }
+});
+
+$("logbtn").addEventListener("click", async () => {
+  const on = !(last && last.log && last.log.on);
+  try {
+    await act("log", { on: String(on) });
+    poll();
+  } catch (e) { $("log-state").textContent = e.message; }
 });
 
 for (const b of document.querySelectorAll(".modes button")) {

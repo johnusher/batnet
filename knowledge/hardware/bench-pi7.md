@@ -75,6 +75,8 @@ services. The region and node name are set once with
 `meshtastic --host localhost --set lora.region EU_868` and `--set-owner`.
 `deploy.sh <ssh-host> --binary` only replaces batnetd.
 
+**The log** (panel: Start logging): every packet heard, a sample every 30 s and a hello every 5 minutes, as JSON lines in `/var/lib/batnet/logs/`; it stays on through power cuts until stopped. Each line has the Pi's time `t` and `up`, seconds since boot. With no internet the Pi's clock starts from the time saved by `batnet-clock.timer` (every minute), so it lags by the time without power; `up` plus the moment of power-on (a phone GPS track started then) gives exact times. First used for a bike ride on 2026-10-21.
+
 Data lives in `/var/lib/batnet/`: `house.db` (the log), `node.key`,
 `village.key` (copy it to another Pi to put both in one village, until the QR
 join of plan 5), `hub-pin`, `admin-pin` and `hub.json` (the mesh mode and the

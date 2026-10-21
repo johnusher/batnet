@@ -76,6 +76,29 @@ type Channel struct {
 	Role  string `json:"role"`
 }
 
+// Event is one thing that happened on the radio, for a log: every packet
+// received (decoded or not), and the connection coming and going.
+type Event struct {
+	At       time.Time `json:"t"`
+	Kind     string    `json:"kind"` // packet, connected, disconnected
+	From     string    `json:"from,omitempty"`
+	FromName string    `json:"fromName,omitempty"`
+	To       string    `json:"to,omitempty"`
+	Channel  uint32    `json:"channel"`
+	ID       uint32    `json:"id,omitempty"`
+	Port     string    `json:"port,omitempty"` // empty: encrypted for a channel we cannot read
+	SNR      float32   `json:"snr"`
+	RSSI     int32     `json:"rssi,omitempty"`
+	Hops     int       `json:"hops"`
+	HopStart uint32    `json:"hopStart,omitempty"`
+	Text     string    `json:"text,omitempty"`
+	Lat      *float64  `json:"lat,omitempty"` // a position the sender shared
+	Lon      *float64  `json:"lon,omitempty"`
+	Alt      *int32    `json:"alt,omitempty"`
+	Bytes    int       `json:"bytes"`
+	Error    string    `json:"error,omitempty"`
+}
+
 // Status is a copy of everything the client knows.
 type Status struct {
 	Addr       string    `json:"addr"`
@@ -111,6 +134,24 @@ type Client struct {
 	lastSend  time.Time
 	lastHello time.Time
 	listeners map[chan struct{}]bool
+	onEvent   func(Event)
+}
+
+// OnEvent sets a function called for every Event (from the client's own
+// goroutine; it must not block for long). Set it before Run.
+func (c *Client) OnEvent(f func(Event)) {
+	c.mu.Lock()
+	c.onEvent = f
+	c.mu.Unlock()
+}
+
+func (c *Client) emit(e Event) {
+	c.mu.Lock()
+	f := c.onEvent
+	c.mu.Unlock()
+	if f != nil {
+		f(e)
+	}
 }
 
 // New returns a client for meshtasticd at addr (host:port, usually 127.0.0.1:4403).
@@ -145,6 +186,11 @@ func (c *Client) changed() { // caller holds mu
 func (c *Client) Run(ctx context.Context) {
 	for ctx.Err() == nil {
 		err := c.session(ctx)
+		ev := Event{At: c.now(), Kind: "disconnected"}
+		if err != nil {
+			ev.Error = err.Error()
+		}
+		c.emit(ev)
 		c.mu.Lock()
 		c.conn = nil
 		c.st.Connected, c.st.Ready = false, false
@@ -174,6 +220,7 @@ func (c *Client) session(ctx context.Context) error {
 	c.st.Connected, c.st.Since, c.st.LastError = true, c.now(), ""
 	c.changed()
 	c.mu.Unlock()
+	c.emit(Event{At: c.now(), Kind: "connected"})
 
 	var want enc
 	want.varint(trWantConfigID, uint64(rand.Uint32()))
@@ -295,6 +342,10 @@ func (c *Client) handle(b []byte) {
 		case frPacket:
 			if p, err := parsePacket(f.b); err == nil {
 				c.packet(p)
+				ev := c.event(p, len(f.b))
+				c.mu.Unlock()
+				c.emit(ev)
+				c.mu.Lock()
 			}
 		}
 	}
@@ -456,6 +507,51 @@ func (c *Client) packet(p packet) {
 	case PortPrivate:
 		n.Batnet = true
 	}
+}
+
+var portNames = map[uint32]string{PortText: "text", PortPosition: "position", PortNodeInfo: "nodeinfo", PortRouting: "routing",
+	PortTelemetry: "telemetry", PortPrivate: "batnet", 6: "admin", 7: "text-compressed", 32: "reply", 33: "ip-tunnel",
+	34: "paxcounter", 64: "serial", 65: "store-forward", 66: "range-test", 70: "traceroute", 71: "neighborinfo", 73: "map-report"}
+
+// event describes a received packet for the log. Caller holds mu.
+func (c *Client) event(p packet, n int) Event {
+	e := Event{At: c.now(), Kind: "packet", From: fmt.Sprintf("!%08x", p.from), To: fmt.Sprintf("!%08x", p.to), Channel: p.channel,
+		ID: p.id, SNR: p.snr, RSSI: p.rssi, Hops: p.hops(), HopStart: p.hopStart, Bytes: n}
+	if p.to == Broadcast {
+		e.To = "everyone"
+	}
+	if nd := c.nodes[p.from]; nd != nil {
+		e.FromName = nd.LongName
+	}
+	if !p.decoded {
+		return e
+	}
+	e.Port = portNames[p.port]
+	if e.Port == "" {
+		e.Port = fmt.Sprintf("port %d", p.port)
+	}
+	switch p.port {
+	case PortText:
+		if utf8.Valid(p.payload) {
+			e.Text = string(p.payload)
+		}
+	case PortPosition:
+		fs, _ := fields(p.payload)
+		for _, f := range fs {
+			switch f.num {
+			case 1:
+				v := float64(int32(f.v)) / 1e7
+				e.Lat = &v
+			case 2:
+				v := float64(int32(f.v)) / 1e7
+				e.Lon = &v
+			case 3:
+				v := f.i32()
+				e.Alt = &v
+			}
+		}
+	}
+	return e
 }
 
 func (c *Client) addText(t Text) {

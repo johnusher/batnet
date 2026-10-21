@@ -63,6 +63,7 @@ type Config struct {
 	// are shown on the screen only.
 	HubPIN, AdminPIN string
 	AppURL           string
+	Log              *Logbook // nil: no logging
 }
 
 // Server serves the panel.
@@ -92,6 +93,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /hub/api/send", s.action(s.send))
 	mux.HandleFunc("POST /hub/api/hello", s.action(s.hello))
 	mux.HandleFunc("POST /hub/api/mode", s.action(s.mode))
+	mux.HandleFunc("POST /hub/api/log", s.action(s.logOnOff))
+	mux.HandleFunc("GET /hub/logs/{name}", s.download)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
@@ -119,6 +122,7 @@ type statusOut struct {
 	System System             `json:"system"`
 	Radio  *meshtastic.Status `json:"radio"`
 	Mesh   MeshStatus         `json:"mesh"`
+	Log    *LogStatus         `json:"log,omitempty"`
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {
@@ -135,6 +139,10 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 	}
 	if s.cfg.Mesh != nil {
 		out.Mesh = s.cfg.Mesh()
+	}
+	if s.cfg.Log != nil {
+		ls := s.cfg.Log.Status()
+		out.Log = &ls
 	}
 	writeJSON(w, http.StatusOK, out)
 }
@@ -244,4 +252,41 @@ func (s *Server) mode(b map[string]string) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"ok": true, "restarting": true}, nil
+}
+
+func (s *Server) logOnOff(b map[string]string) (any, error) {
+	if s.cfg.Log == nil {
+		return nil, errors.New("This hub has no log.")
+	}
+	var err error
+	if b["on"] == "true" {
+		err = s.cfg.Log.Start()
+	} else {
+		err = s.cfg.Log.Stop()
+	}
+	if err != nil {
+		return nil, err
+	}
+	return s.cfg.Log.Status(), nil
+}
+
+// download serves a saved log; from the LAN it needs the hub PIN (?pin=).
+func (s *Server) download(w http.ResponseWriter, r *http.Request) {
+	if !local(r) {
+		if err := s.checkPIN(r.URL.Query().Get("pin")); err != nil {
+			http.Error(w, err.msg, err.code)
+			return
+		}
+	}
+	p := ""
+	if s.cfg.Log != nil {
+		p = s.cfg.Log.Path(r.PathValue("name"))
+	}
+	if p == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+r.PathValue("name")+`"`)
+	http.ServeFile(w, r, p)
 }

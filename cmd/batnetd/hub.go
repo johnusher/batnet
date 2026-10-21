@@ -41,6 +41,7 @@ import (
 type hubSettings struct {
 	Mode  string `json:"mode"`
 	House string `json:"house"`
+	Log   bool   `json:"log"` // logging the radio; stays on across restarts
 }
 
 // The real mesh: bat0 in 172.27.0.0/16, broadcasts on UDP 4200, repairs on HTTP 4201.
@@ -182,10 +183,23 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 
 	radio := meshtastic.New(radioAddr)
+	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.settings.Log = on
+		return h.save()
+	})
+	radio.OnEvent(logbook.Event)
+	if h.settings.Log {
+		if err := logbook.Start(); err != nil {
+			log.Printf("log: %v", err)
+		}
+	}
+	go logbook.Run(ctx, data)
 	go radio.Run(ctx)
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
-		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN})
+		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())

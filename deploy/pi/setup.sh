@@ -64,8 +64,9 @@ id batnet >/dev/null 2>&1 || useradd --system --home-dir /var/lib/batnet --shell
 id batnet-screen >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/batnet-screen \
   --shell /usr/sbin/nologin --groups video,render,input,audio batnet-screen
 if [ -f batnetd ]; then install -m755 batnetd /usr/local/bin/batnetd; fi
-install -m644 systemd/batnet-hub.service systemd/batnet-screen.service /etc/systemd/system/
+install -m644 systemd/batnet-hub.service systemd/batnet-screen.service systemd/batnet-clock.service systemd/batnet-clock.timer /etc/systemd/system/
 systemctl daemon-reload
+systemctl enable --now batnet-clock.timer >/dev/null
 systemctl enable meshtasticd.service >/dev/null
 systemctl restart meshtasticd.service
 if [ -x /usr/local/bin/batnetd ]; then

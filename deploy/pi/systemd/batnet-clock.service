@@ -1,0 +1,10 @@
+# The Pi has no clock battery. At boot, systemd-timesyncd sets the clock to
+# this file's time; touching it every minute means that after a power cut
+# with no internet (a bike ride) the clock restarts at most a minute plus the
+# time without power behind.
+[Unit]
+Description=batnet: save the time for the next boot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/touch /var/lib/systemd/timesync/clock

@@ -50,6 +50,13 @@
   </section>
 
   <section class="side">
+    <div class="block" aria-labelledby="log-h">
+      <div class="head"><h2 id="log-h">Log</h2><button id="logbtn" class="btn" disabled>Start logging</button></div>
+      <p class="muted">Records every packet the radio hears and says hello every 5 minutes. It keeps going after a restart or a power cut until you stop it: take the hub along on a trip.</p>
+      <p id="log-state" class="state"></p>
+      <ul id="logfiles" class="peers"></ul>
+    </div>
+
     <div class="block" aria-labelledby="mesh-h">
       <h2 id="mesh-h">WiFi mesh</h2>
       <div class="modes" role="radiogroup" aria-label="Mesh mode">
