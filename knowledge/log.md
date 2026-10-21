@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-21
+* **Update**: [The bike ride](/tests/2026-10-21-bike-ride-log.md) results: 12 hellos, one probable answer at 1.7 km, heard but below the decode limit; [B40](/known-problems.md) the log misses packets that fail their checksum; [to do](/todo.md) updated.
 * **Creation**: The hub's log and its first field use: [the hub on a bike ride](/tests/2026-10-21-bike-ride-log.md) (results to come); [B38](/known-problems.md) meshtasticd serves one TCP client, B39 the clock after a power cut without internet; the [bench hub](/hardware/bench-pi7.md) gained its 800 × 480 screen, the log and the clock timer.
 * **Creation**: The first real hub. [pi7](/hardware/bench-pi7.md) (a Pi 4 with an Elecrow Meshstick) runs meshtasticd, `batnetd -hub` and the HDMI kiosk, starts by itself and has watchdogs; [bring-up test](/tests/2026-10-21-pi7-hub-bring-up.md); draft decisions [0025 hub panel and mesh modes](/decisions/0025-hub-panel-and-mesh-modes.md) and [0026 no extra handshake for batnet radios](/decisions/0026-recognising-batnet-radios.md); [known problems](/known-problems.md) B34-B37, L14, L15; [to do](/todo.md) updated.
 

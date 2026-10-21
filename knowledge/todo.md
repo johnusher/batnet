@@ -30,7 +30,8 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [ ] Power: the USB WiFi stick; a pocket node on a power bank
 - [ ] Moonshine on Pi 4, Pi 5, Zero 2 W; raw vs denoised audio
 
-- [ ] Read the bike-ride log against the GPS track ([test](/tests/2026-10-21-bike-ride-log.md)): radios heard, signal against distance, hello answers, power
+- [x] Read the bike-ride log against the GPS track ([test](/tests/2026-10-21-bike-ride-log.md)): one probable answer to a hello at 1.7 km, too weak to read
+- [ ] The hub's log picks up packets meshtasticd heard but could not read (B40)
 
 # Known problems to fix first
 
