@@ -34,6 +34,7 @@ No Linear for batnet yet: this page is the list.
 | B35 | meshtasticd listens on the whole LAN: its TCP API (4403) and web client (9443) let anyone on the network change the radio, with no password. Bench only; a house node should firewall both to localhost | pi7 bring-up 2026-10-21 | `deploy/pi` |
 | B36 | Two batnet nodes could pick the same mesh address (172.27.a.b from the first two bytes of the node key: a 1 in 65 000 chance per pair) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
 | B37 | A second hub joins the village only by copying `village.key` by hand (until the QR join of plan 5) | pi7 bring-up 2026-10-21 | `cmd/batnetd/hub.go` |
+| B38 | meshtasticd serves one TCP API client at a time: a second client (the Meshtastic command-line tool, a phone app over WiFi, another batnetd) pushes the hub off the radio; the hub reconnects within 5 s and pushes it off in turn. Use the command-line tool briefly, or stop the hub first | pi7 screen 2026-10-21 | `internal/meshtastic` |
 | B33 | A beacon nudge (decision 0024) needs another gateway's beacon or a partial message: a post whose every frame was lost at a receiver, with no beacon heard since, still waits for the receiver's own quarter-hour beacon | review 2026-10-15 | `internal/lora/bridge.go` |
 
 
@@ -75,7 +76,7 @@ No Linear for batnet yet: this page is the list.
 * Moonshine speed on Pi 4, Pi 5, Zero 2 W; raw vs denoised audio ([0014](/decisions/0014-speech-pipeline.md)).
 * Captive-portal pop-up on each phone; desktop notifications past the warning; Android background tab; iOS Wake Lock.
 * Two Meshsticks with meshtasticd: range, airtime, priority queue (the first hub runs: [bring-up](/tests/2026-10-21-pi7-hub-bring-up.md)).
-* The hub's real HDMI screen and keyboard; a monitor plugged in after boot.
+* The keyboard on the hub's screen (the 800 × 480 display works).
 * Real mesh mode with a USB WiFi stick and a second Pi (IBSS, batman-adv, sync over bat0).
 
 # Resolved

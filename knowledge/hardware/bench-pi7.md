@@ -23,7 +23,7 @@ address, login, MACs and radio node ID are private and stay out of this repo
 | OS | Raspberry Pi OS (Debian 13 trixie, arm64, the desktop image), kernel 6.18 |
 | LoRa | Elecrow **Meshstick**: USB, a CH341 USB-to-SPI bridge (USB ID `1a86:5512`) driving an SX1262; EU868; its own antenna |
 | WiFi | built-in (brcmfmac) on the home network for now; a USB WiFi stick for batman-adv still to be plugged in (it becomes `wlan1`) |
-| Screen | HDMI (either port) and a USB keyboard; none plugged in at set-up |
+| Screen | a small HDMI display, 800 × 480 (its EDID also offers 1080p, but 800 × 480 is native), on HDMI 0, and a USB keyboard. The panel's screen layout fits it without scrolling |
 
 # Is a 2 GB Pi 4 enough for a hub?
 
@@ -53,7 +53,7 @@ Ready about 25 s after power on. Every service restarts by itself after a crash
 (`Restart=always`, no start limit). batnetd tells systemd it is alive every
 10 s, but only while its own panel answers; 30 s of silence and systemd
 restarts it. The Pi's hardware watchdog reboots the board if systemd itself
-hangs for 15 s. All of this was tried on 2026-10-21 (see the [test](/tests/2026-10-21-pi7-hub-bring-up.md)).
+hangs for 15 s. The kiosk's browser profile lives in memory and is new on every start (a profile left from before a hostname change once stopped Chromium). All of this was tried on 2026-10-21 (see the [test](/tests/2026-10-21-pi7-hub-bring-up.md)).
 
 # Radio settings
 

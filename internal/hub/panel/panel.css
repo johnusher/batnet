@@ -21,7 +21,8 @@
 
 * { box-sizing: border-box; }
 html { font-size: 15px; }
-html.screen { font-size: 18px; }
+/* The HDMI screen: one page that fits, from a 800x480 kiosk display to 1080p. */
+html.screen { font-size: clamp(12px, 2.2vh, 18px); }
 body {
   margin: 0; background: var(--paper); color: var(--ink);
   font-family: "Nunito Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -153,3 +154,28 @@ dialog::backdrop { background: rgb(18 26 25 / 0.5); }
   .texts .body { grid-column: 1 / -1; }
   .send { flex-direction: column; }
 }
+
+/* The screen fits without scrolling: rows share the height, long lists scroll inside. */
+html.screen body { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+html.screen .top { padding: 0.45rem 1rem; }
+html.screen .grid { flex: 1; min-height: 0; padding: 0 1rem 0.5rem; grid-template-rows: minmax(0, 1.1fr) minmax(0, 1fr); }
+html.screen .grid > section { padding-top: 0.6rem; padding-bottom: 0.6rem; min-height: 0; overflow: hidden; gap: 0.4rem; }
+html.screen .muted:not(#mode-help) { display: none; }
+html.screen #plot { flex: 1; min-height: 0; width: auto; max-width: 100%; }
+html.screen .nodes table { display: block; overflow-y: auto; min-height: 0; }
+html.screen .texts { flex: 1; min-height: 0; max-height: none; }
+html.screen .side { overflow-y: auto !important; gap: 0.8rem !important; }
+@media (max-width: 1100px) {
+  html.screen .grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr) minmax(0, 1fr); grid-template-areas: "air nodes side" "chat chat side"; }
+  html.screen .side { display: flex !important; border-top: 0; border-left: 1px solid var(--rule); padding-left: 0.8rem !important; }
+  html.screen .nodes { padding-left: 0.8rem !important; }
+  html.screen .grid > section { padding-right: 0.8rem; }
+  html.screen .texts li { grid-template-columns: 3.4rem 6rem 1fr; gap: 0.5rem; }
+  html.screen .legend { font-size: 0.75rem; }
+  html.screen .clock { font-size: 1.2rem; }
+  html.screen h1 { font-size: 1.25rem; }
+  html.screen .onair { font-size: 0.9rem; }
+}
+
+html.screen #plot .ringlabel { font-size: 15px; }
+html.screen #plot .lbl { font-size: 16px; }

@@ -32,6 +32,8 @@ monitor attached. The second Meshstick is not in use yet. Set up with
 | Memory with everything running | 1.3-1.5 GB free of 1.8 GB; Chromium ~350 MB, batnetd ~35 MB |
 | Kiosk rendering (cage + Chromium on a virtual display) | panel renders in Nunito Sans; the HDMI ports read "disconnected", so the real screen is not yet seen |
 
+Later the same day, with an 800 × 480 HDMI display plugged in: cage drove it at its native mode at once (no reboot). Chromium first showed only "profile in use by another computer": the hostname had just been changed, and the old profile's lock named the old one; the kiosk now starts with a fresh profile in memory. The panel gained a screen layout that fits 800 × 480 to 1080p without scrolling. A second client on meshtasticd's TCP API pushes the first off ([B38](/known-problems.md)).
+
 # What it settles
 
 * A 2 GB Pi 4 is enough for a milestone 1 hub, kiosk included.
@@ -43,8 +45,7 @@ monitor attached. The second Meshstick is not in use yet. Set up with
 
 # Not tested yet
 
-* The real HDMI screen and keyboard; whether cage picks up a monitor plugged in
-  after boot.
+* The keyboard on the real screen.
 * Real mode with a USB WiFi stick: IBSS, batman-adv, bat0, sync with a second
   Pi ([B34](/known-problems.md)).
 * Any transmission heard by another radio: needs the second Meshstick.

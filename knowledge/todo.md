@@ -25,7 +25,7 @@ for batnet yet.
 # Bench tests (need hardware)
 
 - [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups (one hub is up: set up the second Pi with `deploy/pi/deploy.sh`, copy `village.key`)
-- [ ] The hub's HDMI screen and keyboard; real mesh mode with the USB WiFi stick
+- [ ] The keyboard on the hub's screen (the 800 × 480 display works, 2026-10-21); real mesh mode with the USB WiFi stick
 - [ ] Microphone and WebRTC after the certificate warning on a real iPhone and Android (decision 0004 depends on it)
 - [ ] Captive-portal pop-up on each phone type; desktop notifications past the warning; Android background tab; iOS Wake Lock
 - [ ] Power: the USB WiFi stick; a pocket node on a power bank
