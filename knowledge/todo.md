@@ -56,6 +56,8 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 # Features to consider (from the 2026-10-15 review)
 
+More, not yet picked or ordered, in [ideas](ideas.md) (2026-10-22 review: app, panel, settings, village, radio, power, offline AI hooks).
+
 - [ ] Unread counts and the last-read mark kept on the phone (IndexedDB), so they survive a reload; `msg.read` entries per house later (spec §4)
 - [ ] "Delivered to N of M houses" under a bubble, from the heartbeats' vectors (spec §8: "✓ 3/7 houses")
 - [ ] The People tab's reach chips: "Call + text", "Text via LoRa", "Out of reach", from WiFi groups and the LoRa gate (spec §8)
@@ -73,6 +75,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 # Done
 
+- 2026-10-22: review of the whole repository (security, bugs, features): 30-odd fixes ([known problems](known-problems.md), Resolved), B50-B64 and L25 recorded, fuzz tests for every byte parser, [ideas](ideas.md) written
 - 2026-10-21: the hub's log (every packet, samples, hellos every 5 min; on across power cuts) and the first field log, on a bike ride
 - 2026-10-21: the first real hub on the bench ([pi7](/hardware/bench-pi7.md)): meshtasticd on a Meshstick, `batnetd -hub` with the control panel and mesh modes, the HDMI kiosk, autostart and watchdogs ([test](/tests/2026-10-21-pi7-hub-bring-up.md))
 

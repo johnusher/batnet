@@ -38,6 +38,10 @@ used "generally at the hub's own keyboard".
 # Consequences
 
 * A bug in batnetd can, at worst, change WiFi, reboot, switch off or set the
-  clock: no files, no shell.
+  clock: no files, no shell. NetworkManager's permissions are coarse, though:
+  `settings.modify.system` and `network-control` also let batnetd read every
+  saved WiFi password, add or change any connection (wired, DNS) and take the
+  wired port down (review, 2026-10-22). A root helper with a fixed list of
+  verbs, like `batnet-power`, would narrow it when it matters.
 * SSH stays the way in from a laptop on the home WiFi or the hub's own WiFi with
   its password; it is blocked when neighbours are let in.

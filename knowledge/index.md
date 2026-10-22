@@ -16,6 +16,7 @@ Rules for adding to it: [knowledge conventions](conventions.md).
 * [Glossary](glossary.md) - mesh, LoRa, radio and web terms used across the bundle
 * [Known problems](known-problems.md) - open bugs, known limits, deferred review findings, things to measure
 * [To do](todo.md) - what comes next for milestone 1, in order
+* [Ideas](ideas.md) - features to consider, from the 2026-10-22 review: not yet decided or ordered
 
 # Sections
 
