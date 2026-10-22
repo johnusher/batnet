@@ -39,6 +39,8 @@ This page is the list.
 | B41 | In a power cut the home router is off. The hub's own WiFi ([0028](/decisions/0028-hub-own-wifi.md)) now starts from the panel, the button or by itself, and was tested on the bench without a phone: a phone or laptop joining it (DHCP, the QR code, the captive portal) and the fallback with the router really off are still to try | help pages 2026-10-21; built 2026-10-21 | `internal/hub/wifi.go`, `deploy/pi` |
 | B42 | The screen's sleep and reduced mode (`wlr-randr` inside cage) are untested with a screen: if cage quits when its only output is switched off, the screen would restart instead of sleeping (the panel goes black anyway, as a fallback) | plan 5a 2026-10-21 | `deploy/pi/batnet-kiosk` |
 | B43 | The hub's button is polled every 30 ms (a wake-up 33 times a second); the GPIO uAPI's edge events would let it sleep | plan 5a 2026-10-21 | `internal/hub/light.go` |
+| B44 | No warning before a power bank runs dry: on 2026-10-22 the bench hub's bank cut out at once after 15 h 48 min, with no under-voltage alarm first, so the hub could neither warn nor shut down cleanly (a battery HAT that reports its charge, in [to do](/todo.md), would) | [one night on MediumFast](/tests/2026-10-22-one-night-on-mediumfast.md) | `internal/hub/power.go` |
+| B45 | With no screen plugged in, `batnet-screen.service` ends each boot as *failed*: batnetd's first look stops it while its ExecCondition is still running, which kills it. Harmless, but a failed unit hides real ones; stop only an *active* unit | 2026-10-22 boot after the power bank | `cmd/batnetd/kit.go` |
 | B33 | A beacon nudge (decision 0024) needs another gateway's beacon or a partial message: a post whose every frame was lost at a receiver, with no beacon heard since, still waits for the receiver's own quarter-hour beacon | review 2026-10-15 | `internal/lora/bridge.go` |
 
 
@@ -66,6 +68,7 @@ This page is the list.
 | L20 | The Pi 4's audio jack has no plug detection: the hub can't tell whether a speaker is plugged in (the panel says so and offers a test sound) | plan 5a 2026-10-21 |
 | L21 | The translator needs about 400 MB of memory while loaded and 464 MB on the card; German and English only by default; machine translation errs on slang and abbreviations | [translator test](/tests/2026-10-21-offline-translator.md) |
 | L22 | WiFi passwords given to Join pass to `nmcli` on its command line, visible to other users of the Pi for a moment | plan 5a 2026-10-21; the Pi has no other users |
+| L23 | After a sudden power cut the end of the open log file can be zeros (ext4 had not written its last blocks): 1.6 KB, a few seconds, on 2026-10-22. Readers of the log skip NUL bytes | [one night on MediumFast](/tests/2026-10-22-one-night-on-mediumfast.md) |
 | L7 | Sealed packets can be replayed (no sequence or associated data in `seal`); harmless today (dedup), to settle with the HTTPS transport | plan 1 review |
 
 # Deferred minors (from reviews)

@@ -67,6 +67,32 @@ too weak.
   the rest is radios saying where they are, how their battery is and who
   they are.
 
+# The end: the power bank ran dry
+
+The hub ran on one USB power bank from about 17:19 on 21 October, when it
+was moved up near the roof, until 09:07:44 on 22 October: **15 h 48 min**
+(56,913 s of uptime; the clock said 17:07 at boot because it started from the
+time saved before 11 minutes without power, [B39](/known-problems.md)). For
+the first four hours the kiosk with no screen kept a core busy (55–60 °C);
+after that the hub idled on Medium at 36–40 °C. The bank's capacity and
+whether it was full at 17:19 are to be confirmed, so this is a runtime, not a
+power measurement.
+
+* The bank cut out at once: no under-voltage alarm in the last boot's
+  journal, so the hub could not warn ([B44](/known-problems.md)).
+* The log's last 1.6 KB were zeros after the cut (ext4's unwritten blocks);
+  every line up to 09:07:44 survived ([L23](/known-problems.md)).
+* Plugged in again at about 18:06 the hub was back on the radio in under a
+  minute, logging again by itself; one under-voltage blip at boot, gone in
+  2 s.
+
+From 17:19 to 09:07 in all: 2,764 packets read from 175 radios, 4,088 heard
+but unreadable, 2,217 passed on, 26 hellos. Eight text messages on the public
+channel, among them a welcome from Berlin's mesh bot to the hub by name, with
+a node count of 123. The owner sent four: two to everyone and two to one
+radio each; three were passed on by a relay (none confirmed as delivered) and
+one to a single radio failed.
+
 # Not tested yet
 
 * The same on LongFast over a whole night, for a fair count of both.
