@@ -14,21 +14,26 @@ batnet turns small, cheap computers into a local chat network for a house, a
 street, a village, a festival camp or a group on a hike. New to words like
 *node*, *mesh* or *LoRa*? See [Words we use](#words-we-use).
 
-> **Not ready yet.** batnet is still being built, so there's nothing to
-> install today. The link above shows how the app will look and work, and
-> [the first real hub](#the-first-hub-on-a-bench-in-berlin) is on the air in
-> Berlin. To hear when it's ready, click **Watch** at the top of this page (you
-> need a free GitHub account).
+> **Half built.** The app, the way nodes keep each other up to date, and the
+> simulator are written and tested. Since October 2026
+> [the first real hub](#the-first-hub-on-a-bench-in-berlin) has been on the air
+> in Berlin, talking with
+> [the city's long-range radio mesh](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city).
+> Houses don't link to each other yet: that needs a second hub, which is next.
+> There's no simple installer yet either. If you're happy typing commands, you
+> can [build a hub today](#build-a-hub-today). To hear when batnet is ready
+> for everyone, click **Watch** at the top of this page (you need a free
+> GitHub account).
 
 ## At a glance
 
 | | |
 |---|---|
-| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. |
+| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. Messages also hop from radio to radio: in Berlin the first hub hears radios right across the city, passed along by up to seven others. |
 | **People** | About **60 phones** on a Pi 5 node, 40 on a Pi 4, 8 on a pocket Pi Zero 2 W. These are estimates, not measured yet. |
 | **Cost** | **From about €45**: a Pi Zero 2 W (€19) and the long-range radio (€25) make a pocket node. A house node that also links houses over WiFi is about **€150**. (EU prices, October 2026.) |
-| **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates. |
-| **Setup** | Our goal is **under 15 minutes** per node, from download to first message. |
+| **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates; the first hub has run an hour on a power bank, but nobody has measured its power yet. |
+| **Setup** | Our goal is **under 15 minutes** per node, from download to first message. Today a hub is set up with one command from a laptop, for people used to a terminal. |
 
 ## Where it helps
 
@@ -109,7 +114,8 @@ How many radios there are, their signal, their relays and the timing are real.*
   arrive (✓ a radio passed it on, ✓✓ it got there).
 * **A radar, a list and a map** of the radios around it, and a view of all the
   traffic on the air. Click any radio or packet for what it says.
-* **Settings for the radio:** its speed setting (Berlin uses *MediumFast*),
+* **Settings for the radio:** its speed setting (Berlin uses
+  [*MediumFast*](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)),
   relays, power, listen-only and its name.
 * **A log** of everything the radio hears, kept through power cuts, to take
   along on a walk or a bike ride.
@@ -128,8 +134,140 @@ How many radios there are, their signal, their relays and the timing are real.*
   * **Help** built in, and printable on paper: how long it runs on a power bank,
     what to do when something is wrong, and the commands to type.
 
+**What we have tried on the real hub, and what not yet:**
+
+| Tried and working | Not tried yet |
+|---|---|
+| The radio: it hears Berlin's mesh, sends, replies and passes other radios' messages on (1,482 in one night) | A second hub, so two houses link over WiFi and over the radio |
+| Starting by itself after a power cut, and restarting itself after a crash (watchdogs) | A phone joining the hub's own WiFi, with the QR code and the page that pops up |
+| An hour on a power bank, in a bag on a bike ride | The hub making its own WiFi by itself when the router is really off |
+| Its own WiFi from the panel, with and without a password, and back to the home WiFi | The screen going to sleep and waking, and plugging a screen or keyboard in later |
+| The power modes changing the processor's speed, WiFi power saving and the Pi's lights | The LED, the button and a speaker with real parts plugged in |
+| The translator: about a second per message | How much power each mode saves (a USB power meter) |
+| The Terminal button, and setting the hub's clock from a phone | The antenna outside on a cable |
+
 The details are in the [bench hub's notes](knowledge/hardware/bench-pi7.md) and
 the [test reports](knowledge/tests/).
+
+## Berlin's long-range radio mesh: LongFast, MediumFast and a split city
+
+Berlin has a big, busy long-range radio mesh. Well over a hundred small
+[Meshtastic](https://meshtastic.org/) radios sit on balconies, rooftops,
+church towers and the Teufelsberg hill, run by neighbours, hobbyists and
+groups such as Freifunk Berlin and the hackerspace c-base. Each one passes
+on what it hears, so a message can cross the city with no internet and no
+phone network. In one night our hub heard 154 of them. To hear them at all,
+it had to be on the right **preset**.
+
+### What a preset is
+
+Every Meshtastic radio has a speed setting called a **preset**. It's like
+choosing how slowly to speak across a noisy room. Speak slowly and people
+further away can make you out, but each sentence takes longer and gets in
+the way of everyone else. Speak quickly and you're done sooner, but only
+people closer by follow you.
+
+The presets have names like **LongFast** and **MediumFast**: *Long*,
+*Medium* and *Short* say how far the radio tries to reach, *Fast* and *Slow*
+fine-tune it. **LongFast is Meshtastic's standard**, and most of Europe uses
+it. Under the bonnet, a preset sets how long each of LoRa's chirps lasts
+([how chirps work](#how-lora-sends-a-message-chirps)). On LongFast one chirp
+lasts 8.2 thousandths of a second. On MediumFast it lasts 2, a quarter as
+long, so a message is on the air for little more than a quarter of the time:
+about 0.4 seconds against 1.4. Each step slower adds a little reach (radio
+people say 2.5 dB) and doubles the time on air.
+
+![One LongFast chirp against four MediumFast chirps on the same channel, and how long one message is on the air on each preset](docs/img/radio/presets-light.svg#gh-light-mode-only)
+![One LongFast chirp against four MediumFast chirps on the same channel, and how long one message is on the air on each preset](docs/img/radio/presets-dark.svg#gh-dark-mode-only)
+
+### Radios on different presets can't hear each other
+
+In Europe all the usual presets share **one frequency, 869.525 MHz**. You'd
+think radios on the same frequency would at least hear each other. They
+don't. A receiver listens for chirps of one exact length, and a chirp four
+times shorter or longer slips past it unnoticed: not a word, not even noise
+it can read. So a LongFast radio and a MediumFast radio side by side are
+deaf to each other.
+
+### Why Berlin moved to MediumFast
+
+On LongFast, a busy city fills the air. Every message takes 1.4 seconds, and
+every radio that hears it sends it on again, so messages run into each other
+and both are lost. MediumFast's messages are on the air for about a quarter
+of the time, so far fewer collide. In 2025 Berlin's Meshtastic users tested
+both, and the big rooftop and tower repeaters of Freifunk Berlin and c-base
+switched one by one to MediumFast. The community page of
+[Berlin Chaos Mesh](https://potatomesh.net/pages/about) now gives MediumFast
+as the city's setting. The price is a little less reach per hop, which a
+dense city makes up for with more radios.
+
+Not everyone moved. In 2025 people posted maps of a **divided city**,
+MediumFast mostly in the west, north and centre, LongFast in parts of the
+east and the south and around Potsdam. A visitor who arrives on LongFast,
+the standard, hears almost no one and doesn't know why. Other German regions
+chose differently again: Hessen, for example, is on ShortSlow.
+
+### What our hub heard
+
+On the evening of 21 October, with the antenna up near the roof, we
+listened for 20 minutes on each preset, one after the other:
+
+| | MediumFast | LongFast |
+|---|---|---|
+| Messages read | 30 | 8 |
+| Different radios | 26 | 5 |
+| Heard, but too garbled to read | 33 | 3 |
+
+At this house MediumFast is where the mesh is, so the hub stayed on it. Then
+we brought the antenna inside, behind a wall: in the next hour it heard
+nothing at all. Near the roof the signals had been only just strong enough.
+A wall took away the little margin there was.
+
+Then the hub listened all night, from half past ten to a quarter past seven:
+
+* **1,788 messages read from 154 radios.** The radios that shared where they
+  are were spread over about 29 by 20 km: much of the city.
+* **Almost everything came by relay.** Only 28 messages came straight from
+  their sender, from 5 radios. Most were passed along by two, three or four
+  other radios, and some by seven.
+* **Berlin allows 7 hops.** Meshtastic's standard is 3, but three quarters
+  of Berlin's radios let their messages be passed on up to 7 times, which is
+  how they cross the city.
+* **More was heard than read:** 2,788 messages were too garbled to read. A
+  quarter of those were strong but had collided with another message; about
+  half were too faint. A better antenna would rescue some of the faint ones.
+* **The hub did its share.** It passed on 1,482 messages for others, while
+  sending for only about 1% of each hour. The rules allow 10%.
+* **It's quiet at night.** Two text messages in nearly nine hours. The rest
+  was radios saying where they are, how full their battery is and what
+  they're called.
+
+![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-light.svg#gh-light-mode-only)
+![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-dark.svg#gh-dark-mode-only)
+
+### Joining Berlin's mesh with your own radio
+
+* **Set the region to EU_868 and the preset to MediumFast.** In the
+  Meshtastic app this is under the radio's LoRa settings. The public channel
+  then works as it is; nothing else to set.
+* **Put the antenna high, and outside if you can.** In Berlin most of what
+  you hear comes in only just strong enough, through a few well-placed
+  radios on roofs and towers.
+* **Say hello where people talk:** Berlin Chaos Mesh's
+  [page](https://potatomesh.net/pages/about), its Matrix room
+  `#berlinmesh:c-base.org` and its forum, or Freifunk Berlin's meetup at c-base
+  on the first Wednesday of the month.
+* **Elsewhere,** ask the people nearby which preset they use. Never start a
+  new one: a mesh split in two works worse for everyone.
+
+batnet follows the same rule: a village's preset is a setting chosen from what
+the neighbours use (LongFast where nothing says otherwise), and a hub can
+listen on each preset in turn to find out
+([draft decision 0027](knowledge/decisions/0027-preset-follows-the-local-mesh.md)).
+The sources and the numbers are in
+[presets in Berlin](knowledge/research/meshtastic-presets-berlin.md) and the
+test reports for [the evening](knowledge/tests/2026-10-21-presets-and-antenna.md)
+and [the night](knowledge/tests/2026-10-22-one-night-on-mediumfast.md).
 
 ## How batnet differs from Meshtastic and the others
 
@@ -159,10 +297,12 @@ village rather than for one person with a gadget.
 * **Spoken messages cross the radio as text.** Say it, the node turns it into
   text, and the far end reads it aloud. (Planned for milestone 2.)
 * **It works with no phone at all.** A screen and keyboard on the node make it
-  a household computer or a notice board in a village hall.
+  a household computer or a notice board in a village hall. The first hub
+  already runs its panel this way, on a small screen of its own.
 * **It shows who else is on the air.** A scan page lists Meshtastic radios,
   WiFi meshes and walkie-talkies nearby, by activity only, never content.
-  (Planned for milestone 4.)
+  (Planned for milestone 4. The first hub already shows every Meshtastic
+  message on the air, even those too garbled to read.)
 
 **The others, in a sentence each**
 
@@ -255,10 +395,50 @@ CPE210 outdoor units does it, about €42 each at
 
 ## Installing
 
-These steps are the plan for the first release and don't work yet. Choose one
-way:
+### Build a hub today
 
-### Way 1: download and install (no GitHub account needed)
+This works now, but it's for people who are happy in a terminal. It turns a
+Raspberry Pi into a hub like the one in Berlin: the radio, the panel, the
+screen, the power-cut kit. It doesn't link houses yet.
+
+**You need:** a Raspberry Pi 4 or 5 (2 GB is enough), the Elecrow Meshstick
+radio on USB (`EL-LMM15202D` in [What to buy](#what-to-buy-europe)), a memory
+card, and a laptop with `git` and [Go](https://go.dev/dl/). A small HDMI screen
+and a keyboard are nice but not needed. **Use a Pi you don't need for
+anything else:** the set-up removes printing, Bluetooth, remote desktop and
+other things a hub doesn't use.
+
+1. **Put Raspberry Pi OS on the card** with
+   [Raspberry Pi Imager](https://www.raspberrypi.com/software/): the 64-bit
+   version (Debian 13, "trixie"). In Imager's settings, give the Pi a name,
+   your WiFi and SSH with your key.
+2. **Screw the antenna onto the Meshstick first,** then plug it into the Pi
+   and switch the Pi on.
+3. **On the laptop:**
+   ```sh
+   git clone https://github.com/johnusher/batnet.git
+   cd batnet
+   deploy/pi/deploy.sh <your-pi>      # the name you gave it, as you'd type it after "ssh"
+   ```
+   This builds batnet for the Pi, copies it over and sets everything up. It is
+   safe to run again.
+4. **Set the radio's region,** once (the radio won't send until you do).
+   Log in with `ssh <your-pi>` and type
+   `meshtastic --host localhost --set lora.region EU_868`
+5. **Open `http://<your-pi>/hub/`** in a browser on the same WiFi. The PINs
+   for the buttons are on the hub's own screen, or on the Pi with
+   `sudo cat /var/lib/batnet/hub-pin /var/lib/batnet/admin-pin`. Under **Settings**, pick the
+   preset your neighbours use: **MediumFast in Berlin**, LongFast in most
+   other places ([why it matters](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)).
+
+The [bench hub's notes](knowledge/hardware/bench-pi7.md) say what runs on it
+and why, and the panel's **Help** tells you what to do in a power cut.
+
+### The plan for the first release
+
+These steps don't work yet. Choose one way:
+
+#### Way 1: download and install (no GitHub account needed)
 
 1. **Download one file:** *batnet.zip*. (The download link will appear here
    with the first release.)
@@ -276,13 +456,13 @@ way:
 6. **At the next house, do the same.** Nodes in range find each other by
    themselves.
 
-### Way 2: with GitHub, or on a Pi you already use
+#### Way 2: with GitHub, or on a Pi you already use
 
 If your Pi already runs Raspberry Pi OS, one command will install batnet on it.
 It will be published with the first release. Developers can clone this
 repository instead: see [For developers](#for-developers).
 
-### Then, for everyone in the house
+#### Then, for everyone in the house
 
 1. Join the WiFi **batnet · *your house name*** (no password).
 2. A page pops up. Follow it to open your normal web browser.
@@ -291,7 +471,7 @@ repository instead: see [For developers](#for-developers).
    The page shows you how to continue, and the connection is still encrypted.
 4. Create an account and wait for your house's approver to let you in.
 
-### How you find out about new messages
+#### How you find out about new messages
 
 Without the internet, a web page can't make a locked phone ring. So batnet
 tells you in other ways:
@@ -334,8 +514,11 @@ boards that look alike differ in size.
 
 ## Power use
 
-Estimates from published measurements, not yet tested on our own kit. Details
-are in [the power budget](knowledge/research/power-budget.md).
+Estimates from published measurements. On our own kit so far: the first hub
+(a Pi 4) ran an hour on a 10,000 mAh power bank on a bike ride with no
+trouble, and idles overnight at 35–41 °C with its processor almost asleep.
+Nobody has put a power meter on it yet. Details are in
+[the power budget](knowledge/research/power-budget.md).
 
 | Use case | Node | Energy a day | Runs on a 10,000 mAh power bank |
 |---|---|---|---|
@@ -367,10 +550,10 @@ radio.
 | **Licence** | None needed. Anyone may use this slice, within the rules below. |
 | **Power** | Up to 0.5 watts allowed. Our radio sends at most 0.16 watts, about what a mobile phone sends. |
 | **Time on air** | Each radio may send for at most 10% of the time: 6 minutes in every hour |
-| **Speed** | About 1,000 bits a second. A short text takes about half a second to send. |
+| **Speed** | About 1,000 bits a second on LongFast, 3,500 on MediumFast. A short text takes under a second to send. |
 | **Range** | 1–3 km from house to house at ground level. Much more from a roof or a hill. |
 | **Radio chip** | Semtech SX1262 |
-| **Settings** | Meshtastic's standard "LongFast": spreading factor 11, 250 kHz wide |
+| **Settings** | Whatever the neighbours use: Meshtastic's standard "LongFast" in most of Europe, "MediumFast" in Berlin ([what that means](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)) |
 
 ### Where it sits on the dial
 
@@ -445,14 +628,16 @@ the echo.
   faintly is probably far from the sender, so it waits the shortest time. The
   others hear it repeat and stay quiet, which saves airtime.
 * **A message makes at most 3 hops** by default. Each message carries a
-  counter that drops by one at each hop.
+  counter that drops by one at each hop. The sender can allow up to 7, and in
+  Berlin most do: the first hub hears messages that crossed the city through
+  seven radios.
 * **Messages are scrambled** (encrypted, with AES). Meshtastic's public channel
   uses a key everyone knows, so anyone can read it. batnet's private channel
   uses a key only the village has. Meshtastic radios carry it along all the
   same, without being able to read it.
 * **The airtime is small, so batnet packs it.** With 6 minutes an hour per
   radio, a village can send roughly 100–200 batnet messages an hour over the
-  radio. That's plenty for text, and far too little for voice, which is why
+  radio on LongFast, and about three times as many on MediumFast. That's plenty for text, and far too little for voice, which is why
   spoken messages go as text.
 
 ### Antennas
@@ -572,7 +757,7 @@ own country's radio regulator.*
 <details>
 <summary><b>For radio hobbyists: the numbers</b></summary>
 
-**LongFast on EU_868** (Meshtastic's defaults):
+**LongFast on EU_868** (Meshtastic's defaults; Berlin's MediumFast differs only in spreading factor 9, a 2.048 ms symbol, 3.52 kbit/s and a 148 dB link budget):
 
 | | |
 |---|---|
@@ -744,6 +929,7 @@ you, which is why batnet's own scanner reports activity only
 | **House** | A household on batnet: the people who share one node, plus that node. It has a name, such as "Miller House", which is also the name of its WiFi. A house doesn't have to be a building. It can be a flat, a camp at a festival or a group on a hike. |
 | **Node** | One of batnet's small computers (a Raspberry Pi) running batnet. Every node keeps a copy of all the village's messages. |
 | **House node** | The node a house uses: a Pi 4 or Pi 5 at home on mains power. It makes the house's WiFi, runs the app for up to about 40–60 phones, and links to the houses around it. |
+| **Hub** | A house node with its own control panel (on `/hub/` in the browser, or on a small screen of its own): the radio's settings, the radios around it, the traffic on the air, and the power-cut kit. The first one has been running in Berlin since October 2026. |
 | **Pocket node** | A small node (a Pi Zero 2 W) with the long-range radio, running on a power bank. For a camp, a hike or a small household. It serves about 8 phones. |
 | **Relay** | A node that serves no phones. It sits on a pole or a roof between two houses that are too far apart to reach each other over WiFi, and passes messages between them. |
 | **Gateway** | Any node with the long-range radio fitted. It carries messages to and from houses too far away for WiFi. |
@@ -777,6 +963,9 @@ you, which is why batnet's own scanner reports activity only
 | **Meshtastic** | A popular free messenger for LoRa radios. batnet's radio runs Meshtastic, so batnet works with other people's Meshtastic radios. |
 | **MeshCore** | Another free messenger for the same LoRa radios, which routes messages through planned repeaters instead of every radio repeating. [How batnet differs](#how-batnet-differs-from-meshtastic-and-the-others). |
 | **Reticulum** | A network of its own, built on encryption, that runs over LoRa, WiFi, cables and the internet. Apps such as Sideband send messages over it. |
+| **Preset** | A Meshtastic radio's speed setting, such as *LongFast* (the standard) or *MediumFast* (Berlin's). Slower presets reach a little further; faster ones keep the air freer. Radios on different presets can't hear each other. [More](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city). |
+| **Spreading factor** (SF) | The number behind a preset: how long each LoRa chirp lasts. Each step up doubles the chirp's length and the time a message takes. LongFast is SF 11, MediumFast SF 9. |
+| **Hop** | One radio passing a message on to the next. A Meshtastic message carries a limit on its hops: 3 by default, up to 7. (Not the same as a batnet *relay*, which is a node on a pole that serves no phones.) |
 | **Channel** | A conversation on the radio that only radios with the same key can read. batnet uses a private channel for its own messages and the open public one for *Neighbourhood (public)*. |
 | **EU868** | The radio band around 868 MHz that anyone in Europe may use without a licence. |
 | **Duty cycle** (airtime) | The share of each hour a radio may transmit in the EU868 band: 10% in the part batnet uses. When a busy radio reaches its limit, messages wait in a queue, which is why urgent ones go first. |
@@ -788,7 +977,7 @@ you, which is why batnet's own scanner reports activity only
 | **Encryption** | Scrambling a message so that only someone with the right key can read it. |
 | **Heartbeat** | A short note that each node sends its direct neighbours every few seconds: "here's what I have". A node that has missed something notices and asks for it. |
 | **Sync** | How nodes catch up with each other. When a node comes back after a power cut, it fetches the messages it missed. |
-| **Simulator** | The [pretend village](https://johnusher.github.io/batnet/) that runs in your web browser, to show and test batnet before there's hardware. |
+| **Simulator** | The [pretend village](https://johnusher.github.io/batnet/) that runs in your web browser, to show and test a whole village of batnet houses before there are enough real ones. |
 
 Developers: the full list of technical terms is in
 [the knowledge glossary](knowledge/glossary.md).

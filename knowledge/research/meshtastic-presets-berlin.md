@@ -151,3 +151,8 @@ MediumFast channel itself.
   relay (20 of 47 packets): a wall's few dB lose the whole mesh. A hub wants
   the Pi indoors and the antenna outside and high, on a short, thick cable
   (at 868 MHz RG-174 loses about 1 dB a metre, RG-58 about 0.5 dB).
+* [One night on MediumFast](/tests/2026-10-22-one-night-on-mediumfast.md)
+  (8.7 hours): 1,788 packets read from 154 radios spread across about 29 km
+  of the city, five of them heard directly, most packets through two to four
+  relays and some through seven; 77 % of senders set a hop limit of 7, not
+  Meshtastic's default 3.

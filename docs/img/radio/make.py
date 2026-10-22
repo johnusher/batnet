@@ -16,10 +16,12 @@ FONT = "-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
 THEMES = {
     "light": dict(bg="#ffffff", fg="#1f2328", muted="#59636e", faint="#d1d9e0", panel="#f6f8fa",
                   hot="#d9480f", hotfill="#ffe8d9", wifi="#0969da", mobile="#8250df",
-                  gadget="#1a7f37", alarm="#cf222e", sky="#ddf4ff", ground="#e9e2d0", tree="#2da44e"),
+                  gadget="#1a7f37", alarm="#cf222e", sky="#ddf4ff", ground="#e9e2d0", tree="#2da44e",
+                  bar="#d9480f"),
     "dark": dict(bg="#0d1117", fg="#e6edf3", muted="#9198a1", faint="#3d444d", panel="#151b23",
                  hot="#ff8c42", hotfill="#3d2414", wifi="#4493f8", mobile="#ab7df8",
-                 gadget="#3fb950", alarm="#f85149", sky="#0f2233", ground="#2b2618", tree="#2ea043"),
+                 gadget="#3fb950", alarm="#f85149", sky="#0f2233", ground="#2b2618", tree="#2ea043",
+                 bar="#e8692a"),  # bars: inside the dark lightness band, unlike hot
 }
 
 
@@ -539,8 +541,111 @@ def sync(theme):
     s.save("sync", theme, "Rising chirps shift up and falling chirps shift down when the receiver's window is late, which separates timing from crystal error")
 
 
+def bar_up(s, x, y0, w, h, fill):
+    """A bar standing on y0 with 4 px rounded top corners."""
+    r = min(4, w / 2, h)
+    s.add(f'<path d="M{x:.1f},{y0:.1f} V{y0 - h + r:.1f} Q{x:.1f},{y0 - h:.1f} {x + r:.1f},{y0 - h:.1f} '
+          f'H{x + w - r:.1f} Q{x + w:.1f},{y0 - h:.1f} {x + w:.1f},{y0 - h + r:.1f} V{y0:.1f} Z" fill="{s.t[fill]}"/>')
+
+
+def bar_right(s, x0, y, w, h, fill):
+    """A bar from x0 to the right with 4 px rounded end corners."""
+    r = min(4, h / 2, w)
+    s.add(f'<path d="M{x0:.1f},{y:.1f} H{x0 + w - r:.1f} Q{x0 + w:.1f},{y:.1f} {x0 + w:.1f},{y + r:.1f} '
+          f'V{y + h - r:.1f} Q{x0 + w:.1f},{y + h:.1f} {x0 + w - r:.1f},{y + h:.1f} H{x0:.1f} Z" fill="{s.t[fill]}"/>')
+
+
+# Meshtastic's EU_868 presets: spreading factor, bandwidth (kHz), link budget (dB),
+# and the time on air of one 150-byte packet (the LoRa airtime formula, header and
+# CRC on, 16-symbol preamble; knowledge/research/lora-airtime-eu868.md).
+PRESETS = [("Short Fast", 7, 250, 143, 0.127), ("Short Slow", 8, 250, 145.5, 0.223),
+           ("Medium Fast", 9, 250, 148, 0.406), ("Medium Slow", 10, 250, 150.5, 0.751),
+           ("Long Fast", 11, 250, 153, 1.378), ("Long Moderate", 11, 125, 156, 4.919)]
+
+
+def presets(theme):
+    """Why LongFast and MediumFast radios can't hear each other, and what each preset costs in airtime."""
+    t = THEMES[theme]
+    s = SVG(900, 576, t)
+    s.text(450, 30, "The same frequency, different speeds: Meshtastic's settings in Europe", 17, anchor="middle", weight="bold")
+
+    # Top: 8.2 ms of the channel, one LongFast chirp against four MediumFast chirps.
+    top, bot, x0, x1 = 76, 186, 120, 840
+    s.rect(x0, top, x1 - x0, bot - top, "panel", rx=6)
+    s.text(x0 - 8, top + 10, "869.65", 11, "muted", "end")
+    s.text(x0 - 8, bot, "869.40", 11, "muted", "end")
+    s.text(x0 - 8, (top + bot) / 2 + 4, "MHz", 11, "muted", "end")
+    s.path(f"M{x0},{bot} L{x1},{top}", "wifi", 2.6)
+    q = (x1 - x0) / 4
+    for k in range(4):
+        s.path(f"M{x0 + k * q:.1f},{bot} L{x0 + (k + 1) * q:.1f},{top}", "bar", 2.6)
+    for lx0, col, lab in ((x0, "bar", "Medium Fast: four quick chirps, 2 ms each"),
+                          (x0 + 2.2 * q, "wifi", "Long Fast: one slow chirp, 8.2 ms")):
+        s.line(lx0, top - 12, lx0 + 24, top - 12, col, 2.6)
+        s.text(lx0 + 32, top - 8, lab, 12, "fg", "start", "bold")
+    s.line(x0, bot + 14, x1, bot + 14, "muted")
+    for i, ms in enumerate((0, 2, 4, 6, 8.2)):
+        xx = x0 + (x1 - x0) * ms / 8.192
+        s.line(xx, bot + 14, xx, bot + 19, "muted")
+        s.text(xx, bot + 32, f"{ms:g} ms", 11, "muted", "middle")
+    s.text(450, bot + 56, "Both slide across the same 250 kHz at 869.525 MHz. A receiver listens for one slope only, so a Long Fast radio",
+           12, "fg", "middle")
+    s.text(450, bot + 73, "and a Medium Fast radio side by side hear nothing of each other: not a word, not even as noise they can read.",
+           12, "fg", "middle")
+
+    # Bottom: time on air of one 150-byte message on each preset.
+    y, lx, bx, bw = 306, 200, 330, 470
+    s.text(450, y - 16, "How long one message (150 bytes) is on the air", 14, "fg", "middle", "bold")
+    longest = PRESETS[-1][4]
+    for name, sf, khz, budget, secs in PRESETS:
+        s.text(lx, y + 15, name, 13, "fg", "end", "bold" if name in ("Medium Fast", "Long Fast") else "normal")
+        s.text(lx + 10, y + 15, f"SF {sf}" + ("" if khz == 250 else f", {khz} kHz"), 11, "muted")
+        fill = {"Medium Fast": "bar", "Long Fast": "wifi"}.get(name, "faint")
+        bar_right(s, bx, y + 2, max(3, bw * secs / longest), 18, fill)
+        note = {"Medium Fast": "  · Berlin", "Long Fast": "  · the default, most of Europe"}.get(name, "")
+        s.text(bx + bw * secs / longest + 8, y + 15, f"{secs:.1f} s{note}" if secs >= 0.3 else f"{secs:.2f} s{note}", 12, "fg")
+        y += 30
+    s.text(450, y + 22, "Slower settings reach a little further (about 2.5 dB more per step) but fill the air for longer, so in a busy city",
+           12, "fg", "middle")
+    s.text(450, y + 39, "more messages collide. Each radio may send for 6 minutes an hour: about 260 such messages on Long Fast, 880 on Medium Fast.",
+           12, "fg", "middle")
+    s.save("presets", theme, "One LongFast chirp against four MediumFast chirps on the same channel, and the airtime of a 150-byte message on each EU preset")
+
+
+# One night on MediumFast at the bench hub in Berlin, 2026-10-21 22:32 to
+# 2026-10-22 07:14: packets read from other radios, by how many radios passed
+# each one on (knowledge/tests/2026-10-22-one-night-on-mediumfast.md).
+NIGHT_RELAYS = [28, 259, 428, 460, 264, 192, 97, 49]
+
+
+def night(theme):
+    """How many relays each packet the hub read had come through, one night in Berlin."""
+    t = THEMES[theme]
+    s = SVG(900, 400, t)
+    s.text(450, 30, "One night in Berlin: how many radios passed each message on before the hub heard it", 16, anchor="middle", weight="bold")
+    x0, x1, y0, ytop = 110, 840, 320, 70
+    peak = 500
+    for v in (0, 100, 200, 300, 400, 500):
+        yy = y0 - (y0 - ytop) * v / peak
+        s.line(x0, yy, x1, yy, "faint", 1 if v else 1.2)
+        s.text(x0 - 10, yy + 4, f"{v}", 11, "muted", "end")
+    s.text(x0 - 10, ytop - 14, "packets", 11, "muted", "end")
+    slot = (x1 - x0) / len(NIGHT_RELAYS)
+    w = slot - 2 - 22
+    for i, n in enumerate(NIGHT_RELAYS):
+        x = x0 + i * slot + 12
+        bar_up(s, x, y0, w, (y0 - ytop) * n / peak, "bar")
+        s.text(x + w / 2, y0 + 20, "direct" if i == 0 else f"{i}", 12, "fg", "middle")
+        if i in (0, 3, 7):
+            s.text(x + w / 2, y0 - (y0 - ytop) * n / peak - 8, f"{n}", 12, "fg", "middle", "bold")
+    s.text((x0 + x1) / 2, y0 + 42, "radios it came through on the way", 12, "muted", "middle")
+    s.text(450, 386, "1,788 packets read from 154 radios between 22:30 and 07:15, on Medium Fast. Only 28 came straight from the sender.",
+           12, "fg", "middle")
+    s.save("berlin-night", theme, "One night of packets at the Berlin hub by number of relays: 28 direct, most through 2 to 4 relays, 49 through 7")
+
+
 if __name__ == "__main__":
     for th in THEMES:
-        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync):
+        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync, presets, night):
             draw(th)
     print("wrote", sorted(f for f in os.listdir(HERE) if f.endswith(".svg")))

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="576" viewBox="0 0 900 576" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>One LongFast chirp against four MediumFast chirps on the same channel, and the airtime of a 150-byte message on each EU preset</title>
+<rect width="100%" height="100%" rx="10" fill="#0d1117"/>
+<text x="450.0" y="30.0" font-size="17" fill="#e6edf3" text-anchor="middle" font-weight="bold">The same frequency, different speeds: Meshtastic's settings in Europe</text>
+<rect x="120.0" y="76.0" width="720.0" height="110.0" rx="6" fill="#151b23" fill-opacity="1"/>
+<text x="112.0" y="86.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">869.65</text>
+<text x="112.0" y="186.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">869.40</text>
+<text x="112.0" y="135.0" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">MHz</text>
+<path d="M120,186 L840,76" stroke="#4493f8" stroke-width="2.6" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M120.0,186 L300.0,76" stroke="#e8692a" stroke-width="2.6" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M300.0,186 L480.0,76" stroke="#e8692a" stroke-width="2.6" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M480.0,186 L660.0,76" stroke="#e8692a" stroke-width="2.6" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M660.0,186 L840.0,76" stroke="#e8692a" stroke-width="2.6" fill="none" fill-opacity="1" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="120.0" y1="64.0" x2="144.0" y2="64.0" stroke="#e8692a" stroke-width="2.6"/>
+<text x="152.0" y="68.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="bold">Medium Fast: four quick chirps, 2 ms each</text>
+<line x1="516.0" y1="64.0" x2="540.0" y2="64.0" stroke="#4493f8" stroke-width="2.6"/>
+<text x="548.0" y="68.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="bold">Long Fast: one slow chirp, 8.2 ms</text>
+<line x1="120.0" y1="200.0" x2="840.0" y2="200.0" stroke="#9198a1" stroke-width="1"/>
+<line x1="120.0" y1="200.0" x2="120.0" y2="205.0" stroke="#9198a1" stroke-width="1"/>
+<text x="120.0" y="218.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">0 ms</text>
+<line x1="295.8" y1="200.0" x2="295.8" y2="205.0" stroke="#9198a1" stroke-width="1"/>
+<text x="295.8" y="218.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">2 ms</text>
+<line x1="471.6" y1="200.0" x2="471.6" y2="205.0" stroke="#9198a1" stroke-width="1"/>
+<text x="471.6" y="218.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">4 ms</text>
+<line x1="647.3" y1="200.0" x2="647.3" y2="205.0" stroke="#9198a1" stroke-width="1"/>
+<text x="647.3" y="218.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">6 ms</text>
+<line x1="840.7" y1="200.0" x2="840.7" y2="205.0" stroke="#9198a1" stroke-width="1"/>
+<text x="840.7" y="218.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal">8.2 ms</text>
+<text x="450.0" y="242.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">Both slide across the same 250 kHz at 869.525 MHz. A receiver listens for one slope only, so a Long Fast radio</text>
+<text x="450.0" y="259.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">and a Medium Fast radio side by side hear nothing of each other: not a word, not even as noise they can read.</text>
+<text x="450.0" y="290.0" font-size="14" fill="#e6edf3" text-anchor="middle" font-weight="bold">How long one message (150 bytes) is on the air</text>
+<text x="200.0" y="321.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Short Fast</text>
+<text x="210.0" y="321.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 7</text>
+<path d="M330.0,308.0 H338.1 Q342.1,308.0 342.1,312.0 V322.0 Q342.1,326.0 338.1,326.0 H330.0 Z" fill="#3d444d"/>
+<text x="350.1" y="321.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">0.13 s</text>
+<text x="200.0" y="351.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Short Slow</text>
+<text x="210.0" y="351.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 8</text>
+<path d="M330.0,338.0 H347.3 Q351.3,338.0 351.3,342.0 V352.0 Q351.3,356.0 347.3,356.0 H330.0 Z" fill="#3d444d"/>
+<text x="359.3" y="351.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">0.22 s</text>
+<text x="200.0" y="381.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="bold">Medium Fast</text>
+<text x="210.0" y="381.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 9</text>
+<path d="M330.0,368.0 H364.8 Q368.8,368.0 368.8,372.0 V382.0 Q368.8,386.0 364.8,386.0 H330.0 Z" fill="#e8692a"/>
+<text x="376.8" y="381.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">0.4 s  · Berlin</text>
+<text x="200.0" y="411.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Medium Slow</text>
+<text x="210.0" y="411.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 10</text>
+<path d="M330.0,398.0 H397.8 Q401.8,398.0 401.8,402.0 V412.0 Q401.8,416.0 397.8,416.0 H330.0 Z" fill="#3d444d"/>
+<text x="409.8" y="411.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">0.8 s</text>
+<text x="200.0" y="441.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="bold">Long Fast</text>
+<text x="210.0" y="441.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 11</text>
+<path d="M330.0,428.0 H457.7 Q461.7,428.0 461.7,432.0 V442.0 Q461.7,446.0 457.7,446.0 H330.0 Z" fill="#4493f8"/>
+<text x="469.7" y="441.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">1.4 s  · the default, most of Europe</text>
+<text x="200.0" y="471.0" font-size="13" fill="#e6edf3" text-anchor="end" font-weight="normal">Long Moderate</text>
+<text x="210.0" y="471.0" font-size="11" fill="#9198a1" text-anchor="start" font-weight="normal">SF 11, 125 kHz</text>
+<path d="M330.0,458.0 H796.0 Q800.0,458.0 800.0,462.0 V472.0 Q800.0,476.0 796.0,476.0 H330.0 Z" fill="#3d444d"/>
+<text x="808.0" y="471.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">4.9 s</text>
+<text x="450.0" y="508.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">Slower settings reach a little further (about 2.5 dB more per step) but fill the air for longer, so in a busy city</text>
+<text x="450.0" y="525.0" font-size="12" fill="#e6edf3" text-anchor="middle" font-weight="normal">more messages collide. Each radio may send for 6 minutes an hour: about 260 such messages on Long Fast, 880 on Medium Fast.</text>
+</svg>
