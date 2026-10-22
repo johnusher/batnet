@@ -131,6 +131,16 @@ function redactStatus(s) {
     (r.texts || []).forEach((t, i) => { t.from = rNum(t.from); t.to = rNum(t.to); t.text = R_LINES[(rh(t.id, "t") + i) % R_LINES.length]; });
   }
   if (s.settings && s.settings.where) s.settings.where = rPlace(s.settings.where, 1, 2.5);
+  s.house = "Miller House";
+  if (s.appURL) s.appURL = "http://hub.local/";
+  if (s.devices) {
+    for (const d of s.devices.devices || []) { d.name = `A ${d.kind || "device"}`; d.detail = ""; }
+    for (const e of s.devices.events || []) { e.device.name = `A ${e.device.kind || "device"}`; e.device.detail = ""; }
+  }
+  if (s.maps) for (const a of s.maps.areas || []) if (a.id === "here" && a.bounds) { // the box is centred on the hub
+    const c = rPlace({ lat: (a.bounds[1] + a.bounds[3]) / 2, lon: (a.bounds[0] + a.bounds[2]) / 2 }, 2, 2.5), h = (a.bounds[3] - a.bounds[1]) / 2, w = (a.bounds[2] - a.bounds[0]) / 2;
+    a.bounds = [c.lon - w, c.lat - h, c.lon + w, c.lat + h];
+  }
   const sy = s.system;
   sy.hostname = "hub";
   for (const i of sy.interfaces || []) i.addrs = (i.addrs || []).map((a) => (a.startsWith("10.42.") || a.startsWith("172.27.") ? a : "192.168.1.20/24"));
@@ -445,7 +455,8 @@ function bubble(t, all, { who, reply }) {
 }
 
 function renderMessages(r, convs) {
-  const total = convs.filter((c) => c.num !== BCAST).reduce((s, c) => s + c.unread, 0);
+  // Messages to this hub and on its group channels count; the open channel only shows a dot.
+  const total = convs.filter((c) => c.id !== "pub").reduce((s, c) => s + c.unread, 0);
   const badge = $("badge");
   badge.hidden = !total && !convs[0].unread;
   badge.textContent = total ? String(total) : "";
@@ -525,12 +536,12 @@ function renderHome(s, convs) {
   const r = s.radio;
   const others = nodes().filter((n) => !n.self);
   const hour = others.filter((n) => Date.now() - Date.parse(n.lastHeard) < 3600e3).length;
-  const unread = convs.filter((c) => c.num !== BCAST).reduce((a, c) => a + c.unread, 0);
+  const unread = convs.filter((c) => c.id !== "pub").reduce((a, c) => a + c.unread, 0);
   const hl = $("headline");
   hl.replaceChildren(el("span", { class: "big", text: String(hour) }), ` radio${hour === 1 ? "" : "s"} heard in the last hour`);
   if (unread) {
     const b = el("button", { class: "linkbtn", type: "button", text: `${unread} new message${unread === 1 ? "" : "s"} for you` });
-    b.addEventListener("click", () => { const c = convs.find((x) => x.num !== BCAST && x.unread); if (c) openConv(c.id); });
+    b.addEventListener("click", () => { const c = convs.find((x) => x.id !== "pub" && x.unread); if (c) openConv(c.id); });
     hl.append(". ", b);
   }
   hl.append(".");
@@ -673,7 +684,8 @@ function drawMap() {
       L.circle(p, { radius: n.position.accuracyM, color: col, weight: 1, opacity: old ? 0.3 : 0.6, fillOpacity: 0.06, interactive: false }).addTo(mapLayer);
     }
     const m = L.circleMarker(p, { radius: 7, color: sheet, weight: 2, fillColor: col, fillOpacity: old ? 0.45 : 1 }).addTo(mapLayer);
-    m.bindTooltip(n.shortName || n.id.slice(-4), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
+    // An element, not a string: Leaflet takes a string label as HTML, and the short name is the radio's own choice.
+    m.bindTooltip(el("span", { text: n.shortName || n.id.slice(-4) }), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
     m.on("click", () => showRadio(n.num));
   }
   // Where the hub hears: the zone, and a dashed line to each radio behind it.

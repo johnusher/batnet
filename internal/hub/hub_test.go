@@ -2,6 +2,7 @@ package hub
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -51,11 +52,22 @@ func TestButtonsNeedThePINFromTheLAN(t *testing.T) {
 	for i := 0; i < failsAllowed; i++ { // the empty PIN above was not a guess
 		post(h, "/hub/api/mode", "10.0.0.0:5000", "000000", `{"mode":"off"}`, true)
 	}
-	if code, _ := post(h, "/hub/api/mode", "10.0.0.1:5000", "246810", `{"mode":"off"}`, true); code != 429 {
+	if code, _ := post(h, "/hub/api/mode", "10.0.0.0:5000", "246810", `{"mode":"off"}`, true); code != 429 {
 		t.Errorf("after %d wrong PINs, even the right one waits: %d", failsAllowed, code)
+	}
+	// The lockout is the guesser's, not the household's: another device still gets in.
+	if code, _ := post(h, "/hub/api/mode", "10.0.0.1:5000", "246810", `{"mode":"off"}`, true); code != 200 {
+		t.Errorf("a neighbour's wrong PINs locked the owner's phone out: %d", code)
 	}
 	if code, _ := post(h, "/hub/api/mode", "127.0.0.1:5000", "", `{"mode":"off"}`, true); code != 200 {
 		t.Errorf("the screen still works during a lockout: %d", code)
+	}
+	// A guesser who changes address runs out too.
+	for i := 0; i < failsAllowedAll; i++ {
+		post(h, "/hub/api/mode", fmt.Sprintf("10.0.%d.%d:5000", i/250+1, i%250+1), "000000", `{"mode":"off"}`, true)
+	}
+	if code, _ := post(h, "/hub/api/mode", "10.9.9.9:5000", "246810", `{"mode":"off"}`, true); code != 429 {
+		t.Errorf("after %d wrong PINs from everywhere, a fresh address still gets a guess: %d", failsAllowedAll, code)
 	}
 }
 

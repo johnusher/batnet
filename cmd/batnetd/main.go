@@ -100,7 +100,7 @@ func serveMockWeb(ctx context.Context, nodes []*node) error {
 		if err != nil {
 			return err
 		}
-		hs := &http.Server{Handler: nd.web.Handler(), ReadHeaderTimeout: 10 * time.Second}
+		hs := &http.Server{Handler: nd.web.Handler(), ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute}
 		servers = append(servers, hs)
 		go hs.Serve(ln)
 		fmt.Printf("  %-10s http://%s   (house admin: Admin / PIN 123456)\n", nd.name, addr)

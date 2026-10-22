@@ -172,7 +172,10 @@ func (m *Maps) Status() MapsStatus {
 		if !ok {
 			continue
 		}
-		fi, _ := os.Stat(p)
+		fi, err := os.Stat(p)
+		if err != nil { // removed between the two looks
+			continue
+		}
 		// The map has what was cut, which for round the hub may be an older place.
 		areas[i].Have, areas[i].Bytes, areas[i].Build, areas[i].At, areas[i].Bounds = true, fi.Size(), mm.Build, mm.At, mm.Bounds
 	}
@@ -267,6 +270,12 @@ func (m *Maps) Remove(id string) error {
 // Run fetches the map round the hub by itself, once its place is marked and
 // no map it has covers it, whenever there is internet (tried at most hourly).
 func (m *Maps) Run(ctx context.Context) {
+	// A fetch cut short by a power cut leaves its part file: sweep it.
+	if parts, _ := filepath.Glob(filepath.Join(m.cfg.Dir, "*.pmtiles.part")); len(parts) > 0 {
+		for _, p := range parts {
+			os.Remove(p)
+		}
+	}
 	t := time.NewTicker(2 * time.Minute)
 	defer t.Stop()
 	for {

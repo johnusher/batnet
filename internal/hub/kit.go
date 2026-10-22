@@ -74,7 +74,7 @@ func (s *Server) readAllowed(w http.ResponseWriter, r *http.Request) bool {
 	if pin == "" {
 		pin = r.URL.Query().Get("pin")
 	}
-	if err := s.checkPIN(pin); err != nil {
+	if err := s.checkPIN(pin, r.RemoteAddr); err != nil {
 		writeJSON(w, err.code, map[string]any{"error": err.msg, "locked": true})
 		return false
 	}

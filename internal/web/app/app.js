@@ -32,7 +32,7 @@ const T = {
     sendAlert: 'Send alert to everyone', alertSent: 'Alert sent.', help: 'How batnet works', alertBanner: '⚠ Alert', dismiss: 'Dismiss',
     helpText: [
       'batnet works without the internet. Your house\'s Pi links to the houses around it by WiFi, and to houses further away by radio.',
-      'Your browser warned that this page is "not private" once. That\'s expected without the internet: the connection is still encrypted.',
+      'Your browser may say this page is "not secure". That\'s expected without the internet. The WiFi is open, so don\'t write anything here that must stay private from someone nearby with a laptop.',
       'Keep batnet open to hear new messages: a locked phone can\'t ring. At night, use bedside mode.',
       'Normal is for most messages. High goes first over the radio and alerts people: you have 3 an hour. Low can wait.',
       'Messages you write out of range wait on your phone and send by themselves when you\'re back.',
@@ -62,7 +62,7 @@ const T = {
     sendAlert: 'Alarm an alle senden', alertSent: 'Alarm gesendet.', help: 'So funktioniert batnet', alertBanner: '⚠ Alarm', dismiss: 'Ausblenden',
     helpText: [
       'batnet funktioniert ohne Internet. Der Pi deines Hauses verbindet sich per WLAN mit den Häusern in der Nähe und per Funk mit weiter entfernten.',
-      'Dein Browser hat einmal gewarnt, diese Seite sei „nicht privat“. Das ist ohne Internet normal: Die Verbindung ist trotzdem verschlüsselt.',
+      'Dein Browser sagt vielleicht, diese Seite sei „nicht sicher“. Das ist ohne Internet normal. Das WLAN ist offen: Schreib hier nichts, was jemand in der Nähe mit einem Laptop nicht mitlesen darf.',
       'Lass batnet offen, um neue Nachrichten zu hören: Ein gesperrtes Handy kann nicht klingeln. Nachts hilft der Nachtmodus.',
       'Normal ist für die meisten Nachrichten. Wichtig geht per Funk zuerst und alarmiert: du hast 3 pro Stunde. Niedrig kann warten.',
       'Nachrichten, die du außer Reichweite schreibst, warten auf deinem Handy und gehen von selbst raus, sobald du zurück bist.',

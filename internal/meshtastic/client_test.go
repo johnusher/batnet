@@ -397,3 +397,38 @@ func TestLinksKeptBetweenRuns(t *testing.T) {
 		t.Errorf("after loading %+v", st.Nodes)
 	}
 }
+
+// A radio's names are its own claim: too long or not text, they are kept out.
+// The hub knows which channels it has; the tables of radios and links are bounded.
+func TestNamesChannelsAndBounds(t *testing.T) {
+	f, c, _ := readyRadio(t)
+	f.send(nodeInfo(0xa1b2c3d4, userMsg("!a1b2c3d4", strings.Repeat("x", MaxLongName+1), "\xff\xfe"), 6.5, 1))
+	f.send(nodeInfo(0x0badf00d, userMsg("!00000000", "Fine name", "FN"), 2, 1))
+	st := waitFor(t, c, func(s Status) bool { return len(s.Nodes) == 3 })
+	for _, n := range st.Nodes {
+		if n.Num == 0xa1b2c3d4 && (n.LongName != "Anna's handheld" || n.ShortName != "ANNA") {
+			t.Fatalf("an over-long or non-text name replaced the old one: %q %q", n.LongName, n.ShortName)
+		}
+	}
+	var chs, ch, chFr enc
+	chs.bytes(3, []byte("BerlinMesh"))
+	ch.varint(1, 1)
+	ch.bytes(2, chs.b)
+	ch.varint(3, 2) // secondary
+	chFr.bytes(frChannel, ch.b)
+	f.send(chFr.b)
+	waitFor(t, c, func(s Status) bool { return c.HasChannel(1) })
+	if c.HasChannel(2) || c.HasChannel(-1) {
+		t.Fatal("a channel the radio has not got")
+	}
+	for i := uint32(0); i < maxNodes+20; i++ {
+		f.send(textPacket(0x10000000+i, "spam", 1, 3, 2))
+	}
+	waitFor(t, c, func(s Status) bool { return len(s.Nodes) == maxNodes })
+	c.mu.Lock()
+	n, l := len(c.nodes), len(c.links)
+	c.mu.Unlock()
+	if n != maxNodes || l > maxLinks {
+		t.Fatalf("%d radios and %d links kept, want at most %d and %d", n, l, maxNodes, maxLinks)
+	}
+}

@@ -15,6 +15,13 @@ import (
 	"github.com/johnusher/batnet/internal/ledger"
 )
 
+// maxGroups and maxGroupName bound what the village's groups can grow to:
+// every group is a row on every phone.
+const (
+	maxGroups    = 500
+	maxGroupName = 64
+)
+
 // Location is where a message was sent from (decision 0019).
 type Location struct {
 	Lat    float64 `json:"lat"`
@@ -187,7 +194,10 @@ func (s *State) Apply(e *ledger.Entry) {
 		}
 	case ledger.TypeGroupCreate:
 		var b struct{ ID, Name string }
-		if json.Unmarshal(e.Body, &b) == nil && b.ID != "" && s.groups[b.ID] == nil {
+		// Every group is a row on every phone: a node cannot add thousands, or
+		// nameless or endless ones.
+		if json.Unmarshal(e.Body, &b) == nil && b.ID != "" && len(b.ID) <= maxGroupName && strings.TrimSpace(b.Name) != "" &&
+			len(b.Name) <= maxGroupName && len(s.groups) < maxGroups && s.groups[b.ID] == nil {
 			s.groups[b.ID] = &Group{ID: b.ID, Name: b.Name}
 		}
 	case ledger.TypeMsgPost, ledger.TypeAlert:

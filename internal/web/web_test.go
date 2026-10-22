@@ -104,7 +104,7 @@ func TestCaptivePortal(t *testing.T) {
 	resp, _ := http.Get(h.ts.URL + "/welcome")
 	b, _ := io.ReadAll(resp.Body)
 	resp.Body.Close()
-	if !strings.Contains(string(b), "Miller") || !strings.Contains(string(b), "https://batnet") {
+	if !strings.Contains(string(b), "Miller") || !strings.Contains(string(b), "http://batnet") {
 		t.Fatal("welcome page lacks the house name or the address to open")
 	}
 }

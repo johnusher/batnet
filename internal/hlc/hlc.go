@@ -56,11 +56,20 @@ func (c *Clock) Now() Timestamp {
 	return c.last
 }
 
+// MaxWall is the latest stamp any node accepts (the year 2100): a stamp past
+// it is a broken or hostile clock, which would otherwise date every later
+// entry in the far future for good.
+const MaxWall = 4102444800000
+
 // Observe merges a timestamp received from another node. With a plausible
-// local clock, a stamp more than MaxSkew ahead of it is ignored.
+// local clock, a stamp more than MaxSkew ahead of it is ignored; a stamp past
+// MaxWall always is.
 func (c *Clock) Observe(r Timestamp) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	if r.Wall > MaxWall {
+		return
+	}
 	if p := c.phys(); p >= MinPlausible && r.Wall > p+MaxSkew {
 		return
 	}

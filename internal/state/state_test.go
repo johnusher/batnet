@@ -3,7 +3,9 @@ package state
 import (
 	"crypto/ed25519"
 	"encoding/json"
+	"fmt"
 	"math/rand"
+	"strings"
 	"testing"
 
 	"github.com/johnusher/batnet/internal/hlc"
@@ -148,5 +150,25 @@ func TestOrderIndependent(t *testing.T) {
 		if string(got) != string(want) {
 			t.Fatalf("order changed the result:\n%s\n%s", got, want)
 		}
+	}
+}
+
+// A node cannot fill every phone's screen with groups: nameless, endless or
+// too many are ignored.
+func TestGroupsAreBounded(t *testing.T) {
+	all, miller, _, _, _, _ := village(t)
+	s := apply(*all)
+	before := len(s.Groups())
+	s.Apply(miller.write(t, ledger.TypeGroupCreate, map[string]string{"id": "x", "name": "  "}))
+	s.Apply(miller.write(t, ledger.TypeGroupCreate, map[string]string{"id": "y", "name": strings.Repeat("n", maxGroupName+1)}))
+	s.Apply(miller.write(t, ledger.TypeGroupCreate, map[string]string{"id": strings.Repeat("i", maxGroupName+1), "name": "Water"}))
+	if len(s.Groups()) != before {
+		t.Fatalf("a nameless or endless group got in: %d groups", len(s.Groups()))
+	}
+	for i := 0; i < maxGroups+10; i++ {
+		s.Apply(miller.write(t, ledger.TypeGroupCreate, map[string]string{"id": fmt.Sprintf("g%d", i), "name": "G"}))
+	}
+	if len(s.Groups()) != maxGroups {
+		t.Fatalf("%d groups, want at most %d", len(s.Groups()), maxGroups)
 	}
 }

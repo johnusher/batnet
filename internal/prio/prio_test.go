@@ -1,6 +1,10 @@
 package prio
 
-import "testing"
+import (
+	"fmt"
+	"sync"
+	"testing"
+)
 
 func TestForPost(t *testing.T) {
 	cases := []struct {
@@ -64,5 +68,29 @@ func TestLimiter(t *testing.T) {
 	}
 	if !l.Allow("anna", hour+1) {
 		t.Fatal("High refused after the hour passed")
+	}
+}
+
+// The house server calls Allow from every request at once.
+func TestLimiterUnderParallelUse(t *testing.T) {
+	l := NewLimiter(3)
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	allowed := 0
+	for i := 0; i < 40; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if l.Allow("anna", int64(i)) {
+				mu.Lock()
+				allowed++
+				mu.Unlock()
+			}
+			l.Allow(fmt.Sprintf("person-%d", i), int64(i))
+		}(i)
+	}
+	wg.Wait()
+	if allowed != 3 {
+		t.Fatalf("%d of 40 parallel High posts allowed, want 3", allowed)
 	}
 }

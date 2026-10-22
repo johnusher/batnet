@@ -123,3 +123,25 @@ func TestSessions(t *testing.T) {
 		t.Fatal("unknown token valid")
 	}
 }
+
+// A sign-in loop cannot grow the table: expired sessions go, and one account
+// keeps at most maxPerAccount.
+func TestSessionsAreBounded(t *testing.T) {
+	s := NewSessions()
+	now := time.Unix(1_790_000_000, 0)
+	first := s.New("anna", now)
+	for i := 0; i < 3*maxPerAccount; i++ {
+		s.New("anna", now.Add(time.Duration(i+1)*time.Second))
+	}
+	if len(s.m) != maxPerAccount {
+		t.Fatalf("%d sessions for one account, want %d", len(s.m), maxPerAccount)
+	}
+	if _, ok := s.Get(first, now); ok {
+		t.Fatal("the oldest session should have made room")
+	}
+	ben := s.New("ben", now)
+	s.New("cleo", now.Add(400*24*time.Hour)) // a year on: anna's and ben's have expired
+	if _, ok := s.Get(ben, now.Add(400*24*time.Hour)); ok || len(s.m) != 1 {
+		t.Fatalf("expired sessions not swept: %d left", len(s.m))
+	}
+}

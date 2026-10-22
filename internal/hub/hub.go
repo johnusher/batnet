@@ -109,17 +109,18 @@ type Server struct {
 	cfg Config
 
 	mu       sync.Mutex
-	failures []time.Time
+	failures map[string][]time.Time // wrong PINs by address
 }
 
 // New returns a panel server.
 func New(cfg Config) *Server { return &Server{cfg: cfg} }
 
 const (
-	keepTexts    = 300 // messages the panel gets: public and to this hub
-	maxBody      = 4 << 10
-	failWindow   = 10 * time.Minute
-	failsAllowed = 5
+	keepTexts       = 300 // messages the panel gets: public and to this hub
+	maxBody         = 4 << 10
+	failWindow      = 10 * time.Minute
+	failsAllowed    = 5  // wrong PINs from one address
+	failsAllowedAll = 50 // and from everyone together
 )
 
 // Handler serves the panel under /hub/.
@@ -142,7 +143,7 @@ func (s *Server) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "no-referrer")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://tile.openstreetmap.org; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'")
 		w.Header().Set("Cache-Control", "no-store")
 		mux.ServeHTTP(w, r)
 	})
@@ -253,7 +254,7 @@ func (s *Server) actionR(f func(r *http.Request, body map[string]string) (any, e
 			return
 		}
 		if !local(r) {
-			if err := s.checkPIN(r.Header.Get("X-Hub-PIN")); err != nil {
+			if err := s.checkPIN(r.Header.Get("X-Hub-PIN"), r.RemoteAddr); err != nil {
 				writeJSON(w, err.code, map[string]string{"error": err.msg})
 				return
 			}
@@ -279,34 +280,53 @@ func (s *Server) actionR(f func(r *http.Request, body map[string]string) (any, e
 	}
 }
 
-// checkPIN allows five wrong PINs in ten minutes from the whole LAN, then
-// none until the oldest ages out.
-func (s *Server) checkPIN(pin string) *failure {
+// checkPIN allows five wrong PINs in ten minutes from one address, then none
+// from it until the oldest ages out; and fifty from everywhere together, so a
+// guesser who changes address still runs out. The lockout is per address so
+// a stranger on the open WiFi cannot lock the owner's phone out (a
+// household's addresses differ).
+func (s *Server) checkPIN(pin, remote string) *failure {
+	addr, _, err := net.SplitHostPort(remote)
+	if err != nil {
+		addr = remote
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	now := time.Now()
-	kept := s.failures[:0]
-	for _, t := range s.failures {
-		if now.Sub(t) < failWindow {
-			kept = append(kept, t)
-		}
+	if s.failures == nil {
+		s.failures = map[string][]time.Time{}
 	}
-	s.failures = kept
-	if len(s.failures) >= failsAllowed {
+	total := 0
+	for a, ts := range s.failures {
+		kept := ts[:0]
+		for _, t := range ts {
+			if now.Sub(t) < failWindow {
+				kept = append(kept, t)
+			}
+		}
+		if len(kept) == 0 {
+			delete(s.failures, a)
+			continue
+		}
+		s.failures[a] = kept
+		total += len(kept)
+	}
+	if len(s.failures[addr]) >= failsAllowed || total >= failsAllowedAll {
 		return &failure{http.StatusTooManyRequests, "Too many wrong PINs. Try again in a few minutes, or use the screen on the hub."}
 	}
 	if pin == "" { // not a guess: a page that hasn't asked yet (or polls while locked)
 		return &failure{http.StatusUnauthorized, "The hub PIN is shown on the hub's screen."}
 	}
 	if s.cfg.HubPIN == "" || subtle.ConstantTimeCompare([]byte(pin), []byte(s.cfg.HubPIN)) != 1 {
-		s.failures = append(s.failures, now)
+		s.failures[addr] = append(s.failures[addr], now)
 		return &failure{http.StatusUnauthorized, "The hub PIN is shown on the hub's screen."}
 	}
 	return nil
 }
 
 // send sends a text to everyone, or with "to" (a node ID such as !a1b2c3d4)
-// to one radio; "replyId" makes it an answer to that message.
+// to one radio, or with "channel" (an index above 0) to everyone on one of
+// the radio's group channels; "replyId" makes it an answer to that message.
 func (s *Server) send(b map[string]string) (any, error) {
 	if s.cfg.Radio == nil {
 		return nil, meshtastic.ErrOffline
@@ -329,12 +349,11 @@ func (s *Server) send(b map[string]string) (any, error) {
 	var ch uint32
 	if c := b["channel"]; c != "" && c != "0" {
 		n, err := strconv.Atoi(c)
-		known := false
-		for _, x := range s.cfg.Radio.Status().Channels {
-			known = known || (err == nil && n > 0 && x.Index == n)
-		}
-		if !known || to != meshtastic.Broadcast {
+		if err != nil || n <= 0 || !s.cfg.Radio.HasChannel(n) {
 			return nil, errors.New("No such channel on this radio.")
+		}
+		if to != meshtastic.Broadcast {
+			return nil, errors.New("A message to one radio does not go on a group channel.")
 		}
 		ch = uint32(n)
 	}
@@ -470,7 +489,7 @@ func (s *Server) settings(b map[string]string) (any, error) {
 // download serves a saved log; from the LAN it needs the hub PIN (?pin=).
 func (s *Server) download(w http.ResponseWriter, r *http.Request) {
 	if !local(r) {
-		if err := s.checkPIN(r.URL.Query().Get("pin")); err != nil {
+		if err := s.checkPIN(r.URL.Query().Get("pin"), r.RemoteAddr); err != nil {
 			http.Error(w, err.msg, err.code)
 			return
 		}

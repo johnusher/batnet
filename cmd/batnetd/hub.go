@@ -265,7 +265,10 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	if err != nil {
 		return err
 	}
-	hs := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+	// No WriteTimeout: the app's live streams stay open for hours. Idle
+	// connections go after two minutes so phones that wander off do not hold
+	// the Pi's sockets.
+	hs := &http.Server{Handler: mux, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 2 * time.Minute}
 	go hs.Serve(ln)
 	log.Printf("batnet hub %q, mesh %s, panel on http://%s/hub/, radio %s", h.settings.House, h.settings.Mode, listen, radioAddr)
 	go watchdog(ctx, ln.Addr().String())
@@ -474,9 +477,24 @@ func sleep(ctx context.Context, d time.Duration) {
 
 // ---- keys and PINs in the data folder ----
 
+// writeFileAtomic writes the file whole or not at all, and makes sure it is on
+// the card before it takes the old one's place: a power cut must not leave a
+// half-written key or settings file (L23 is what a cut does to open files).
 func writeFileAtomic(path string, b []byte, perm os.FileMode) error {
 	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, b, perm); err != nil {
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(b); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Close(); err != nil {
 		return err
 	}
 	return os.Rename(tmp, path)

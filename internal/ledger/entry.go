@@ -3,6 +3,7 @@
 package ledger
 
 import (
+	"bytes"
 	"crypto/ed25519"
 	"encoding/binary"
 	"encoding/hex"
@@ -128,6 +129,11 @@ func (e *Entry) UnmarshalBinary(b []byte) error {
 		return fmt.Errorf("%w: logical clock overflow", ErrMalformed)
 	}
 	out.TS.Logical = uint32(logical)
+	// One entry, one wire form: a padded varint would still verify, but
+	// another copy of the same entry would slip past duplicate suppression.
+	if c, _ := out.MarshalBinary(); !bytes.Equal(c, b) {
+		return fmt.Errorf("%w: not in canonical form", ErrMalformed)
+	}
 	*e = out
 	return nil
 }

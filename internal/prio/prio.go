@@ -2,6 +2,8 @@
 // the 0-9 level the radio queue uses (decision 0015).
 package prio
 
+import "sync"
+
 // Level is 0-9; higher goes first.
 type Level uint8
 
@@ -68,17 +70,28 @@ func Effective(base Level, waitedUs int64) Level {
 	return Level(l)
 }
 
-// Limiter allows each person PerHour High messages in any sliding hour.
+// Limiter allows each person PerHour messages in any sliding hour. It is
+// safe for concurrent use: the house server calls it from every request.
 type Limiter struct {
 	PerHour int
+	mu      sync.Mutex
 	sent    map[string][]int64
 }
 
 // NewLimiter returns a limiter of perHour per person.
 func NewLimiter(perHour int) *Limiter { return &Limiter{PerHour: perHour, sent: map[string][]int64{}} }
 
-// Allow records and allows a High message, or refuses it.
+// Allow records and allows a message, or refuses it.
 func (l *Limiter) Allow(person string, nowUs int64) bool {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if len(l.sent) > 1000 { // forget people whose hour has passed, so the table can't grow forever
+		for p, ts := range l.sent {
+			if len(ts) == 0 || nowUs-ts[len(ts)-1] >= hourUs {
+				delete(l.sent, p)
+			}
+		}
+	}
 	keep := l.sent[person][:0]
 	for _, t := range l.sent[person] {
 		if nowUs-t < hourUs {

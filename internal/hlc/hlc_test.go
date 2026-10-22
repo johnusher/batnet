@@ -89,3 +89,17 @@ func TestImplausibleClockFollowsVillage(t *testing.T) {
 		t.Fatalf("Now %v not after %v", got, seen)
 	}
 }
+
+// A stamp past MaxWall is a broken or hostile clock: never followed, even by
+// a node whose own clock is implausible.
+func TestStampPastMaxWallIgnored(t *testing.T) {
+	c := New(func() int64 { return 5000 })
+	c.Observe(Timestamp{Wall: MaxWall + 1})
+	if got := c.Now(); got.Wall > MaxWall {
+		t.Fatalf("clock followed a stamp past the year 2100: %v", got)
+	}
+	c.Observe(Timestamp{Wall: 1_790_000_000_000})
+	if got := c.Now(); got.Wall < 1_790_000_000_000 {
+		t.Fatalf("a plausible stamp still followed: %v", got)
+	}
+}

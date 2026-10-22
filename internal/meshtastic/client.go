@@ -291,10 +291,14 @@ func (c *Client) session(ctx context.Context) error {
 	}
 	beat := time.NewTicker(heartbeatEvery)
 	defer beat.Stop()
+	done := make(chan struct{}) // this session's end, so its heartbeat goroutine ends with it
+	defer close(done)
 	go func() {
 		for {
 			select {
 			case <-ctx.Done():
+				return
+			case <-done:
 				return
 			case <-beat.C:
 				var hb enc
@@ -418,9 +422,26 @@ func (c *Client) handle(b []byte) {
 	}
 }
 
+// maxNodes and maxLinks bound the tables: a packet's sender is whatever its
+// header says, so a radio sending made-up senders must not fill the memory.
+// Past the bound the radio heard longest ago makes room.
+const maxNodes, maxLinks = 1000, 1000
+
 func (c *Client) node(num uint32) *Node {
 	n := c.nodes[num]
 	if n == nil {
+		if len(c.nodes) >= maxNodes {
+			var oldest *Node
+			for _, o := range c.nodes {
+				if !o.Self && (oldest == nil || o.LastHeard.Before(oldest.LastHeard)) {
+					oldest = o
+				}
+			}
+			if oldest != nil {
+				delete(c.nodes, oldest.Num)
+				delete(c.links, oldest.Num)
+			}
+		}
 		n = &Node{Num: num, ID: fmt.Sprintf("!%08x", num), Hops: -1}
 		c.nodes[num] = n
 	}
@@ -465,6 +486,17 @@ func (c *Client) LoadLinks(m map[string]SavedLink) {
 func (c *Client) heardStraight(num uint32, snr float32) {
 	l := c.links[num]
 	if l == nil {
+		if len(c.links) >= maxLinks {
+			var oldest uint32
+			var oldestAt time.Time
+			first := true
+			for k, o := range c.links {
+				if first || o.at.Before(oldestAt) {
+					oldest, oldestAt, first = k, o.at, false
+				}
+			}
+			delete(c.links, oldest)
+		}
 		l = &link{}
 		c.links[num] = l
 	}
@@ -502,10 +534,13 @@ func (c *Client) relayer(b uint32) (uint32, bool) {
 }
 
 func (c *Client) setUser(n *Node, u user) {
-	if u.long != "" {
+	// Names come from the radio that claims them: longer than a radio's own
+	// fields hold, or not text, they are kept out (the panel would show them,
+	// and a map label takes a name as HTML).
+	if u.long != "" && len(u.long) <= MaxLongName && utf8.ValidString(u.long) {
 		n.LongName = u.long
 	}
-	if u.short != "" {
+	if u.short != "" && len(u.short) <= MaxShortName+12 && utf8.ValidString(u.short) { // firmware holds 4 bytes; some builds allow a few emoji
 		n.ShortName = u.short
 	}
 	n.HWModel, n.Role, n.Hardware = u.hw, roles[u.role], HardwareName(u.hw)
@@ -788,6 +823,14 @@ func (c *Client) Status() Status {
 	}
 	sort.Slice(st.Channels, func(i, j int) bool { return st.Channels[i].Index < st.Channels[j].Index })
 	return st
+}
+
+// HasChannel reports whether the radio has channel index i, and it is in use.
+func (c *Client) HasChannel(i int) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ch, ok := c.channels[i]
+	return ok && ch.Role != "disabled"
 }
 
 // SendText sends text to everyone on a channel (0 is the primary).

@@ -151,7 +151,7 @@ func (s *Syncer) receive(ctx context.Context, p Packet) {
 
 // accept verifies and stores an entry from the network; true if it was new.
 func (s *Syncer) accept(e *ledger.Entry) bool {
-	if e.Verify() != nil {
+	if e.Verify() != nil || e.TS.Wall > hlc.MaxWall { // a far-future stamp would sort last for ever and poison clocks
 		return false
 	}
 	added, err := s.cfg.Store.Put(e)

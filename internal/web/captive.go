@@ -18,9 +18,9 @@ var welcome = template.Must(template.New("w").Parse(`<!doctype html>
 <body><h1>Welcome to batnet · {{.}}</h1>
 <p>This WiFi has no internet. It connects you to the people in {{.}} and the houses around it.</p>
 <p>This small window can't record voice or keep you signed in. Open your normal web browser and go to:</p>
-<p class="url">https://batnet</p>
-<p>Your browser will warn that the connection is "not private" once. That's expected without the internet: choose
-<b>Advanced</b>, then <b>Proceed</b> (Android) or <b>Show details</b>, then <b>visit this website</b> (iPhone).</p>
+<p class="url">http://batnet</p>
+<p>Your browser may say the page is "not secure". That's expected: there is no internet to check it with, and this WiFi
+is open, so don't write anything here that must stay private from someone standing nearby with a laptop.</p>
 </body></html>`))
 
 func (s *Server) captive(mux *http.ServeMux) {

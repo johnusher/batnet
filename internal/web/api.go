@@ -159,7 +159,8 @@ func (s *Server) api(mux *http.ServeMux) {
 		if err != nil {
 			return nil, err
 		}
-		e, err := s.Write(ledger.TypeAccountRequest, prio.Normal, map[string]any{"name": strings.TrimSpace(in.Name), "pinHash": h})
+		// Low: the admin who approves is at this house; the request need not hurry over the radio.
+		e, err := s.Write(ledger.TypeAccountRequest, prio.Low, map[string]any{"name": strings.TrimSpace(in.Name), "pinHash": h})
 		if err != nil {
 			return nil, err
 		}
@@ -176,6 +177,9 @@ func (s *Server) api(mux *http.ServeMux) {
 		// The lockout is per phone and name (B22): a stranger guessing at Anna's
 		// PIN locks only their own phone out, not Anna's.
 		addr, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if !s.tries.Allow(addr, now.UnixMicro()) { // a new made-up name each time never locks, but still costs a hash
+			return nil, fail(http.StatusTooManyRequests, "Too many sign-in attempts from this device. Try again later.")
+		}
 		key := addr + "\x00" + strings.ToLower(strings.TrimSpace(in.Name))
 		if wait := s.lockout.Try(key, now); wait > 0 { // counts this attempt before checking, so parallel guesses can't slip through
 			return nil, &apiError{code: http.StatusTooManyRequests, msg: "Too many wrong PINs. Try again later.", wait: wait}
@@ -264,7 +268,8 @@ func (s *Server) api(mux *http.ServeMux) {
 			typ = ledger.TypeAccountDeny
 		}
 		mux.HandleFunc("POST /api/admin/"+verb, handle(func(w http.ResponseWriter, r *http.Request) (any, error) {
-			if _, err := s.admin(r); err != nil {
+			me, err := s.admin(r)
+			if err != nil {
 				return nil, err
 			}
 			var in struct{ Account string }
@@ -274,6 +279,9 @@ func (s *Server) api(mux *http.ServeMux) {
 			a := s.cfg.State.Account(in.Account)
 			if a == nil || a.Home != s.cfg.Author.ID() {
 				return nil, fail(http.StatusForbidden, "That account belongs to another house.")
+			}
+			if me.ID == a.ID {
+				return nil, fail(http.StatusBadRequest, "You cannot approve or deny yourself.")
 			}
 			if _, err := s.Write(typ, prio.Normal, map[string]string{"account": a.ID}); err != nil {
 				return nil, err
@@ -356,6 +364,12 @@ func (s *Server) messagesAPI(mux *http.ServeMux) {
 		}
 		if !validLoc(in.Loc) {
 			return nil, fail(http.StatusBadRequest, "That location isn't valid.")
+		}
+		if in.Loc != nil {
+			in.Loc.Source = "phone" // a phone's position is the phone's, whatever it says
+		}
+		if !s.posts.Allow(a.ID, s.cfg.Now().UnixMicro()) {
+			return nil, fail(http.StatusTooManyRequests, "That is a lot of messages in one hour. Wait a little before the next.")
 		}
 		choice := prio.Choice(in.Prio)
 		if choice != "" && choice != "low" && choice != "normal" && choice != "high" && choice != "alert" {

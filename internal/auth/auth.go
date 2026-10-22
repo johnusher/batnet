@@ -163,9 +163,38 @@ func (s *Sessions) New(account string, now time.Time) string {
 	tok := base64.RawURLEncoding.EncodeToString(b)
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	// Expired sessions go, and an account keeps at most maxPerAccount (its
+	// oldest goes): a sign-in loop cannot grow the table without end.
+	var mine []string
+	for t, x := range s.m {
+		if now.After(x.expires) {
+			delete(s.m, t)
+		} else if x.account == account {
+			mine = append(mine, t)
+		}
+	}
+	for len(mine) >= maxPerAccount {
+		oldest := mine[0]
+		for _, t := range mine[1:] {
+			if s.m[t].expires.Before(s.m[oldest].expires) {
+				oldest = t
+			}
+		}
+		delete(s.m, oldest)
+		kept := mine[:0]
+		for _, t := range mine {
+			if t != oldest {
+				kept = append(kept, t)
+			}
+		}
+		mine = kept
+	}
 	s.m[tok] = session{account: account, expires: now.Add(sessionLife)}
 	return tok
 }
+
+// maxPerAccount is how many sessions (phones, browsers) one account may have at once.
+const maxPerAccount = 16
 
 // Get returns the session's account.
 func (s *Sessions) Get(token string, now time.Time) (string, bool) {

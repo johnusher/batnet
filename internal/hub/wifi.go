@@ -114,6 +114,7 @@ type WiFi struct {
 	lastBusy  time.Time // when a device was last on the hub's own WiFi
 	waiting   bool
 	retrying  bool // tryHome is under way
+	stillOpen bool // neighbours were just shut out, but the WiFi is not up again with its password yet
 	saved     []SavedWiFi
 	savedAt   time.Time
 	err, note string
@@ -467,6 +468,7 @@ func (w *WiFi) up(by string) error {
 	if err == nil {
 		w.startedBy, w.ownSince, w.lastBusy, w.err = by, w.now(), w.now(), ""
 		w.note = ""
+		w.stillOpen = false // up again, with the password the settings say
 		w.writeStarted(by)
 	}
 	w.mu.Unlock()
@@ -542,6 +544,9 @@ func (w *WiFi) Configure(s WiFiSettings) error {
 	old := w.set
 	w.set = s
 	running := w.mode == "own"
+	if running && old.Neighbours && !s.Neighbours {
+		w.stillOpen = true // the air is still open until the WiFi is up again with its password
+	}
 	w.mu.Unlock()
 	if w.save != nil {
 		if err := w.save(s); err != nil {
@@ -745,18 +750,28 @@ func (w *WiFi) Status(withSecret bool) WiFiStatus {
 func (w *WiFi) OpenToAll() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.set.Neighbours
+	return w.set.Neighbours || w.stillOpen
 }
 
-// OnOwnWiFi reports whether a remote address is on the hub's own WiFi.
+// OnOwnWiFi reports whether a remote address is on the hub's own WiFi. The
+// own WiFi hands out IPv4 addresses on one net; anything that is not a
+// private IPv4 address elsewhere (an IPv6 or link-local address, which the
+// firewall lets through on the open WiFi too) counts as on it, so the check
+// fails closed.
 func OnOwnWiFi(remote string) bool {
 	host, _, err := net.SplitHostPort(remote)
 	if err != nil {
 		host = remote
 	}
 	ip := net.ParseIP(host)
+	if ip == nil || ip.IsLoopback() {
+		return false
+	}
 	_, n, _ := net.ParseCIDR(ownWiFiNet)
-	return ip != nil && n.Contains(ip)
+	if n.Contains(ip) {
+		return true
+	}
+	return ip.To4() == nil || !ip.IsPrivate()
 }
 
 // splitTerse splits a line of nmcli -t output: fields by ':', with '\:' and

@@ -106,3 +106,24 @@ func TestNodeIDString(t *testing.T) {
 		t.Fatalf("String() = %q, want deadbeef", got)
 	}
 }
+
+// One entry has one wire form: a padded varint (which still verifies) is
+// refused, so a second copy of an entry cannot slip past duplicate suppression.
+func TestUnmarshalRejectsNonCanonical(t *testing.T) {
+	e := sampleEntry(newKey(t))
+	b, _ := e.MarshalBinary()
+	// The seq follows the version byte and the 32-byte origin, as a one-byte
+	// varint here. Pad it to two bytes (0x80|v, 0x00 means the same number).
+	i := 1 + len(e.Key.Origin)
+	if b[i] >= 0x80 {
+		t.Fatalf("expected a one-byte seq at byte %d, got %#x", i, b[i])
+	}
+	padded := append(append(append([]byte{}, b[:i]...), b[i]|0x80, 0x00), b[i+1:]...)
+	var out Entry
+	if err := out.UnmarshalBinary(padded); err == nil {
+		t.Fatal("a padded varint was accepted")
+	}
+	if err := out.UnmarshalBinary(b); err != nil {
+		t.Fatalf("the canonical form was refused: %v", err)
+	}
+}

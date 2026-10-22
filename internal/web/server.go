@@ -37,8 +37,10 @@ type Server struct {
 	cfg      Config
 	sessions *auth.Sessions
 	lockout  *auth.Lockout
-	high     *prio.Limiter
-	mu       sync.Mutex // serialises writes to the log
+	high     *prio.Limiter // High posts per person per hour
+	posts    *prio.Limiter // posts of any kind per person per hour
+	tries    *prio.Limiter // sign-in attempts per address per hour, whatever the name
+	mu       sync.Mutex    // serialises writes to the log
 	hub      *hub
 	argon    chan struct{} // at most 2 PIN hashes at once: each takes 19 MiB, a Pi Zero has 512 MB
 
@@ -78,6 +80,8 @@ func (s *Server) rememberClient(k, msg string) {
 // Sign-up limits on the open hotspot (review of plan 4a).
 const (
 	signupsPerAddrPerHour  = 3
+	postsPerHour           = 120 // one person's posts; past it the log, every house's memory and the radio fill up
+	signInTriesPerHour     = 200 // from one address, under any name: each costs a PIN hash
 	signupsPerHousePerHour = 20
 	maxPendingPerHouse     = 30
 )
@@ -143,7 +147,8 @@ func New(cfg Config) *Server {
 	if cfg.Publish == nil {
 		cfg.Publish = func(*ledger.Entry) {}
 	}
-	return &Server{cfg: cfg, sessions: auth.NewSessions(), lockout: auth.NewLockout(), high: prio.NewLimiter(cfg.HighPerHour), hub: newHub(),
+	return &Server{cfg: cfg, sessions: auth.NewSessions(), lockout: auth.NewLockout(), high: prio.NewLimiter(cfg.HighPerHour),
+		posts: prio.NewLimiter(postsPerHour), tries: prio.NewLimiter(signInTriesPerHour), hub: newHub(),
 		argon: make(chan struct{}, 2), signups: map[string][]time.Time{}}
 }
 

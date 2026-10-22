@@ -19,6 +19,7 @@ type fakeNM struct {
 	prio     map[string]int
 	active   string
 	homeHere bool // the home network is in range
+	failUp   bool // "connection up" fails, as NetworkManager sometimes does
 	clients  int
 	calls    []string
 }
@@ -93,6 +94,9 @@ func (f *fakeNM) run(_ context.Context, name string, args ...string) (string, er
 		n := args[len(args)-1]
 		if _, ok := f.conns[n]; !ok {
 			return "", errors.New("Error: unknown connection")
+		}
+		if f.failUp {
+			return "", errors.New("Error: Connection activation failed")
 		}
 		if n != OwnWiFiName && !f.homeHere {
 			return "", errors.New("Error: no network with SSID")
@@ -347,5 +351,50 @@ func TestWiFiRestartKeepsOwnWiFi(t *testing.T) {
 	}
 	if _, err := os.Stat(started); err == nil {
 		t.Fatal("wifi-started left behind")
+	}
+}
+
+// The open-WiFi gate fails closed: an address that is not a private IPv4
+// address elsewhere (IPv6, link-local) counts as on the hub's own WiFi.
+func TestOnOwnWiFiFailsClosed(t *testing.T) {
+	for _, on := range []string{"10.42.0.17:5555", "[fe80::1]:4000", "[2001:db8::5]:80", "203.0.113.9:80", "169.254.3.4:80"} {
+		if !OnOwnWiFi(on) {
+			t.Errorf("%s should need the PIN", on)
+		}
+	}
+	for _, off := range []string{"192.168.1.2:80", "172.27.0.5:80", "10.0.0.9:80", "127.0.0.1:80", "[::1]:80"} {
+		if OnOwnWiFi(off) {
+			t.Errorf("%s is the LAN or the Pi itself", off)
+		}
+	}
+}
+
+// Shutting neighbours out keeps asking for the PIN until the WiFi is really
+// up again with its password; if NetworkManager fails, the air is still open.
+func TestOpenToAllUntilThePasswordIsBack(t *testing.T) {
+	f := newFakeNM()
+	w, _ := newTestWiFi(f)
+	if err := w.Configure(WiFiSettings{Neighbours: true}); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.StartOwn("you"); err != nil {
+		t.Fatal(err)
+	}
+	if !w.OpenToAll() {
+		t.Fatal("open to neighbours, but not reported so")
+	}
+	f.set(func(f *fakeNM) { f.failUp = true })
+	if err := w.Configure(WiFiSettings{Neighbours: false}); err == nil {
+		t.Fatal("the restart with a password should have failed")
+	}
+	if !w.OpenToAll() {
+		t.Fatal("neighbours shut out in the settings only: the WiFi is still open, so the PIN must still be asked")
+	}
+	f.set(func(f *fakeNM) { f.failUp = false })
+	if err := w.StartOwn("you"); err != nil {
+		t.Fatal(err)
+	}
+	if w.OpenToAll() {
+		t.Fatal("up again with the password, but still asking for the PIN")
 	}
 }

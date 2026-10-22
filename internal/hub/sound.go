@@ -399,7 +399,10 @@ func aplay(ctx context.Context, device string, wav []byte) error {
 }
 
 func espeak(ctx context.Context, text string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, "espeak-ng", "--stdout", "-v", "en", "-s", "150", text)
+	// "--" ends the options: the text starts with a radio's name, which a
+	// stranger chooses, and one starting with "-" must not become an option
+	// (-w writes a file, -f reads one aloud).
+	cmd := exec.CommandContext(ctx, "espeak-ng", "--stdout", "-v", "en", "-s", "150", "--", text)
 	return cmd.Output()
 }
 
