@@ -200,6 +200,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 
 	radio := meshtastic.New(radioAddr)
+	go keepLinks(ctx, radio, filepath.Join(data, "links.json"))
 	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -587,6 +588,36 @@ func watchdog(ctx context.Context, addr string) {
 			if alive() {
 				sdNotify("WATCHDOG=1")
 			}
+		}
+	}
+}
+
+// keepLinks keeps the radios heard straight (for the map's zone) across
+// restarts: loaded once, saved every few minutes and on the way out.
+func keepLinks(ctx context.Context, radio *meshtastic.Client, path string) {
+	if b, err := os.ReadFile(path); err == nil {
+		var m map[string]meshtastic.SavedLink
+		if err := json.Unmarshal(b, &m); err != nil {
+			log.Printf("links: %v", err)
+		}
+		radio.LoadLinks(m)
+	}
+	save := func() {
+		if b, err := json.Marshal(radio.SavedLinks()); err == nil {
+			if err := writeFileAtomic(path, append(b, '\n'), 0o600); err != nil {
+				log.Printf("links: %v", err)
+			}
+		}
+	}
+	t := time.NewTicker(5 * time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			save()
+			return
+		case <-t.C:
+			save()
 		}
 	}
 }

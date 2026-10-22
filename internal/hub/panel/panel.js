@@ -21,15 +21,17 @@ const MODE_HELP = {
 };
 
 // What each preset is for (EU, 250 kHz unless said). Rates and link budgets: Meshtastic's blog, April 2025.
+// floor: the weakest signal (SNR, dB) a radio still reads on each preset - the
+// LoRa limit for its spreading factor, less the 2.5 dB radios manage below it.
 const PRESETS = {
-  LongSlow: { what: "Furthest and slowest. Few people use it.", rate: "125 kHz" },
-  LongModerate: { what: "Far and slow.", rate: "125 kHz" },
-  LongFast: { what: "Meshtastic's default. Far, but a message takes about a second on the air, so a busy mesh clogs.", rate: "1.07 kbit/s, 153 dB" },
-  MediumSlow: { what: "A middle way.", rate: "1.95 kbit/s, 150.5 dB" },
-  MediumFast: { what: "What Berlin's mesh uses. Three times faster than LongFast, a little less range.", rate: "3.52 kbit/s, 148 dB" },
-  ShortSlow: { what: "Short range, fast: very dense meshes.", rate: "6.25 kbit/s, 145.5 dB" },
-  ShortFast: { what: "Short range, faster: events, a few streets.", rate: "10.94 kbit/s, 143 dB" },
-  ShortTurbo: { what: "Fastest and shortest, 500 kHz wide.", rate: "21.88 kbit/s, 140 dB" },
+  LongSlow: { what: "Furthest and slowest. Few people use it.", rate: "125 kHz", floor: -22.5 },
+  LongModerate: { what: "Far and slow.", rate: "125 kHz", floor: -20 },
+  LongFast: { what: "Meshtastic's default. Far, but a message takes about a second on the air, so a busy mesh clogs.", rate: "1.07 kbit/s, 153 dB", floor: -20 },
+  MediumSlow: { what: "A middle way.", rate: "1.95 kbit/s, 150.5 dB", floor: -17.5 },
+  MediumFast: { what: "What Berlin's mesh uses. Three times faster than LongFast, a little less range.", rate: "3.52 kbit/s, 148 dB", floor: -15 },
+  ShortSlow: { what: "Short range, fast: very dense meshes.", rate: "6.25 kbit/s, 145.5 dB", floor: -12.5 },
+  ShortFast: { what: "Short range, faster: events, a few streets.", rate: "10.94 kbit/s, 143 dB", floor: -10 },
+  ShortTurbo: { what: "Fastest and shortest, 500 kHz wide.", rate: "21.88 kbit/s, 140 dB", floor: -10 },
 };
 
 function el(tag, attrs, ...kids) {
@@ -258,6 +260,7 @@ function showRadio(num) {
   openDetail(nodeName(n), [n.shortName, n.hardware, n.role].filter(Boolean).join(", "), [
     ["ID", n.id],
     ["Signal", n.self ? "" : `${db(n.snr)}${n.rssi ? `, ${minus(n.rssi)} dBm` : ""}`],
+    ["Straight to this hub", n.self || !n.link ? "" : `${db(n.link.snr)} (median), ${n.link.count} ${n.link.count === 1 ? "packet" : "packets"}, last ${ago(n.link.at)}`],
     ["Relays", n.self ? "" : n.hops < 0 ? "not known" : n.hops === 0 ? "none: heard directly" : String(n.hops)],
     ["Last heard", n.self ? "" : ago(n.lastHeard)],
     ["Packets heard", n.self ? "" : n.packets],
@@ -554,6 +557,46 @@ $("place-hub").addEventListener("click", () => {
   setNote("place-note", "Click the map where this hub stands.");
 });
 
+// coverage works out where the hub should hear a radio straight. Each radio
+// heard straight at distance d with SNR s could be d * 10^((s - floor) / 30)
+// away and still be read: a signal fades about 30 dB for each tenfold
+// distance among houses (path-loss exponent 3). That reach spreads 30° either
+// side of its direction, tapering; no such radio in a direction, no zone.
+const PATH_EXP = 3, SPREAD = 30;
+function bearing(a, b) {
+  const r = Math.PI / 180, dl = (b.lon - a.lon) * r;
+  const y = Math.sin(dl) * Math.cos(b.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(b.lat * r) - Math.sin(a.lat * r) * Math.cos(b.lat * r) * Math.cos(dl);
+  return (Math.atan2(y, x) / r + 360) % 360;
+}
+const COMPASS = ["north", "north-east", "east", "south-east", "south", "south-west", "west", "north-west"];
+function coverage(w, placed) {
+  const out = { evidence: [], shape: null, far: null };
+  const floor = (PRESETS[(last && last.radio && last.radio.preset) || ""] || {}).floor;
+  if (!w || floor == null) return out;
+  for (const n of placed) {
+    if (!n.link) continue;
+    const d = distance(w, n.position);
+    if (d < 50 || (n.position.accuracyM || 0) > d / 2) continue; // too close or too rough to say which way
+    const reach = Math.min(Math.max(d, d * 10 ** ((n.link.snr - floor) / (10 * PATH_EXP))), 60000);
+    out.evidence.push({ n, d, reach, brg: bearing(w, n.position) });
+  }
+  if (!out.evidence.length) return out;
+  out.far = out.evidence.reduce((a, b) => (b.reach > a.reach ? b : a));
+  out.far.dir = COMPASS[Math.round(out.far.brg / 45) % 8];
+  const r = Math.PI / 180, kmLat = 111320, kmLon = 111320 * Math.cos(w.lat * r);
+  out.shape = [];
+  for (let a = 0; a < 360; a += 2) {
+    let m = 0;
+    for (const e of out.evidence) {
+      const off = Math.abs(((a - e.brg + 540) % 360) - 180);
+      if (off < SPREAD) m = Math.max(m, e.reach * Math.cos((off / SPREAD) * Math.PI / 2) ** 2);
+    }
+    out.shape.push([w.lat + (m * Math.cos(a * r)) / kmLat, w.lon + (m * Math.sin(a * r)) / kmLon]);
+  }
+  return out;
+}
+
 function drawMap() {
   if (!map || view !== "map") return;
   mapLayer.clearLayers();
@@ -573,17 +616,15 @@ function drawMap() {
     m.bindTooltip(n.shortName || n.id.slice(-4), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
     m.on("click", () => showRadio(n.num));
   }
-  // How far the hub hears, by direction: a dashed line to each radio it last
-  // heard straight, with no relay. Measured, not a forecast, and no circle: an
-  // antenna on one side of a roof hears farther one way than another.
-  const direct = w ? placed.filter((n) => n.hops === 0) : [];
-  for (const n of direct) {
-    L.polyline([[w.lat, w.lon], [n.position.lat, n.position.lon]], { color: css("--signal"), weight: 2, dashArray: "6 6", interactive: false }).addTo(mapLayer);
+  // Where the hub hears: the zone, and a dashed line to each radio behind it.
+  const z = coverage(w, placed);
+  if (z.shape) L.polygon(z.shape, { color: css("--signal"), weight: 2, dashArray: "4 4", fillOpacity: 0.22, interactive: false }).addTo(mapLayer);
+  for (const e of z.evidence) {
+    L.polyline([[w.lat, w.lon], [e.n.position.lat, e.n.position.lon]], { color: css("--signal"), weight: 2, dashArray: "6 6", interactive: false }).addTo(mapLayer);
   }
-  const reach = direct.reduce((m, n) => Math.max(m, distance(w, n.position)), 0);
-  $("map-reach").textContent = !w ? "Mark where this hub is to see how far it hears."
-    : direct.length ? `Dashed lines: ${direct.length === 1 ? "the radio" : `the ${direct.length} radios`} heard straight, with no relay, the farthest ${km(reach)} away. Radios farther out reach the hub through relays.`
-    : "No radio on the map was heard straight yet.";
+  $("map-reach").textContent = !w ? "Mark where this hub is to see where it hears."
+    : z.evidence.length ? `Shaded: where the hub should hear a radio straight, with no relay, worked out from how strongly ${z.evidence.length === 1 ? "one radio reaches" : `${z.evidence.length} radios reach`} it (dashed lines): up to ${km(z.far.reach)} to the ${z.far.dir}. For a radio placed like those; one lower down or indoors is heard less far. Blank directions are not known yet.`
+    : "No radio with a known place has reached the hub straight yet, so no zone.";
   if (w) {
     pts.push([w.lat, w.lon]);
     L.marker([w.lat, w.lon], { icon: L.divIcon({ className: "hubmark", html: "<span>this hub</span>", iconSize: null }), keyboard: false }).addTo(mapLayer);

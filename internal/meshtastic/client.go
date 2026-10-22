@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -56,9 +57,28 @@ type Node struct {
 	Hardware  string    `json:"hardware,omitempty"`
 	// Position is where the radio last said it was; nil: it never said.
 	Position *NodePosition `json:"position,omitempty"`
+	// Link is how strongly the radio's own signal reaches this hub: heard
+	// straight, or as the last relay of someone else's packet. nil: never.
+	Link *Link `json:"link,omitempty"`
 	// Batnet: sent batnet traffic (PRIVATE_APP) or names itself batnet.
 	Batnet bool `json:"batnet"`
 	Self   bool `json:"self"`
+}
+
+// Link is a radio's signal straight to this hub.
+type Link struct {
+	SNR   float32   `json:"snr"`   // the median of the last few
+	Count int       `json:"count"` // packets heard straight from it in all
+	At    time.Time `json:"at"`
+}
+
+// keepLinkSNRs is how many recent straight SNRs a link's median is taken over.
+const keepLinkSNRs = 15
+
+type link struct {
+	snrs  []float32
+	count int
+	at    time.Time
 }
 
 // NodePosition is a radio's last shared position.
@@ -168,6 +188,7 @@ type Client struct {
 	conn      net.Conn
 	st        Status
 	nodes     map[uint32]*Node
+	links     map[uint32]*link
 	channels  map[int]Channel
 	selfUser  []byte // our own User message, for "say hello"
 	lastSend  time.Time
@@ -197,7 +218,7 @@ func (c *Client) emit(e Event) {
 
 // New returns a client for meshtasticd at addr (host:port, usually 127.0.0.1:4403).
 func New(addr string) *Client {
-	return &Client{addr: addr, now: time.Now, nodes: map[uint32]*Node{}, channels: map[int]Channel{},
+	return &Client{addr: addr, now: time.Now, nodes: map[uint32]*Node{}, links: map[uint32]*link{}, channels: map[int]Channel{},
 		listeners: map[chan struct{}]bool{}, st: Status{Addr: addr}}
 }
 
@@ -406,6 +427,80 @@ func (c *Client) node(num uint32) *Node {
 	return n
 }
 
+// SavedLink is a link as kept between runs, by radio ID ("!deadbeef").
+type SavedLink struct {
+	SNRs  []float32 `json:"snrs"`
+	Count int       `json:"count"`
+	At    time.Time `json:"at"`
+}
+
+// SavedLinks returns the links to keep between runs.
+func (c *Client) SavedLinks() map[string]SavedLink {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	m := make(map[string]SavedLink, len(c.links))
+	for num, l := range c.links {
+		m[fmt.Sprintf("!%08x", num)] = SavedLink{SNRs: append([]float32(nil), l.snrs...), Count: l.count, At: l.at}
+	}
+	return m
+}
+
+// LoadLinks puts back links kept from an earlier run.
+func (c *Client) LoadLinks(m map[string]SavedLink) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for id, sl := range m {
+		num, err := strconv.ParseUint(strings.TrimPrefix(id, "!"), 16, 32)
+		if err != nil || len(sl.SNRs) == 0 || uint32(num) == c.st.MyNum {
+			continue
+		}
+		if len(sl.SNRs) > keepLinkSNRs {
+			sl.SNRs = sl.SNRs[len(sl.SNRs)-keepLinkSNRs:]
+		}
+		c.links[uint32(num)] = &link{snrs: sl.SNRs, count: sl.Count, at: sl.At}
+	}
+}
+
+// heardStraight notes a packet that came straight from the radio num.
+func (c *Client) heardStraight(num uint32, snr float32) {
+	l := c.links[num]
+	if l == nil {
+		l = &link{}
+		c.links[num] = l
+	}
+	l.snrs = append(l.snrs, snr)
+	if len(l.snrs) > keepLinkSNRs {
+		l.snrs = l.snrs[1:]
+	}
+	l.count++
+	l.at = c.now()
+}
+
+// relayer finds the radio a packet's last relay byte names: the one known
+// radio ending in that byte, or else the one of them already heard straight.
+// Two or more either way: not known (256 bytes, many radios).
+func (c *Client) relayer(b uint32) (uint32, bool) {
+	if b == 0 {
+		return 0, false
+	}
+	var all, heard []uint32
+	for num := range c.nodes {
+		if num&0xff == b&0xff && num != c.st.MyNum {
+			all = append(all, num)
+			if c.links[num] != nil {
+				heard = append(heard, num)
+			}
+		}
+	}
+	switch {
+	case len(all) == 1:
+		return all[0], true
+	case len(heard) == 1:
+		return heard[0], true
+	}
+	return 0, false
+}
+
 func (c *Client) setUser(n *Node, u user) {
 	if u.long != "" {
 		n.LongName = u.long
@@ -537,6 +632,13 @@ func (c *Client) packet(p packet) *Event {
 	if h := p.hops(); h >= 0 {
 		n.Hops = h
 	}
+	if p.snr != 0 && p.from != c.st.MyNum {
+		if h := p.hops(); h == 0 {
+			c.heardStraight(p.from, p.snr)
+		} else if num, ok := c.relayer(p.relay); h > 0 && ok {
+			c.heardStraight(num, p.snr)
+		}
+	}
 	if !p.decoded {
 		return nil
 	}
@@ -661,6 +763,11 @@ func (c *Client) Status() Status {
 	for _, n := range c.nodes {
 		cp := *n
 		cp.Self = n.Num == c.st.MyNum
+		if l := c.links[n.Num]; l != nil {
+			s := append([]float32(nil), l.snrs...)
+			sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
+			cp.Link = &Link{SNR: s[len(s)/2], Count: l.count, At: l.at}
+		}
 		st.Nodes = append(st.Nodes, cp)
 	}
 	sort.Slice(st.Nodes, func(i, j int) bool {

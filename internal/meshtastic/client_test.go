@@ -347,3 +347,53 @@ func TestDirectMessagesAndReceipts(t *testing.T) {
 		t.Errorf("events %v, relay %q", kinds, relay)
 	}
 }
+
+func TestLinksHeardStraight(t *testing.T) {
+	c := New("127.0.0.1:1")
+	c.st.MyNum = 0xdeadbeef
+	c.node(0xa1b2c3d4)
+	c.node(0x111111d4) // ends in the same byte as Anna's radio
+	c.node(0x2222221c)
+	c.mu.Lock()
+	// Straight from Anna: three packets, the median is the middle one.
+	for _, snr := range []float32{-12, -4, -7} {
+		c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, snr: snr, hopStart: 3, hopLimit: 3})
+	}
+	// Relayed by the only radio ending in 1c: that radio's signal.
+	c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, snr: -9, hopStart: 3, hopLimit: 2, relay: 0x1c})
+	// Relayed by a radio ending in d4: two are known, Anna's was heard straight.
+	c.packet(packet{from: 0x2222221c, to: Broadcast, snr: -2, hopStart: 7, hopLimit: 5, relay: 0xd4})
+	// Unknown relay byte and our own packets count for no one.
+	c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, snr: -1, hopStart: 3, hopLimit: 1, relay: 0x77})
+	c.packet(packet{from: 0xdeadbeef, to: Broadcast, snr: 5, hopStart: 3, hopLimit: 3})
+	c.mu.Unlock()
+	links := map[uint32]*Link{}
+	for _, n := range c.Status().Nodes {
+		links[n.Num] = n.Link
+	}
+	if l := links[0xa1b2c3d4]; l == nil || l.Count != 4 || l.SNR != -4 {
+		t.Errorf("anna %+v", l)
+	}
+	if l := links[0x2222221c]; l == nil || l.Count != 1 || l.SNR != -9 {
+		t.Errorf("relay 1c %+v", l)
+	}
+	if links[0x111111d4] != nil || links[0xdeadbeef] != nil {
+		t.Errorf("links for radios not heard straight: %+v %+v", links[0x111111d4], links[0xdeadbeef])
+	}
+}
+
+func TestLinksKeptBetweenRuns(t *testing.T) {
+	a := New("127.0.0.1:1")
+	a.node(0xa1b2c3d4)
+	a.mu.Lock()
+	a.packet(packet{from: 0xa1b2c3d4, to: Broadcast, snr: -8, hopStart: 3, hopLimit: 3})
+	a.mu.Unlock()
+	b := New("127.0.0.1:1")
+	b.LoadLinks(a.SavedLinks())
+	b.LoadLinks(map[string]SavedLink{"nonsense": {SNRs: []float32{1}}, "!deadbeef": {}})
+	b.node(0xa1b2c3d4)
+	st := b.Status()
+	if len(st.Nodes) != 1 || st.Nodes[0].Link == nil || st.Nodes[0].Link.SNR != -8 || st.Nodes[0].Link.Count != 1 {
+		t.Errorf("after loading %+v", st.Nodes)
+	}
+}

@@ -200,7 +200,16 @@ func (l *Logbook) writeLocked(m map[string]any) {
 func (l *Logbook) Run(ctx context.Context, dataDir string) {
 	sample := time.NewTicker(sampleEvery)
 	defer sample.Stop()
+	// The last hello is remembered across restarts: radios answer a hello
+	// together and their answers collide, so a restart does not say it again
+	// before its time. A time ahead of the clock (B39) does not count.
+	helloFile := filepath.Join(l.dir, "last-hello")
 	var lastHello time.Time
+	if b, err := os.ReadFile(helloFile); err == nil {
+		if t, err := time.Parse(time.RFC3339, strings.TrimSpace(string(b))); err == nil && !t.After(time.Now()) {
+			lastHello = t
+		}
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -232,6 +241,7 @@ func (l *Logbook) Run(ctx context.Context, dataDir string) {
 				f["error"] = err.Error()
 			} else {
 				lastHello = time.Now()
+				os.WriteFile(helloFile, []byte(lastHello.Format(time.RFC3339)+"\n"), 0o644)
 				l.mu.Lock()
 				l.hellos++
 				l.mu.Unlock()
