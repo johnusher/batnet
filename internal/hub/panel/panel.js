@@ -563,8 +563,8 @@ function showMap() {
     }).addTo(map);
     let errors = 0;
     tiles.on("tileerror", () => {
-      if (++errors < 3) return;
-      $("map-note").textContent = "No map tiles: they need the internet. The radios are still in the right places.";
+      if (++errors < 3 || offline.size) return;
+      $("map-note").textContent = "No streets: the online map needs the internet. Get a map to keep on the hub under System, Offline maps. The radios are still in the right places.";
       $("map-note").hidden = false;
     });
     mapLayer = L.layerGroup().addTo(map);
@@ -629,8 +629,28 @@ function coverage(w, placed) {
   return out;
 }
 
+// Offline maps (decision 0032): the areas the hub keeps, drawn over the
+// online tiles, so they show with or without the internet.
+const offline = new Map(); // id:build:at -> layer
+function syncOfflineMaps() {
+  const want = new Map(((last && last.maps && last.maps.areas) || []).filter((a) => a.have).map((a) => [`${a.id}:${a.build}:${a.at}`, a]));
+  for (const [k, l] of offline) if (!want.has(k)) { map.removeLayer(l); offline.delete(k); }
+  if (!window.protomapsL) return;
+  for (const [k, a] of want) {
+    if (offline.has(k)) continue;
+    const [w, so, e, n] = a.bounds;
+    offline.set(k, protomapsL.leafletLayer({
+      url: `maps/${a.id}.pmtiles?v=${encodeURIComponent(a.at)}`, flavor: "light", lang: "en", // dark mode inverts the whole tile pane, as for the online tiles
+      bounds: L.latLngBounds([so, w], [n, e]), maxDataZoom: 15,
+      attribution: '<a href="https://protomaps.com">Protomaps</a> &copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map));
+  }
+  if (offline.size) $("map-note").hidden = true;
+}
+
 function drawMap() {
   if (!map || view !== "map") return;
+  syncOfflineMaps();
   mapLayer.clearLayers();
   const w = where();
   const placed = nodes().filter((n) => n.position && !n.self);
@@ -1545,13 +1565,45 @@ function renderDevices(s) {
 }
 
 function renderSystem(s) {
-  renderWiFi(s); renderSound(s); renderLight(s); renderPower(s); renderTranslator(s); renderDevices(s); renderSysFacts(s);
+  renderWiFi(s); renderSound(s); renderLight(s); renderPower(s); renderTranslator(s); renderDevices(s); renderSysFacts(s); renderMaps(s);
   $("sys-term").hidden = !s.local;
   // A device with the right time can set the hub's clock (after a power cut without internet).
   const off = Date.now() - Date.parse(s.system.time);
   const wrong = !s.local && Math.abs(off) > 120e3;
   $("clock-line").hidden = $("sys-clock").hidden = !wrong;
   if (wrong) $("clock-line").textContent = `The hub's clock is ${duration(Math.abs(off) / 1000)} ${off > 0 ? "behind" : "ahead of"} this device's.`;
+}
+const MB = (b) => `${Math.max(1, Math.round(b / 1048576))} MB`;
+function renderMaps(s) {
+  const m = s.maps;
+  $("maps-card").hidden = !m;
+  if (!m) return;
+  const busy = !!m.getting;
+  const getting = busy ? m.areas.find((a) => a.id === m.getting) : null;
+  $("maps-state").textContent = !m.tool ? "The tool that fetches maps is not installed: run setup.sh again with internet."
+    : busy ? `Fetching ${getting ? getting.name : m.getting}: ${MB(m.soFar || 0)} so far. A city takes a minute or two.`
+    : m.areas.some((a) => a.have) ? "The map shows these streets with no internet." : "No map kept yet: the map's streets need the internet.";
+  $("maps-state").className = "state" + (m.error ? " bad" : "");
+  $("maps-err").hidden = !m.error;
+  $("maps-err").textContent = m.error ? `Not fetched: ${m.error}` : "";
+  const sig = JSON.stringify(m);
+  if (sig === renderMaps.sig) return;
+  renderMaps.sig = sig;
+  $("maplist-off").replaceChildren(...m.areas.map((a) => {
+    const btn = (label, op, ask) => {
+      const b = el("button", { class: "btn ghost small", type: "button", text: label });
+      b.disabled = busy || !m.tool && op === "get";
+      b.addEventListener("click", async () => {
+        if (ask && !confirm(ask)) return;
+        try { await act("maps", { op, area: a.id }); setNote("maps-note", op === "get" ? `Fetching ${a.name}…` : `${a.name} removed.`); poll(); }
+        catch (e) { setNote("maps-note", e.message, true); }
+      });
+      return b;
+    };
+    return el("li", {}, el("span", { text: a.name }),
+      el("span", { class: "sub", text: a.have ? `, ${MB(a.bytes)}, map of ${a.build.slice(0, 4)}-${a.build.slice(4, 6)}-${a.build.slice(6)}` : a.id === "here" ? ", about 55 km across" : "" }),
+      " ", a.have ? btn("Update", "get") : btn("Get", "get"), a.have ? btn("Remove", "remove", `Remove the map of ${a.name}? The map then needs the internet there.`) : null);
+  }));
 }
 async function sysAct(body, ask) {
   if (ask && !confirm(ask)) return;

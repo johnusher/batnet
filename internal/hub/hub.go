@@ -79,6 +79,7 @@ type Config struct {
 	Devices    *Devices
 	Translator *translate.Client
 	Notifier   *Notifier
+	Maps       *Maps // offline maps; nil: online tiles only
 	// Run runs the system's commands: reboot, power off, the clock, the console.
 	Run Runner
 }
@@ -178,6 +179,7 @@ type statusOut struct {
 	Devices   *DevicesStatus    `json:"devices,omitempty"`
 	Translate *translate.Status `json:"translate,omitempty"`
 	Unread    int               `json:"unread"`
+	Maps      *MapsStatus       `json:"maps,omitempty"`
 }
 
 func (s *Server) status(w http.ResponseWriter, r *http.Request) {

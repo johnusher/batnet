@@ -69,6 +69,7 @@ This page is the list.
 | L22 | WiFi passwords given to Join pass to `nmcli` on its command line, visible to other users of the Pi for a moment | plan 5a 2026-10-21; the Pi has no other users |
 | L23 | After a sudden power cut the end of the open log file can be zeros (ext4 had not written its last blocks): 1.6 KB, a few seconds, on 2026-10-22. Readers of the log skip NUL bytes | [one night on MediumFast](/tests/2026-10-22-one-night-on-mediumfast.md) |
 | L7 | Sealed packets can be replayed (no sequence or associated data in `seal`); harmless today (dedup), to settle with the HTTPS transport | plan 1 review |
+| L24 | Offline maps do not update by themselves (Update in System fetches the day's build), and each area is fetched once from Protomaps' build server, a third party; the online tiles are still asked for where an offline map covers | decision 0032, 2026-10-22 |
 
 # Deferred minors (from reviews)
 

@@ -33,3 +33,4 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0029 Power modes](0029-hub-power-modes.md) - high, medium, low: CPU speed, WiFi power saving, the screen's sleep and a reduced screen, the Pi's lights; the screen runs only while one is plugged in (draft)
 * [0030 Offline translator](0030-offline-translator.md) - Argos models on CTranslate2 in a helper process: German and English on the hub, no internet (draft)
 * [0031 Root actions through polkit](0031-root-actions-through-polkit.md) - batnetd stays unprivileged; polkit allows NetworkManager, a few batnet units, reboot, power off, the clock; the terminal is the Pi's own console (draft)
+* [0032 Offline maps](0032-offline-maps.md) - Protomaps extracts of OpenStreetMap, fetched by each hub while it has internet (round the hub by itself, cities at a button), drawn by protomaps-leaflet; no map data in the repository (draft)

@@ -96,6 +96,21 @@ say "Meshtastic command-line tool for the pi user (meshtastic --host localhost .
 user=$(getent passwd 1000 | cut -d: -f1)
 sudo -u "$user" pipx install meshtastic >/dev/null 2>&1 || sudo -u "$user" pipx upgrade meshtastic >/dev/null 2>&1 || true
 
+say "pmtiles, which fetches the offline maps (decision 0032)"
+PMTILES_VERSION=1.31.2
+PMTILES_SHA256=f8bd47e7ea866863489cad588fbaf2f31f42e5821f7a03f009b3769f05801cb1 # Linux arm64, from the release
+if ! pmtiles version 2>/dev/null | grep -q "$PMTILES_VERSION"; then
+  tmp=$(mktemp -d)
+  if curl -fsSL -o "$tmp/p.tar.gz" "https://github.com/protomaps/go-pmtiles/releases/download/v$PMTILES_VERSION/go-pmtiles_${PMTILES_VERSION}_Linux_arm64.tar.gz" &&
+    echo "$PMTILES_SHA256  $tmp/p.tar.gz" | sha256sum -c --quiet &&
+    tar -xzf "$tmp/p.tar.gz" -C "$tmp" pmtiles; then
+    install -m 755 "$tmp/pmtiles" /usr/local/bin/pmtiles
+  else
+    echo "pmtiles did not install (it needs the internet once); the map uses online tiles until it does."
+  fi
+  rm -rf "$tmp"
+fi
+
 say "Offline translator (German and English; decision 0030)"
 ./translate-setup.sh || echo "The translator did not install (it needs the internet once); the hub works without it."
 

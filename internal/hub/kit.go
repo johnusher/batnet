@@ -24,6 +24,44 @@ func (s *Server) kitRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /hub/api/system", s.actionR(s.system))
 	mux.HandleFunc("POST /hub/api/seen", s.seen)
 	mux.HandleFunc("GET /hub/api/screen", s.screen)
+	mux.HandleFunc("POST /hub/api/maps", s.action(s.maps))
+	mux.HandleFunc("GET /hub/maps/{file}", s.mapFile)
+}
+
+// maps: op get or remove, area (an ID from the status).
+func (s *Server) maps(b map[string]string) (any, error) {
+	m := s.cfg.Maps
+	if m == nil {
+		return nil, errNoKit
+	}
+	var err error
+	switch b["op"] {
+	case "get":
+		err = m.Get(b["area"])
+	case "remove":
+		err = m.Remove(b["area"])
+	default:
+		return nil, &failure{http.StatusBadRequest, "Get or remove?"}
+	}
+	if err != nil {
+		return nil, &failure{http.StatusBadRequest, err.Error()}
+	}
+	return m.Status(), nil
+}
+
+// mapFile serves a map, with range requests (the panel reads only the tiles
+// it shows). Maps are public data: no PIN.
+func (s *Server) mapFile(w http.ResponseWriter, r *http.Request) {
+	p := ""
+	if id, ok := strings.CutSuffix(r.PathValue("file"), ".pmtiles"); ok && s.cfg.Maps != nil {
+		p = s.cfg.Maps.File(id)
+	}
+	if p == "" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	http.ServeFile(w, r, p)
 }
 
 // readAllowed: on the hub's own WiFi open to neighbours, reading the panel
@@ -70,6 +108,10 @@ func (s *Server) kitStatus(out *statusOut) {
 	}
 	if s.cfg.Notifier != nil {
 		out.Unread = s.cfg.Notifier.Unread()
+	}
+	if s.cfg.Maps != nil {
+		st := s.cfg.Maps.Status()
+		out.Maps = &st
 	}
 }
 

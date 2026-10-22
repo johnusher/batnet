@@ -93,8 +93,8 @@ the hub.*
 
 *The map of Berlin: the radios that chose to share where they are. Berlin's
 mesh reaches from the centre to the edge of the city, passed along by radios
-on rooftops and towers. (The streets come from the internet; without it, the dots
-still show in the right places.)*
+on rooftops and towers. (The hub keeps the streets itself, so the map works
+without the internet too: see [maps for a power cut](#maps-for-a-power-cut).)*
 
 <table><tr>
 <td width="50%"><a href="docs/img/hub/radios.png"><img src="docs/img/hub/radios.png" alt="The Radios view: the radar and a table of every radio heard, with its signal, relays and when it was last heard"></a><br><em>Radios: every radio heard, with its signal strength and how many relays it came through.</em></td>
@@ -113,7 +113,9 @@ How many radios there are, their signal, their relays and the timing are real.*
 * **Messages** to everyone nearby, or to one radio, with ticks when they
   arrive (✓ a radio passed it on, ✓✓ it got there).
 * **A radar, a list and a map** of the radios around it, and a view of all the
-  traffic on the air. Click any radio or packet for what it says.
+  traffic on the air. Click any radio, packet or sender for what it says. The
+  map shades where the hub should hear a radio directly, worked out from the
+  signal of the radios it does hear directly.
 * **Settings for the radio:** its speed setting (Berlin uses
   [*MediumFast*](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)),
   relays, power, listen-only and its name.
@@ -145,6 +147,7 @@ How many radios there are, their signal, their relays and the timing are real.*
 | The power modes changing the processor's speed, WiFi power saving and the Pi's lights | The LED, the button and a speaker with real parts plugged in |
 | The translator: about a second per message | How much power each mode saves (a USB power meter) |
 | The Terminal button, and setting the hub's clock from a phone | The antenna outside on a cable |
+| Offline maps of the area round the hub and four cities, drawn with the internet's map blocked | The map on the hub's own screen with the router really off |
 
 The details are in the [bench hub's notes](knowledge/hardware/bench-pi7.md) and
 the [test reports](knowledge/tests/).
@@ -433,6 +436,25 @@ other things a hub doesn't use.
 
 The [bench hub's notes](knowledge/hardware/bench-pi7.md) say what runs on it
 and why, and the panel's **Help** tells you what to do in a power cut.
+
+#### Maps for a power cut
+
+The map's streets normally come from the internet. **A hub keeps its own
+copy of the streets around it,** so the map still works when the router is
+off. Nothing to do: once you mark where the hub stands (on the **Map**, *Mark
+where this hub is*), it fetches the area around it, about 55 km across and
+about 90 MB, the next time it has internet. Under **System, Offline maps**
+you can also fetch **Berlin, London, Paris or Barcelona** with a button
+(30 to 130 MB each), update a map, or remove it.
+
+The maps are not in this repository: each hub fetches its own. They are cut
+from [Protomaps](https://protomaps.com)' daily build of
+[OpenStreetMap](https://www.openstreetmap.org/copyright) with the `pmtiles`
+tool, which downloads only the area you ask for. OpenStreetMap's own map
+server doesn't allow saving its pictures in bulk, so the hub never does that.
+The map data is © OpenStreetMap contributors, under the Open Database
+Licence. Why it works this way:
+[decision 0032](knowledge/decisions/0032-offline-maps.md).
 
 ### The plan for the first release
 

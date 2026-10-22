@@ -316,6 +316,15 @@
       <div class="actions"><button class="btn" type="submit">Save</button><span id="tr-note" class="note"></span></div>
     </form>
 
+    <div class="card" id="maps-card" hidden>
+      <h2>Offline maps</h2>
+      <p id="maps-state" class="state"></p>
+      <ul id="maplist-off" class="peers"></ul>
+      <p id="maps-err" class="note bad" hidden></p>
+      <p class="muted small">Streets kept on the hub, from OpenStreetMap via Protomaps, so the map works in a power cut. Fetch them while there is internet. The area round this hub comes by itself once you mark where the hub is.</p>
+      <p id="maps-note" class="note"></p>
+    </div>
+
     <div class="card">
       <h2>Plugged in</h2>
       <ul id="devlist" class="peers"></ul>
@@ -364,6 +373,7 @@
 <div id="asleep" class="asleep" hidden><p>The screen is asleep. Press a key or move the mouse.</p></div>
 <p id="toast" class="toast" role="status" hidden></p>
 <script src="vendor/leaflet.js"></script>
+<script src="vendor/protomaps-leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
 <script src="panel.js"></script>
 </body>

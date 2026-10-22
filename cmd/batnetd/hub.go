@@ -250,12 +250,14 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	})
 
 	kit := h.startKit(ctx, radio, id, wifiPass)
+	maps := hub.NewMaps(hub.MapsConfig{Dir: filepath.Join(data, "maps"), Where: func() *hub.Where { return settings().Where }})
+	go maps.Run(ctx)
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
 		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic,
 		Settings: settings, SaveSettings: saveSettings,
 		WiFi: kit.wifi, Sound: kit.sound, Light: kit.light, Power: kit.power, Devices: kit.devices, Translator: kit.translator,
-		Notifier: kit.notifier, Run: hub.Exec})
+		Notifier: kit.notifier, Maps: maps, Run: hub.Exec})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())
