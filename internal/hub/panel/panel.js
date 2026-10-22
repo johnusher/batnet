@@ -254,6 +254,29 @@ function placeText(p) {
   return s;
 }
 
+// farGuess says roughly how far a radio with no shared place is, from what
+// the hub has seen of radios whose place is known: heard straight, by its
+// signal against theirs (the map zone's fading, 30 dB per tenfold distance);
+// through relays, by how far radios as many relays away mostly are.
+function farGuess(n) {
+  const w = where();
+  if (!w) return "";
+  const placed = nodes().filter((x) => x.position && !x.self && (x.position.accuracyM || 0) < distance(w, x.position) / 2);
+  if (n.link) {
+    const ds = placed.filter((x) => x.link).map((x) => distance(w, x.position) * 10 ** ((x.link.snr - n.link.snr) / (10 * PATH_EXP))).sort((a, b) => a - b);
+    if (!ds.length) return "";
+    const lo = ds[0], hi = ds[ds.length - 1];
+    return `${hi > 2 * lo ? `somewhere from ${km(lo)} to ${km(hi)}` : `about ${km(ds[ds.length >> 1])}`}, from how strongly it reaches this hub straight against ${ds.length === 1 ? "one radio" : `${ds.length} radios`} whose place is known (they sit higher or lower, hence the spread); which way is not known`;
+  }
+  if (n.hops > 0) {
+    const ds = placed.filter((x) => x.hops === n.hops).map((x) => distance(w, x.position)).sort((a, b) => a - b);
+    if (ds.length < 3) return "";
+    const q = (f) => ds[Math.floor(f * (ds.length - 1))];
+    return `radios ${n.hops} ${n.hops === 1 ? "relay" : "relays"} away that share their place are mostly ${km(q(0.25))} to ${km(q(0.75))} from here (${ds.length} of them)`;
+  }
+  return "";
+}
+
 function showRadio(num) {
   const n = byNum(num);
   if (!n) return;
@@ -267,6 +290,7 @@ function showRadio(num) {
     ["Battery", n.battery != null ? (n.battery > 100 ? "on mains power" : `${n.battery} %`) : ""],
     ["Its channel in use", n.chanUtil != null ? `${n.chanUtil.toFixed(1)} %` : ""],
     ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)})` : "has not shared it"],
+    ["How far, roughly", n.self || (n.position && where()) ? "" : farGuess(n)],
     ["Runs batnet", n.batnet ? "yes" : ""],
   ], { num: n.self ? null : n.num, pos: n.position });
 }
@@ -380,7 +404,11 @@ function statusLine(t) {
 
 function bubble(t, all, { who, reply }) {
   const li = el("li", { class: t.mine ? "mine" : "in" });
-  if (who) li.append(el("span", { class: "who", text: who }));
+  if (who) {
+    const wb = el("button", { class: "who linkbtn", type: "button", text: who, title: "Who is this, and where?" });
+    wb.addEventListener("click", () => showRadio(t.from));
+    li.append(wb);
+  }
   if (t.replyId) {
     const q = all.find((x) => x.id === t.replyId);
     li.append(el("span", { class: "quote", text: q ? `${q.mine ? "You" : nameOfNum(q.from)}: ${q.text}` : "An earlier message" }));
@@ -437,7 +465,11 @@ function renderMessages(r, convs) {
   }));
 
   const node = c.id === "pub" ? null : byNum(c.num);
-  $("thread-name").textContent = c.name;
+  if (node) {
+    const nb = el("button", { class: "linkbtn", type: "button", text: c.name, title: "Who is this, and where?" });
+    nb.addEventListener("click", () => showRadio(node.num));
+    $("thread-name").replaceChildren(nb);
+  } else $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
     : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
