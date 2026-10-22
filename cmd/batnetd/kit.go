@@ -104,7 +104,8 @@ func (h *hubRun) startKit(ctx context.Context, radio *meshtastic.Client, id ledg
 		}
 		screenNow := hub.HasScreen(all)
 		k.power.SetScreen(screenNow)
-		changed := len(added)+len(removed) == 0 // the first look
+		firstLook := len(added)+len(removed) == 0
+		changed := firstLook
 		for _, d := range append(append([]hub.Device{}, added...), removed...) {
 			changed = changed || d.Kind == "screen"
 		}
@@ -120,6 +121,14 @@ func (h *hubRun) startKit(ctx context.Context, radio *meshtastic.Client, id ledg
 			k.power.Activity()
 		}
 		if _, err := os.Stat("/etc/systemd/system/batnet-screen.service"); err == nil {
+			if verb == "stop" && firstLook {
+				// At boot the unit is still checking for a screen itself (its
+				// ExecCondition): stopping it then kills it and leaves it failed
+				// (B45). Stop only a kiosk that is really running.
+				if out, _ := hub.Exec(context.Background(), "systemctl", "is-active", "batnet-screen.service"); out != "active" {
+					return
+				}
+			}
 			if err := hub.Systemctl(hub.Exec, verb, "batnet-screen.service"); err != nil {
 				log.Printf("screen: %s: %v", verb, err)
 			}

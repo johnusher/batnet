@@ -74,9 +74,10 @@ was moved up near the roof, until 09:07:44 on 22 October: **15 h 48 min**
 (56,913 s of uptime; the clock said 17:07 at boot because it started from the
 time saved before 11 minutes without power, [B39](/known-problems.md)). For
 the first four hours the kiosk with no screen kept a core busy (55–60 °C);
-after that the hub idled on Medium at 36–40 °C. The bank's capacity and
-whether it was full at 17:19 are to be confirmed, so this is a runtime, not a
-power measurement.
+after that the hub idled on Medium at 36–40 °C. The bank is rated 72 Wh;
+at 5 V a bank gives about 85 % of its rating, some 61 Wh, so the hub used
+**at most about 3.9 W on average** (less if the bank was not full at 17:19),
+in line with the 3 to 4 W the panel's help gives.
 
 * The bank cut out at once: no under-voltage alarm in the last boot's
   journal, so the hub could not warn ([B44](/known-problems.md)).

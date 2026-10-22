@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-22
+* **Update**: The bench hub's power bank (72 Wh) ran dry after 15 h 48 min: at most about 3.9 W on average ([the night](/tests/2026-10-22-one-night-on-mediumfast.md)); B44 no warning before a bank dies, L23 zeros at the log's end, B45 the screen unit failing at boot (resolved the same day). The [bench hub](/hardware/bench-pi7.md) shares its position rounded to about 400 m. README power figures updated.
 * **Creation**: Test report [one night on MediumFast](/tests/2026-10-22-one-night-on-mediumfast.md) (8.7 hours, 1,788 packets from 154 radios, most through 2 to 4 relays, three quarters of senders on 7 hops); [presets in Berlin](/research/meshtastic-presets-berlin.md) gained it. The README, more thoroughly: a section on Berlin's mesh (what a preset is, why LongFast and MediumFast can't hear each other, why Berlin moved, what the hub heard, how to join), with two new diagrams from `docs/img/radio/make.py` (`presets`, `berlin-night`); what is tried on the hub and what not yet; *Build a hub today* with `deploy/pi/deploy.sh`; the radio explainer no longer assumes LongFast; words Hub, Preset, Spreading factor, Hop.
 
 ## 2026-10-21

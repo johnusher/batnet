@@ -32,7 +32,7 @@ street, a village, a festival camp or a group on a hike. New to words like
 | **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. Messages also hop from radio to radio: in Berlin the first hub hears radios right across the city, passed along by up to seven others. |
 | **People** | About **60 phones** on a Pi 5 node, 40 on a Pi 4, 8 on a pocket Pi Zero 2 W. These are estimates, not measured yet. |
 | **Cost** | **From about €45**: a Pi Zero 2 W (€19) and the long-range radio (€25) make a pocket node. A house node that also links houses over WiFi is about **€150**. (EU prices, October 2026.) |
-| **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates; the first hub has run an hour on a power bank, but nobody has measured its power yet. |
+| **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates. The first hub ran 15 h 48 min on a 72 Wh power bank, so it used at most about 4 W. |
 | **Setup** | Our goal is **under 15 minutes** per node, from download to first message. Today a hub is set up with one command from a laptop, for people used to a terminal. |
 
 ## Where it helps
@@ -140,7 +140,7 @@ How many radios there are, their signal, their relays and the timing are real.*
 |---|---|
 | The radio: it hears Berlin's mesh, sends, replies and passes other radios' messages on (1,482 in one night) | A second hub, so two houses link over WiFi and over the radio |
 | Starting by itself after a power cut, and restarting itself after a crash (watchdogs) | A phone joining the hub's own WiFi, with the QR code and the page that pops up |
-| An hour on a power bank, in a bag on a bike ride | The hub making its own WiFi by itself when the router is really off |
+| Nearly 16 hours on a 72 Wh power bank, and an hour in a bag on a bike ride | The hub making its own WiFi by itself when the router is really off |
 | Its own WiFi from the panel, with and without a password, and back to the home WiFi | The screen going to sleep and waking, and plugging a screen or keyboard in later |
 | The power modes changing the processor's speed, WiFi power saving and the Pi's lights | The LED, the button and a speaker with real parts plugged in |
 | The translator: about a second per message | How much power each mode saves (a USB power meter) |
@@ -515,9 +515,9 @@ boards that look alike differ in size.
 ## Power use
 
 Estimates from published measurements. On our own kit so far: the first hub
-(a Pi 4) ran an hour on a 10,000 mAh power bank on a bike ride with no
-trouble, and idles overnight at 35–41 °C with its processor almost asleep.
-Nobody has put a power meter on it yet. Details are in
+(a Pi 4, its radio, no screen) ran **15 h 48 min on a 72 Wh power bank**
+until the bank gave out, so it used at most about 4 W on average. Nobody has
+put a power meter on it yet, to see what each power mode saves. Details are in
 [the power budget](knowledge/research/power-budget.md).
 
 | Use case | Node | Energy a day | Runs on a 10,000 mAh power bank |
