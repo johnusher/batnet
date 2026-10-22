@@ -573,6 +573,16 @@ function drawMap() {
     m.bindTooltip(n.shortName || n.id.slice(-4), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
     m.on("click", () => showRadio(n.num));
   }
+  // The reach ring: as far as the farthest radio the hub last heard straight,
+  // with no relay. Measured, not a forecast: it grows as the hub hears more.
+  const direct = w ? placed.filter((n) => n.hops === 0) : [];
+  const reach = direct.reduce((m, n) => Math.max(m, distance(w, n.position)), 0);
+  if (reach > 0) {
+    L.circle([w.lat, w.lon], { radius: reach, color: css("--signal"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }).addTo(mapLayer);
+  }
+  $("map-reach").textContent = !w ? "Mark where this hub is to see how far it hears."
+    : reach > 0 ? `Dashed ring: heard straight, with no relay, up to ${km(reach)} (${direct.length} ${direct.length === 1 ? "radio" : "radios"} on the map). Radios farther out reach the hub through relays.`
+    : "No radio on the map was heard straight yet, so no ring.";
   if (w) {
     pts.push([w.lat, w.lon]);
     L.marker([w.lat, w.lon], { icon: L.divIcon({ className: "hubmark", html: "<span>this hub</span>", iconSize: null }), keyboard: false }).addTo(mapLayer);
