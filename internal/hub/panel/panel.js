@@ -351,7 +351,7 @@ function showFrame(f) {
 }
 
 // ---- messages ----
-let conv = "pub";            // the open conversation: "pub" or a node number as a string
+let conv = "pub";            // the open conversation: "pub", a group channel "ch1".., or a node number as a string
 let replyTo = null;          // the message being answered
 const started = new Set();   // conversations opened from elsewhere, maybe still empty
 const seen = new Set();      // messages already noticed (for the new-message flash)
@@ -368,24 +368,31 @@ function conversations(r) {
   const out = new Map([["pub", { id: "pub", num: BCAST, texts: [] }]]);
   for (const t of r.texts || []) {
     let id;
-    if (t.to === BCAST) { if (t.channel !== 0) continue; id = "pub"; }
+    if (t.to === BCAST) id = t.channel ? "ch" + t.channel : "pub"; // a group channel of its own
     else if (t.mine) id = String(t.to);
     else if (t.to === me) id = String(t.from);
     else continue;
     if (!out.has(id)) out.set(id, { id, num: Number(id), texts: [] });
     out.get(id).texts.push(t);
   }
+  for (const ch of r.channels || []) {
+    const id = "ch" + ch.index;
+    if (ch.index > 0 && !out.has(id)) out.set(id, { id, num: BCAST, texts: [] });
+  }
   for (const id of started) if (!out.has(id)) out.set(id, { id, num: Number(id), texts: [] });
   for (const c of out.values()) {
-    c.name = c.id === "pub" ? "Everyone nearby" : nameOfNum(c.num);
+    c.channel = c.id.startsWith("ch") ? Number(c.id.slice(2)) : 0;
+    const chName = ((r.channels || []).find((x) => x.index === c.channel) || {}).name || `channel ${c.channel}`;
+    c.name = c.id === "pub" ? "Everyone nearby" : c.channel ? `${chName} channel` : nameOfNum(c.num);
     c.lastAt = c.texts.length ? Date.parse(c.texts[c.texts.length - 1].at) : 0;
     c.unread = c.texts.filter((t) => !t.mine && Date.parse(t.at) > readTime(c.id)).length;
   }
-  return [...out.values()].sort((a, b) => (a.id === "pub" ? -1 : b.id === "pub" ? 1 : b.lastAt - a.lastAt));
+  const rank = (c) => (c.id === "pub" ? 0 : c.channel ? 1 : 2); // everyone, the group channels, then people
+  return [...out.values()].sort((a, b) => rank(a) - rank(b) || (rank(a) === 1 ? a.channel - b.channel : b.lastAt - a.lastAt));
 }
 
 function openConv(id) {
-  if (id !== "pub") started.add(id);
+  if (/^\d+$/.test(id)) started.add(id);
   if (conv !== id) { replyTo = null; showReply(); }
   conv = id;
   setView("messages");
@@ -438,7 +445,7 @@ function bubble(t, all, { who, reply }) {
 }
 
 function renderMessages(r, convs) {
-  const total = convs.filter((c) => c.id !== "pub").reduce((s, c) => s + c.unread, 0);
+  const total = convs.filter((c) => c.num !== BCAST).reduce((s, c) => s + c.unread, 0);
   const badge = $("badge");
   badge.hidden = !total && !convs[0].unread;
   badge.textContent = total ? String(total) : "";
@@ -459,12 +466,12 @@ function renderMessages(r, convs) {
     const b = el("button", { class: "conv" + (x.id === conv ? " on" : ""), type: "button", "aria-current": String(x.id === conv) },
       el("span", { class: "cn", text: x.name }),
       x.unread ? el("span", { class: "badge", text: String(x.unread) }) : null,
-      el("span", { class: "cp", text: lastT ? `${lastT.mine ? "You: " : x.id === "pub" ? nameOfNum(lastT.from) + ": " : ""}${lastT.text}` : x.id === "pub" ? "The open channel" : "No messages yet" }));
+      el("span", { class: "cp", text: lastT ? `${lastT.mine ? "You: " : x.num === BCAST ? nameOfNum(lastT.from) + ": " : ""}${lastT.text}` : x.id === "pub" ? "The open channel" : x.channel ? "A group channel" : "No messages yet" }));
     b.addEventListener("click", () => openConv(x.id));
     return el("li", {}, b);
   }));
 
-  const node = c.id === "pub" ? null : byNum(c.num);
+  const node = c.num === BCAST ? null : byNum(c.num);
   if (node) {
     const nb = el("button", { class: "linkbtn", type: "button", text: c.name, title: "Who is this, and where?" });
     nb.addEventListener("click", () => showRadio(node.num));
@@ -472,17 +479,18 @@ function renderMessages(r, convs) {
   } else $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
+    : c.channel ? `A group channel: radios that have its name and password read it. Its password is often public, so don't send anything private.`
     : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
-  $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : `Message to ${c.name}`;
+  $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : c.channel ? `Message to the ${c.name}` : `Message to ${c.name}`;
   $("thread-empty").hidden = c.texts.length > 0;
-  $("thread-empty").textContent = c.id === "pub" ? "No messages heard yet." : "No messages yet. Write the first one below.";
+  $("thread-empty").textContent = c.num === BCAST ? "No messages heard yet." : "No messages yet. Write the first one below.";
 
   const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + nodes().length + "|" + translations.size;
   if (sig === threadSig) return;
   threadSig = sig;
   const list = $("thread");
   const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  list.replaceChildren(...c.texts.map((t) => bubble(t, r.texts || [], { who: !t.mine && c.id === "pub" ? nameOfNum(t.from) : "", reply: true })));
+  list.replaceChildren(...c.texts.map((t) => bubble(t, r.texts || [], { who: !t.mine && c.num === BCAST ? nameOfNum(t.from) : "", reply: true })));
   if (atBottom) list.scrollTop = list.scrollHeight;
 }
 
@@ -517,12 +525,12 @@ function renderHome(s, convs) {
   const r = s.radio;
   const others = nodes().filter((n) => !n.self);
   const hour = others.filter((n) => Date.now() - Date.parse(n.lastHeard) < 3600e3).length;
-  const unread = convs.filter((c) => c.id !== "pub").reduce((a, c) => a + c.unread, 0);
+  const unread = convs.filter((c) => c.num !== BCAST).reduce((a, c) => a + c.unread, 0);
   const hl = $("headline");
   hl.replaceChildren(el("span", { class: "big", text: String(hour) }), ` radio${hour === 1 ? "" : "s"} heard in the last hour`);
   if (unread) {
     const b = el("button", { class: "linkbtn", type: "button", text: `${unread} new message${unread === 1 ? "" : "s"} for you` });
-    b.addEventListener("click", () => { const c = convs.find((x) => x.id !== "pub" && x.unread); if (c) openConv(c.id); });
+    b.addEventListener("click", () => { const c = convs.find((x) => x.num !== BCAST && x.unread); if (c) openConv(c.id); });
     hl.append(". ", b);
   }
   hl.append(".");
@@ -543,7 +551,7 @@ function renderHome(s, convs) {
   if (sig === homeSig) return;
   homeSig = sig;
   $("home-thread").replaceChildren(...show.map(({ t, c }) => {
-    const who = t.mine ? (c.id === "pub" ? "You, to everyone" : `You, to ${c.name}`) : `${nameOfNum(t.from)}${c.id === "pub" ? "" : ", to you"}`;
+    const who = t.mine ? (c.id === "pub" ? "You, to everyone" : `You, to ${c.channel ? "the " : ""}${c.name}`) : `${nameOfNum(t.from)}${c.id === "pub" ? "" : c.channel ? `, on the ${c.name}` : ", to you"}`;
     const li = bubble(t, (r && r.texts) || [], { who, reply: false });
     li.classList.add("click");
     li.addEventListener("click", () => openConv(c.id));
@@ -1164,7 +1172,8 @@ async function sendText(input, noteId, body) {
 $("send").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const body = {};
-  if (conv !== "pub") body.to = "!" + hex8(Number(conv));
+  if (conv.startsWith("ch")) body.channel = conv.slice(2);
+  else if (conv !== "pub") body.to = "!" + hex8(Number(conv));
   if (replyTo && replyTo.id) body.replyId = String(replyTo.id);
   if (await sendText($("msg"), "send-note", body)) { replyTo = null; showReply(); }
 });

@@ -326,7 +326,19 @@ func (s *Server) send(b map[string]string) (any, error) {
 			return nil, errors.New("Bad reply.")
 		}
 	}
-	t, err := s.cfg.Radio.Send(to, 0, strings.TrimSpace(b["text"]), uint32(reply))
+	var ch uint32
+	if c := b["channel"]; c != "" && c != "0" {
+		n, err := strconv.Atoi(c)
+		known := false
+		for _, x := range s.cfg.Radio.Status().Channels {
+			known = known || (err == nil && n > 0 && x.Index == n)
+		}
+		if !known || to != meshtastic.Broadcast {
+			return nil, errors.New("No such channel on this radio.")
+		}
+		ch = uint32(n)
+	}
+	t, err := s.cfg.Radio.Send(to, ch, strings.TrimSpace(b["text"]), uint32(reply))
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +349,7 @@ func (s *Server) hello(map[string]string) (any, error) {
 	if s.cfg.Radio == nil {
 		return nil, meshtastic.ErrOffline
 	}
-	if err := s.cfg.Radio.SayHello(); err != nil {
+	if err := s.cfg.Radio.SayHello(true); err != nil {
 		return nil, err
 	}
 	return map[string]bool{"ok": true}, nil

@@ -68,7 +68,7 @@ hangs for 15 s. The kiosk's browser profile lives in memory and is new on every 
 EU_868, MediumFast (869.525 MHz) since the evening of 2026-10-21: it heard five times more radios than LongFast at this house ([test](/tests/2026-10-21-presets-and-antenna.md)); hop limit 3, 27 dBm configured (the
 Meshstick's SX1262 tops out at 22 dBm; the band allows 27 dBm ERP), node name
 "lorabatnet 🐰🦇", short name 🦇 (until 2026-10-21 "batnet hub 1", BH1). Meshtastic's firmware keeps the EU868 duty
-cycle; the panel adds a 5 s gap between sends; since 2026-10-22 it shares its position on the public channel rounded to about 400 m (a fixed position on the radio, channel position precision 16: a box of about 730 × 445 m, sent from its middle, hourly), and the panel keeps the exact place for its map, never sent; the log says hello every 5 minutes, or as `helloMinutes` in `hub.json` says (60 at home overnight; negative: listen only).
+cycle; the panel adds a 5 s gap between sends; since 2026-10-22 it shares its position on the public channel rounded to about 400 m (a fixed position on the radio, channel position precision 16: a box of about 730 × 445 m, sent from its middle, hourly), and the panel keeps the exact place for its map, never sent; the log says hello every 5 minutes, or as `helloMinutes` in `hub.json` says (60 at home overnight; negative: listen only). Since 2026-10-22 an hourly hello no longer asks radios to answer (B48). A second channel, **BerlinMesh**, Berlin's coordination channel, with the key the community publishes on its own page (not in this repo): the welcome bot sends its name card, with the public key a private message needs, only there; no position is shared on it.
 
 # Rebuilding it
 

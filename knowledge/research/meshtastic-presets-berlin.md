@@ -82,6 +82,11 @@ Since then the move has gone further:
   62.5 kHz, and Reticulum at 869.475 MHz, 125 kHz, beside it. [chaosmesh]
   (The page's table gives SF 8 for MediumFast; Meshtastic's MediumFast is
   SF 9, which is what the bench hub's radio uses.)
+* The BerlinMesh channel's hash is 35. Berlin's welcome bot greets a new radio
+  on the public channel and then privately; its name card, with the public key
+  a private message needs, goes only on BerlinMesh, so a radio without that
+  channel cannot open the bot's private message (seen on the bench hub,
+  2026-10-22).
 * A German overview after Mesh Dresden: Berlin on MediumFast, Hessen on
   ShortSlow; a radio left on LongFast does not hear the local network.
   [raspberry-tips]

@@ -110,7 +110,8 @@ How many radios there are, their signal, their relays and the timing are real.*
 
 **What the hub does today:**
 
-* **Messages** to everyone nearby, or to one radio, with ticks when they
+* **Messages** to everyone nearby, to a group channel such as Berlin's
+  BerlinMesh, or to one radio, with ticks when they
   arrive (✓ a radio passed it on, ✓✓ it got there).
 * **A radar, a list and a map** of the radios around it, and a view of all the
   traffic on the air. Click any radio, packet or sender for what it says. The

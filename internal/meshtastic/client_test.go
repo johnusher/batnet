@@ -169,13 +169,13 @@ func TestClientReadsTheRadio(t *testing.T) {
 	if p.to != Broadcast || p.port != PortText || string(p.payload) != "hi from the hub" || p.hopLimit != 3 {
 		t.Errorf("sent %+v", p)
 	}
-	if err := c.SayHello(); err != nil {
+	if err := c.SayHello(true); err != nil {
 		t.Fatal(err)
 	}
 	if p := sentPacket(t, f); p.port != PortNodeInfo || !strings.Contains(string(p.payload), "batnet hub 1") {
 		t.Errorf("hello %+v", p)
 	}
-	if err := c.SayHello(); err == nil {
+	if err := c.SayHello(true); err == nil {
 		t.Error("a second hello at once should wait")
 	}
 	if st := c.Status(); len(st.Texts) != 2 || !st.Texts[1].Mine || st.PacketsOut != 2 {

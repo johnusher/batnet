@@ -838,9 +838,11 @@ func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, er
 	return t, nil
 }
 
-// SayHello broadcasts this node's name and asks the radios that hear it to
-// answer with theirs: the quickest way to see who is out there.
-func (c *Client) SayHello() error {
+// SayHello broadcasts this node's name. With ask, it asks the radios that
+// hear it to answer with theirs: the quickest way to see who is out there,
+// but the answers come at once and collide, so a hub's regular hello only
+// says its name.
+func (c *Client) SayHello(ask bool) error {
 	c.mu.Lock()
 	if c.conn == nil || !c.st.Ready || c.selfUser == nil {
 		c.mu.Unlock()
@@ -857,7 +859,7 @@ func (c *Client) SayHello() error {
 		hop = 3
 	}
 	id := rand.Uint32()
-	pb := encodePacket(Broadcast, 0, id, hop, PortNodeInfo, u, sendOpts{wantResponse: true})
+	pb := encodePacket(Broadcast, 0, id, hop, PortNodeInfo, u, sendOpts{wantResponse: ask})
 	if err := c.write(pb); err != nil {
 		return err
 	}

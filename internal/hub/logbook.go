@@ -18,9 +18,11 @@ const (
 	sampleEvery = 30 * time.Second
 	// HelloEvery is how often a running log says hello by default: one
 	// NodeInfo packet, about a second of airtime, well inside the 10% duty
-	// cycle. Every radio that hears it answers, so a hub that stays put for
-	// long says hello less often (SetHelloEvery).
+	// cycle. At this pace every radio that hears it answers (askBelow), so a
+	// hub that stays put for long says hello less often (SetHelloEvery).
 	HelloEvery = meshtastic.HelloGap
+	// askBelow: hellos more often than this ask the radios to answer.
+	askBelow = 30 * time.Minute
 )
 
 // Logbook writes everything the radio hears to a JSON-lines file, one per
@@ -235,7 +237,10 @@ func (l *Logbook) Run(ctx context.Context, dataDir string) {
 		every := l.every
 		l.mu.Unlock()
 		if every > 0 && time.Since(lastHello) >= every && st.Ready {
-			err := l.radio.SayHello()
+			// A hello every few minutes is a range test (a walk, a ride):
+			// it asks for answers. An hourly one only says the hub is here,
+			// sparing the air a burst of answers that collide (B48).
+			err := l.radio.SayHello(every < askBelow)
 			f := map[string]any{"ok": err == nil}
 			if err != nil {
 				f["error"] = err.Error()
