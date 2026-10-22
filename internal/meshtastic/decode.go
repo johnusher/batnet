@@ -31,12 +31,15 @@ func parsePosition(b []byte) (Position, bool) {
 	}
 	var p Position
 	var haveLat, haveLon bool
+	var lat, lon uint32
 	for _, f := range fs {
 		switch f.num {
 		case 1:
-			p.Lat, haveLat = float64(int32(f.v))/1e7, true
+			lat = uint32(f.v)
+			p.Lat, haveLat = float64(int32(lat))/1e7, true
 		case 2:
-			p.Lon, haveLon = float64(int32(f.v))/1e7, true
+			lon = uint32(f.v)
+			p.Lon, haveLon = float64(int32(lon))/1e7, true
 		case 3:
 			v := f.i32()
 			p.Alt = &v
@@ -51,11 +54,29 @@ func parsePosition(b []byte) (Position, bool) {
 	if !haveLat || !haveLon || (p.Lat == 0 && p.Lon == 0) {
 		return Position{}, false
 	}
+	if p.PrecisionBits == 0 {
+		p.PrecisionBits = keptBits(lat, lon)
+	}
 	if p.PrecisionBits > 0 && p.PrecisionBits < 32 {
 		// Half the cell left after dropping bits: 10 bits keep about 23 km.
 		p.AccuracyM = math.Round(math.Pow(2, float64(31-p.PrecisionBits)) * 1e-7 * 111320)
 	}
 	return p, true
+}
+
+// keptBits reads a rough position's precision off its coordinates, for the
+// copies meshtasticd keeps of each radio (NodeInfo), which drop the field:
+// a radio sharing a rough area sends the middle of its cell, the dropped bits
+// all 0 but the top one. Up to 22 bits (about 15 m) only, where an exact
+// position matching by chance is near impossible; 0 if it does not match.
+func keptBits(lat, lon uint32) uint32 {
+	for bits := uint32(10); bits <= 22; bits++ {
+		mask, mid := uint32(1)<<(32-bits)-1, uint32(1)<<(31-bits)
+		if lat&mask == mid && lon&mask == mid {
+			return bits
+		}
+	}
+	return 0
 }
 
 // Hardware names for the boards seen most often (mesh.proto HardwareModel).

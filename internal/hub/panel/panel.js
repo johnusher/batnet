@@ -573,16 +573,17 @@ function drawMap() {
     m.bindTooltip(n.shortName || n.id.slice(-4), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
     m.on("click", () => showRadio(n.num));
   }
-  // The reach ring: as far as the farthest radio the hub last heard straight,
-  // with no relay. Measured, not a forecast: it grows as the hub hears more.
+  // How far the hub hears, by direction: a dashed line to each radio it last
+  // heard straight, with no relay. Measured, not a forecast, and no circle: an
+  // antenna on one side of a roof hears farther one way than another.
   const direct = w ? placed.filter((n) => n.hops === 0) : [];
-  const reach = direct.reduce((m, n) => Math.max(m, distance(w, n.position)), 0);
-  if (reach > 0) {
-    L.circle([w.lat, w.lon], { radius: reach, color: css("--signal"), weight: 2, dashArray: "6 6", fillOpacity: 0.04, interactive: false }).addTo(mapLayer);
+  for (const n of direct) {
+    L.polyline([[w.lat, w.lon], [n.position.lat, n.position.lon]], { color: css("--signal"), weight: 2, dashArray: "6 6", interactive: false }).addTo(mapLayer);
   }
+  const reach = direct.reduce((m, n) => Math.max(m, distance(w, n.position)), 0);
   $("map-reach").textContent = !w ? "Mark where this hub is to see how far it hears."
-    : reach > 0 ? `Dashed ring: heard straight, with no relay, up to ${km(reach)} (${direct.length} ${direct.length === 1 ? "radio" : "radios"} on the map). Radios farther out reach the hub through relays.`
-    : "No radio on the map was heard straight yet, so no ring.";
+    : direct.length ? `Dashed lines: ${direct.length === 1 ? "the radio" : `the ${direct.length} radios`} heard straight, with no relay, the farthest ${km(reach)} away. Radios farther out reach the hub through relays.`
+    : "No radio on the map was heard straight yet.";
   if (w) {
     pts.push([w.lat, w.lon]);
     L.marker([w.lat, w.lon], { icon: L.divIcon({ className: "hubmark", html: "<span>this hub</span>", iconSize: null }), keyboard: false }).addTo(mapLayer);

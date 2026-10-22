@@ -95,6 +95,20 @@ func TestPositionsAndContents(t *testing.T) {
 	if !ok || p.Lat != 52.4 || p.Lon != 13.4 || *p.Alt != 40 || math.Abs(p.AccuracyM-2918) > 5 {
 		t.Errorf("position %+v", p)
 	}
+	// meshtasticd's own copy of a radio leaves the precision out: read it off
+	// the coordinates, the middle of a 16-bit cell; an exact one stays exact.
+	var lite enc
+	lite.fixed32(1, uint32(int32(524000000))&^(1<<16-1)|1<<15)
+	lite.fixed32(2, uint32(int32(134000000))&^(1<<16-1)|1<<15)
+	if p, _ := parsePosition(lite.b); p.PrecisionBits != 16 || math.Abs(p.AccuracyM-365) > 2 {
+		t.Errorf("rough position from the node list %+v", p)
+	}
+	var exact enc
+	exact.fixed32(1, 524001234)
+	exact.fixed32(2, 134004567)
+	if p, _ := parsePosition(exact.b); p.AccuracyM != 0 {
+		t.Errorf("exact position read as rough %+v", p)
+	}
 	if _, ok := parsePosition(nil); ok {
 		t.Error("an empty position was accepted")
 	}
