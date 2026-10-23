@@ -63,6 +63,9 @@ type Node struct {
 	// Batnet: sent batnet traffic (PRIVATE_APP) or names itself batnet.
 	Batnet bool `json:"batnet"`
 	Self   bool `json:"self"`
+	// Key: its name card carried its public key, so a private message to it
+	// can be sent (meshtasticd refuses one without, ErrNoKey).
+	Key bool `json:"key,omitempty"`
 }
 
 // Link is a radio's signal straight to this hub.
@@ -122,6 +125,10 @@ type Text struct {
 	// relayed it), delivered (the radio it was for confirmed it) or failed.
 	Status string `json:"status,omitempty"`
 	Detail string `json:"detail,omitempty"` // why it failed
+	Code   uint32 `json:"code,omitempty"`   // the radio's error number (Routing.Error)
+	// KeyAsked: it failed for want of the radio's key, the hub asked that
+	// radio for its name card, and sends the message again once it comes.
+	KeyAsked bool `json:"keyAsked,omitempty"`
 }
 
 // Channel is one of the radio's channels.
@@ -200,7 +207,8 @@ type Client struct {
 	lastSend  time.Time
 	lastHello time.Time
 	lastAdmin time.Time
-	loraRaw   []byte // the radio's LoRaConfig as it sent it, for changing a few fields
+	askedKey  map[uint32]time.Time // when the hub last asked a radio for its name card
+	loraRaw   []byte               // the radio's LoRaConfig as it sent it, for changing a few fields
 	listeners map[chan struct{}]bool
 	onEvent   []func(Event)
 }
@@ -225,7 +233,7 @@ func (c *Client) emit(e Event) {
 // New returns a client for meshtasticd at addr (host:port, usually 127.0.0.1:4403).
 func New(addr string) *Client {
 	return &Client{addr: addr, now: time.Now, nodes: map[uint32]*Node{}, links: map[uint32]*link{}, channels: map[int]Channel{},
-		listeners: map[chan struct{}]bool{}, st: Status{Addr: addr}}
+		askedKey: map[uint32]time.Time{}, listeners: map[chan struct{}]bool{}, st: Status{Addr: addr}}
 }
 
 // Changed returns a channel that gets a signal when something changes, and a function to stop.
@@ -563,6 +571,10 @@ func (c *Client) setUser(n *Node, u user) {
 		n.ShortName = u.short
 	}
 	n.HWModel, n.Role, n.Hardware = u.hw, roles[u.role], HardwareName(u.hw)
+	if u.key && !n.Key {
+		n.Key = true
+		c.keyCame(n.Num)
+	}
 	if l := strings.ToLower(u.long); strings.HasPrefix(l, "batnet") || strings.HasPrefix(l, "lorabatnet") {
 		n.Batnet = true
 	}
@@ -737,9 +749,13 @@ func (c *Client) receipt(p packet) *Event {
 		}
 		switch code := routingError(p.payload); {
 		case code != 0:
-			t.Status, t.Detail = "failed", routingErrors[code]
+			t.Status, t.Detail, t.Code = "failed", routingErrors[code], code
 			if t.Detail == "" {
 				t.Detail = fmt.Sprintf("error %d", code)
+			}
+			if code == ErrNoKey && p.from == c.st.MyNum && !t.KeyAsked {
+				t.KeyAsked = true
+				go c.askKey(t.To)
 			}
 		case p.from == t.To:
 			t.Status, t.Detail = "delivered", ""
@@ -917,6 +933,88 @@ func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, er
 	c.mu.Unlock()
 	c.emit(Event{At: t.At, Kind: "sent", To: nodeID(to), Channel: channel, ID: id, Port: "text", Text: text, ReplyID: replyID, Bytes: len(pb), Local: true})
 	return t, nil
+}
+
+// keyWait is how long after a message failed for want of a radio's key the
+// hub still sends it once the key comes; keyAskGap how often at most it asks
+// one radio for its name card.
+const keyWait, keyAskGap = time.Hour, 10 * time.Minute
+
+// askKey sends radio to this hub's name card, asking for its own back: a
+// name card carries the radio's public key, and meshtasticd sends a name
+// card to one radio without that key (a private text it would refuse).
+func (c *Client) askKey(to uint32) {
+	c.mu.Lock()
+	if c.conn == nil || c.selfUser == nil || c.now().Sub(c.askedKey[to]) < keyAskGap {
+		c.mu.Unlock()
+		return
+	}
+	c.askedKey[to] = c.now()
+	u, hop := c.selfUser, c.st.HopLimit
+	c.mu.Unlock()
+	if hop == 0 {
+		hop = 3
+	}
+	id := rand.Uint32()
+	pb := encodePacket(to, 0, id, hop, PortNodeInfo, u, sendOpts{wantResponse: true})
+	if c.write(pb) != nil {
+		return
+	}
+	c.mu.Lock()
+	c.st.PacketsOut++
+	c.mu.Unlock()
+	c.emit(Event{At: c.now(), Kind: "sent", To: nodeID(to), ID: id, Port: "nodeinfo", Bytes: len(pb), Local: true})
+}
+
+// keyCame sends again, once, the recent messages to radio num that failed
+// for want of its key. Caller holds mu.
+func (c *Client) keyCame(num uint32) {
+	for i := range c.st.Texts {
+		t := &c.st.Texts[i]
+		if t.Mine && t.To == num && t.KeyAsked && t.Code == ErrNoKey && t.Status == "failed" && c.now().Sub(t.At) < keyWait {
+			t.Status, t.Detail, t.Code = "sending", "", 0
+			go c.resend(t.ID)
+		}
+	}
+}
+
+// resend sends message id again under a new packet ID, which its receipt will name.
+func (c *Client) resend(id uint32) {
+	c.mu.Lock()
+	var t *Text
+	for i := range c.st.Texts {
+		if c.st.Texts[i].ID == id && c.st.Texts[i].Mine {
+			t = &c.st.Texts[i]
+		}
+	}
+	if t == nil || c.conn == nil {
+		c.mu.Unlock()
+		return
+	}
+	nid, hop := rand.Uint32(), c.st.HopLimit
+	if hop == 0 {
+		hop = 3
+	}
+	t.ID = nid
+	to, ch, text, reply := t.To, t.Channel, t.Text, t.ReplyID
+	c.changed()
+	c.mu.Unlock()
+	pb := encodePacket(to, ch, nid, hop, PortText, []byte(text), sendOpts{wantAck: true, replyID: reply})
+	if err := c.write(pb); err != nil {
+		c.mu.Lock()
+		for i := range c.st.Texts {
+			if c.st.Texts[i].ID == nid {
+				c.st.Texts[i].Status, c.st.Texts[i].Detail = "failed", "the radio was not connected"
+			}
+		}
+		c.changed()
+		c.mu.Unlock()
+		return
+	}
+	c.mu.Lock()
+	c.st.PacketsOut++
+	c.mu.Unlock()
+	c.emit(Event{At: c.now(), Kind: "sent", To: nodeID(to), Channel: ch, ID: nid, Port: "text", Text: text, ReplyID: reply, Bytes: len(pb), Local: true})
 }
 
 // SayHello broadcasts this node's name. With ask, it asks the radios that

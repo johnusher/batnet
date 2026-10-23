@@ -29,6 +29,7 @@ implementation follows the plans in `docs/plans/`.
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
 | `tools/hubload/` | Load test for a hub's app: pretend phones that sign up, hold the live stream, read and post (`main.go`), and a sampler for the hub (`sample.sh`) |
 | `tools/hubcompare/` | `compare.py`: how strongly two hubs hear the same radios straight, from their saved readings and panel status (never meshtasticd); prints real names and places, keep its output out of the repo |
+| `tools/reachtest/` | `reachtest.py`, run on a hub: one friendly private message every 10 minutes to the next farthest radio, and a report of which were reached; through the panel API on localhost, never meshtasticd; its state names real radios, keep it out of the repo |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |
 
 ## Rules

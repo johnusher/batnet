@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-23
+* **Update**: A private message from the roof hub to a radio 25 km away failed with *error 39*: no key for that radio (B72 resolved). The panel explains every error number on hover or tap; on error 39 the hub asks the radio for its name card and sends the message again when the key comes. New `tools/reachtest`: one friendly German message every 10 minutes to the next farthest radio, farthest first, to see how far the roof hub reaches; started on [pz7](/hardware/bench-pz7.md).
 * **Update**: The hub keeps its messages across restarts (`texts.json`, L16 resolved). The open channel was named LongFast on a MediumFast hub when the radio sent its channels before its settings: fixed. The roof antenna's blind side is the south, where a chimney stands; how high to raise it is in the [bench notes](/hardware/bench-pz7.md). The first bench hub was switched off: the second, on the roof, is now the only hub.
 * **Update**: The map's zone forgets readings older than three weeks and has a *Start the zone again* button (B68 resolved; used on the first bench hub, back downstairs); the Radios list and the radar show a radio's own signal, not the last relay's (B71 resolved).
 * **Update**: Hubs share the radios' places they heard (B70 resolved, `internal/hub/places.go`): a broadcast every 10 minutes on every network a hub is on, sealed with the village key, never by radio; the panel names the hub a place came from. The second bench hub's zone grew from 1.5 km to an 11.5 km petal within a minute.

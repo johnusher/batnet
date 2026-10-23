@@ -49,7 +49,13 @@ const (
 var routingErrors = map[uint32]string{1: "no route to that radio", 2: "refused", 3: "timed out",
 	4: "no radio interface", 5: "no answer after three tries", 6: "no channel for it", 7: "too large",
 	8: "nobody answered", 9: "the radio's airtime limit was reached", 32: "bad request", 33: "not allowed",
-	34: "encryption failed", 35: "that radio's key is not known yet", 38: "too many messages: rate limited"}
+	34: "encryption failed", 35: "that radio does not know this hub's key yet", 36: "the remote admin session ran out",
+	37: "not one of that radio's admins", 38: "too many messages: rate limited", 39: "no key for that radio yet"}
+
+// ErrNoKey is Routing.Error PKI_SEND_FAIL_PUBLIC_KEY: the radio refused to
+// send a private message because it has not heard that radio's public key
+// (its name card), and it no longer sends private messages unencrypted.
+const ErrNoKey = 39
 
 // Ports (portnums.proto).
 const (
@@ -78,6 +84,7 @@ var roles = map[uint32]string{0: "client", 1: "client mute", 2: "router", 3: "ro
 type user struct {
 	id, long, short string
 	hw, role        uint32
+	key             bool // carries its public key
 }
 
 func parseUser(b []byte) (u user) {
@@ -97,6 +104,8 @@ func parseUser(b []byte) (u user) {
 			u.hw = f.u32()
 		case 7:
 			u.role = f.u32()
+		case 8:
+			u.key = len(f.b) == 32
 		}
 	}
 	return u

@@ -310,6 +310,7 @@ function showRadio(num) {
     ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)}${n.position.from ? `, heard by the hub ${n.position.from}` : ""})` : "has not shared it"],
     ["How far, roughly", n.self || (n.position && where()) ? "" : farGuess(n)],
     ["Runs batnet", n.batnet ? "yes" : ""],
+    ["Private messages", n.self ? "" : n.key ? "can be sent: its key is known" : "not yet: its name card, with its key, has not been heard (the hub asks for it if you send one)"],
   ], { num: n.self ? null : n.num, pos: n.position });
 }
 
@@ -318,7 +319,7 @@ const PORTS = { nodeinfo: "who it is", position: "position", telemetry: "telemet
 const WHAT = {
   heard: (f) => (f.encrypted ? "encrypted" : PORTS[f.port] || f.port || "packet"),
   garbled: () => "unreadable",
-  sent: (f) => (f.port === "nodeinfo" ? "hello sent" : f.port === "text" ? "message sent" : `sent ${f.port || ""}`),
+  sent: (f) => (f.port === "nodeinfo" ? (f.to && f.to !== "everyone" ? "asked for its name card" : "hello sent") : f.port === "text" ? "message sent" : `sent ${f.port || ""}`),
   relayed: () => "passed on", busy: () => "channel busy",
 };
 
@@ -417,12 +418,47 @@ function openConv(id) {
   $("msg").focus();
 }
 
+// ERRORS says what each of the radio's error numbers (Routing.Error) means, for the panel's hover and tap.
+const ERRORS = {
+  1: "No radio on the way knew a route to that radio.",
+  2: "A radio on the way refused to pass it on.",
+  3: "It timed out waiting for an answer.",
+  4: "The radio had no way to send it.",
+  5: "The radio sent it three times and no radio confirmed it: most likely out of reach.",
+  6: "The radio has no channel for it (was the channel removed?).",
+  7: "Too long for one radio packet.",
+  8: "It arrived, but nothing on that radio answered.",
+  9: "This radio has used its share of airtime for the hour (the EU limit); try again later.",
+  32: "That radio found the request malformed.",
+  33: "That radio would not allow it.",
+  34: "The radio could not encrypt it for that radio.",
+  35: "That radio could not read it: it has not heard this hub's name card, which carries the hub's key, yet. The hub's next hello brings it.",
+  36: "A remote settings session ran out; start it again.",
+  37: "This hub is not one of that radio's admins.",
+  38: "Too many messages in a short time: the radio held this one back to share the channel fairly.",
+  39: "A private message is locked with the other radio's public key, which comes in its name card. This hub has not heard that radio's name card yet, so the radio would not send it.",
+};
+
 function statusLine(t) {
   switch (t.status) {
     case "sending": return el("span", { class: "st", text: "Sending…" });
     case "passed on": return el("span", { class: "st ok", text: "✓ passed on by a radio nearby" });
     case "delivered": return el("span", { class: "st ok", text: "✓✓ delivered" });
-    case "failed": return el("span", { class: "st bad", text: `Not delivered: ${t.detail || "no answer"}` });
+    case "failed": {
+      const code = t.code || Number((/^error (\d+)$/.exec(t.detail || "") || [])[1]) || 0;
+      if (!code) return el("span", { class: "st bad", text: `Not delivered: ${t.detail || "no answer"}` });
+      const why = (ERRORS[code] || "The radio gave this number without saying more.") +
+        (t.keyAsked ? " The hub has asked that radio for its name card, and sends the message again by itself if it comes within the hour." : "");
+      const words = t.detail && !/^error \d+$/.test(t.detail) ? `${t.detail} ` : "";
+      const s = el("span", { class: "st bad why", tabindex: "0", title: why, text: `Not delivered: ${words}(error ${code})` });
+      // A phone has no hover: a tap shows the reason under the message.
+      s.addEventListener("click", () => {
+        const next = s.nextElementSibling;
+        if (next && next.classList.contains("explain")) next.remove();
+        else s.after(el("span", { class: "explain", text: why }));
+      });
+      return s;
+    }
     default: return null;
   }
 }

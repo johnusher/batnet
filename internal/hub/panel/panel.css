@@ -148,6 +148,8 @@ td.acts .btn + .btn { margin-left: 0.3rem; }
 .bubbles .meta { font-size: 0.78rem; color: var(--muted); }
 .st.ok { color: var(--ok); font-weight: 700; }
 .st.bad { color: var(--onair); font-weight: 700; }
+.st.why { text-decoration: underline dotted; cursor: help; }
+.explain { display: block; font-size: 0.85em; opacity: 0.85; max-width: 32em; }
 .linkbtn { font: inherit; font-weight: 700; color: var(--signal); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .replying { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; font-size: 0.88rem; color: var(--muted); border-left: 3px solid var(--signal); padding-left: 0.6rem; }
 .send { display: flex; gap: 0.6rem; }

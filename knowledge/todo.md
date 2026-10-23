@@ -25,6 +25,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 - [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups (two hubs are up: the second, [pz7](/hardware/bench-pz7.md), since 2026-10-23, has its Meshstick on MediumFast, BerlinMesh and the first hub's `village.key`; their logs have no path between them yet: the USB WiFi stick for batman-adv, or plan 3b's bridge)
 - [ ] On 2026-10-25, the roof against the first hub's day with the same antenna: `tools/hubcompare/compare.py pz7 pz7:/var/lib/batnet/first-hub-antenna-links-2026-10-23.json` (the first hub's readings, copied to the second as the first was switched off), and the second hub's zone ([bench notes](/hardware/bench-pz7.md))
+- [ ] How far the roof hub reaches: the reach test started on 2026-10-23 on [pz7](/hardware/bench-pz7.md) sends one friendly private message every 10 minutes to the next farthest radio (30 in all, about 5 hours). Read it with `ssh pz7 sudo batnet-reachtest report`, write a test report, and stop the timer (`sudo systemctl stop batnet-reachtest.timer`; a reboot ends it too)
 - [ ] The keyboard on the hub's screen (the 800 × 480 display works, 2026-10-21); real mesh mode with the USB WiFi stick
 - [ ] How many phones the hub's own WiFi (the Pi's built-in radio as an access point) holds, on a Pi 4 and a Zero 2 W; the app took 200 ([load test](/tests/2026-10-23-hub-load-test.md))
 - [ ] Microphone and WebRTC after the certificate warning on a real iPhone and Android (decision 0004 depends on it)

@@ -498,3 +498,51 @@ func TestNamesChannelsAndBounds(t *testing.T) {
 		t.Fatalf("%d radios and %d links kept, want at most %d and %d", n, l, maxNodes, maxLinks)
 	}
 }
+
+func TestNoKeyAsksForItAndSendsAgain(t *testing.T) {
+	f, c, _ := readyRadio(t)
+	if st := c.Status(); st.Nodes[1].Key {
+		t.Fatal("a radio whose name card had no key counts as keyed")
+	}
+	sent, err := c.Send(0xa1b2c3d4, 0, "hallo Anna", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sentPacket(t, f)
+
+	// Our own radio refuses: no key for Anna. The hub asks her radio for its name card.
+	f.send(routingPacket(0xdeadbeef, sent.ID, ErrNoKey))
+	st := waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "failed" })
+	if tx := st.Texts[0]; tx.Code != ErrNoKey || !tx.KeyAsked || tx.Detail != "no key for that radio yet" {
+		t.Errorf("failed %+v", tx)
+	}
+	ask := sentPacket(t, f)
+	if ask.to != 0xa1b2c3d4 || ask.port != PortNodeInfo || ask.payload == nil {
+		t.Errorf("asked %+v", ask)
+	}
+
+	// Her name card comes with a key: the message goes again under a new ID.
+	u := userMsg("!a1b2c3d4", "Anna's handheld", "ANNA")
+	var k enc
+	k.bytes(8, make([]byte, 32))
+	var d enc
+	d.varint(dPortnum, PortNodeInfo)
+	d.bytes(dPayload, append(u, k.b...))
+	var mp enc
+	mp.fixed32(mpFrom, 0xa1b2c3d4)
+	mp.fixed32(mpTo, 0xdeadbeef)
+	mp.bytes(mpDecoded, d.b)
+	var fr enc
+	fr.bytes(frPacket, mp.b)
+	f.send(fr.b)
+	again := sentPacket(t, f)
+	if again.to != 0xa1b2c3d4 || string(again.payload) != "hallo Anna" || again.id == sent.ID {
+		t.Errorf("sent again %+v", again)
+	}
+	st = waitFor(t, c, func(s Status) bool { return s.Texts[0].ID == again.id })
+	if tx := st.Texts[0]; tx.Status != "sending" || tx.Code != 0 || !st.Nodes[1].Key || len(st.Texts) != 1 {
+		t.Errorf("after the key %+v, node %+v", tx, st.Nodes[1])
+	}
+	f.send(routingPacket(0xa1b2c3d4, again.id, 0))
+	waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "delivered" })
+}

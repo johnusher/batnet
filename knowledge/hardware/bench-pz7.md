@@ -142,6 +142,26 @@ the roof a median 0.2 dB stronger (one 4 dB), one heard only from the roof
 vertical: about 0.5 dB lost to polarisation, more in some directions if it is
 a high-gain one with a flat beam.
 
+# How far it reaches: the reach test
+
+Heard is one way; a message back is the other. From 2026-10-23 at 21:00
+`tools/reachtest/reachtest.py` (installed on the hub as `batnet-reachtest`, run
+every 10 minutes by a timer made with `systemd-run`, which a reboot ends) sends
+one friendly private message in German to the next farthest radio: first those
+with a known place at least 8 km away, farthest first, then those with no
+known place that came through at least two relays; never one that came
+through more relays than the hub's own messages may take (hop limit 3), so the
+radios six or seven hops away are left out. Each radio gets one message, 30
+in all. With a place it says how far: "Du bist etwa 25 km entfernt". A radio
+counts as reached when its radio confirms the message, when its name card
+comes back after the hub asked for it, or when someone answers. Results:
+`sudo batnet-reachtest report` on the hub (it names real radios: not here).
+
+The first message, by hand, to a radio 25 km to the north-north-west heard
+once through two relays, failed at once with error 39: the hub had never heard
+that radio's name card, so it had no key for it ([B72](/known-problems.md)). Of
+the 112 radios the hub knew after the change, 87 had a key.
+
 # Limits
 
 * No translator and no screen ([L26](/known-problems.md)).
