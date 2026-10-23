@@ -52,7 +52,7 @@ unset"). Set on 2026-10-23 with the Meshtastic command-line tool, as on the
 first hub: EU_868, MediumFast, hop limit 3, transmit power the region's default;
 node name "lorabatnet2", short name LB2. It heard 16 packets and 6
 radios in its first 90 s. The same second channel as the first hub,
-**BerlinMesh**, with the key copied from it (not in this repo). Since
+**BerlinMesh**, with the key copied from it (not in this repo). It is quiet: the first hub logged 3 messages on it in two days against 48 on the open channel. Since
 2026-10-23 it shares the same fixed house position as the first hub (they sit in
 one house), as the first hub does: on the primary channel only, rounded to
 precision 16 (about 364 m, the nearest Meshtastic step to 350 m), once an hour.

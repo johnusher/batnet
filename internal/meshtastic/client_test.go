@@ -425,6 +425,18 @@ func TestLinksAgeAndForget(t *testing.T) {
 	}
 }
 
+// The primary channel with no name of its own is named by the preset, even
+// when the radio sends the channels before the LoRa settings.
+func TestPrimaryChannelNamedByPreset(t *testing.T) {
+	c := New("127.0.0.1:1")
+	c.channels[0] = Channel{Index: 0, Role: "primary"}
+	c.channels[1] = Channel{Index: 1, Name: "BerlinMesh", Role: "secondary"}
+	c.st.Preset = "MediumFast"
+	if ch := c.Status().Channels; len(ch) != 2 || ch[0].Name != "MediumFast" || ch[1].Name != "BerlinMesh" {
+		t.Errorf("channels %+v", ch)
+	}
+}
+
 // A radio's names are its own claim: too long or not text, they are kept out.
 // The hub knows which channels it has; the tables of radios and links are bounded.
 func TestNamesChannelsAndBounds(t *testing.T) {

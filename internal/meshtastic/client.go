@@ -661,12 +661,6 @@ func (c *Client) channel(b []byte) {
 	if ch.Role == "" {
 		ch.Role = "disabled"
 	}
-	if ch.Role == "primary" && ch.Name == "" {
-		ch.Name = c.st.Preset
-		if ch.Name == "" {
-			ch.Name = "LongFast"
-		}
-	}
 	c.channels[ch.Index] = ch
 }
 
@@ -837,6 +831,12 @@ func (c *Client) Status() Status {
 	st.Channels = nil
 	for _, ch := range c.channels {
 		if ch.Role != "disabled" {
+			if ch.Role == "primary" && ch.Name == "" { // named by its preset, which may come after the channels
+				ch.Name = c.st.Preset
+				if ch.Name == "" {
+					ch.Name = "LongFast"
+				}
+			}
 			st.Channels = append(st.Channels, ch)
 		}
 	}
