@@ -200,7 +200,8 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 
 	radio := meshtastic.New(radioAddr)
-	go keepLinks(ctx, radio, filepath.Join(data, "links.json"))
+	linksSaved := make(chan struct{})
+	go func() { keepLinks(ctx, radio, filepath.Join(data, "links.json")); close(linksSaved) }()
 	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -283,6 +284,10 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	shut, done := context.WithTimeout(context.Background(), 3*time.Second)
 	defer done()
 	hs.Shutdown(shut)
+	select { // the links' last save, or up to five minutes of them are lost
+	case <-linksSaved:
+	case <-time.After(2 * time.Second):
+	}
 	if h.settings.Mode == hub.ModeReal {
 		h.meshCmd("down")
 	}

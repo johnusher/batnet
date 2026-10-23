@@ -83,8 +83,8 @@ back by itself after a reboot.
 
 # In the loft
 
-On 2026-10-23 it moved to the loft, on mains, under the roof with the
-Meshstick on a 1 m antenna extension; the first hub stays downstairs as the
+On 2026-10-23 it moved to the loft, on mains, under the roof, with its antenna
+on top of the house on a 1 m extension; the first hub stays downstairs as the
 house hub (screen, translator). Its built-in WiFi reached the home router from
 there, measured from a laptop with the same tests as in the router's room:
 
@@ -103,6 +103,10 @@ fallback. Its address differs on each, so reach it by name, not number. In a
 power cut the loft socket and the router go off too: it needs a battery of its
 own ([power budget](/research/power-budget.md)), and reaches the house hub by
 radio only.
+
+The map's zone needs the panel's own place as well as the radio's (B67): set
+to the house's on 2026-10-23. The readings it had from the room were moved
+aside when the antenna went up (B68), so its zone is the roof's alone.
 
 # Limits
 
