@@ -644,8 +644,165 @@ def night(theme):
     s.save("berlin-night", theme, "One night of packets at the Berlin hub by number of relays: 28 direct, most through 2 to 4 relays, 49 through 7")
 
 
+# The radios the bench hub heard straight (no relay) on Medium Fast, from its
+# panel on 2026-10-23: (bearing in degrees, distance in km, SNR in dB), rounded
+# to 10 degrees and 1 km so the hub's place can't be worked back from them.
+# RELAYED: radios in other directions heard only through relays, same rounding.
+DIRECT = [(300, 4, -11), (310, 12, -12), (320, 2, -14.5), (330, 1, -12)]
+RELAYED = [(0, 4), (50, 7), (200, 3)]
+FLOOR_MF, PATH_EXP, SPREAD = -15, 3, 30  # as in internal/hub/panel/panel.js coverage()
+
+
+def zone():
+    """The panel's coverage(): each straight radio's reach, spread 30 degrees either side, tapering."""
+    reach = [(b, max(d, d * 10 ** ((snr - FLOOR_MF) / (10 * PATH_EXP)))) for b, d, snr in DIRECT]
+    out = []
+    for a in range(0, 360, 2):
+        m = 0
+        for b, r in reach:
+            off = abs((a - b + 540) % 360 - 180)
+            if off < SPREAD:
+                m = max(m, r * math.cos(off / SPREAD * math.pi / 2) ** 2)
+        out.append((a, m))
+    return reach, out
+
+
+def area(pts):
+    """Area in km² of a polygon given as (bearing, km) pairs, by the shoelace formula."""
+    xy = [(r * math.sin(math.radians(a)), r * math.cos(math.radians(a))) for a, r in pts]
+    return abs(sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(xy, xy[1:] + xy[:1]))) / 2
+
+
+def directivity(theme):
+    """A range circle against the zone the hub works out from the radios it hears straight."""
+    t = THEMES[theme]
+    s = SVG(900, 540, t)
+    s.text(450, 30, "Which way does the hub hear? Not in a circle", 18, anchor="middle", weight="bold")
+    s.text(450, 52, "The first hub in Berlin. Every radio it hears with no relay shows how far it reaches in that direction.",
+           12, "muted", "middle")
+    reach, petal = zone()
+    far = max(r for _, r in reach)
+    px = 150 / 16  # pixels per km
+
+    def at(cx, cy, brg, km):
+        return cx + km * px * math.sin(math.radians(brg)), cy - km * px * math.cos(math.radians(brg))
+
+    def grid(cx, cy):
+        for km in (5, 10, 15):
+            s.add(f'<circle cx="{cx}" cy="{cy}" r="{km * px:.1f}" fill="none" stroke="{t["faint"]}" stroke-width="1"/>')
+            x, y = at(cx, cy, 135, km)
+            s.text(x + 3, y + 4, f"{km} km", 10, "muted")
+        s.line(cx, cy - 16 * px, cx, cy + 16 * px, "faint", 1, "2 4")
+        s.line(cx - 16 * px, cy, cx + 16 * px, cy, "faint", 1, "2 4")
+        s.text(cx, cy - 16 * px - 6, "N", 12, "muted", "middle", "bold")
+
+    def hub(cx, cy):
+        s.rect(cx - 5, cy - 5, 10, 10, "fg", rx=2)
+        s.text(cx + 9, cy + 16, "hub", 11, "fg")
+
+    # Left: the usual guess, one range figure drawn all the way round.
+    cx, cy = 215, 255
+    s.add(f'<circle cx="{cx}" cy="{cy}" r="{far * px:.1f}" fill="{t["hotfill"]}" fill-opacity="0.85" '
+          f'stroke="{t["hot"]}" stroke-width="2" stroke-dasharray="5 4"/>')
+    grid(cx, cy)
+    hub(cx, cy)
+    s.text(cx, 430, "The usual guess: one range, all the way round", 14, "fg", "middle", "bold")
+    s.text(cx, 448, f"{far:.0f} km in every direction: about {area([(a, far) for a in range(0, 360, 2)]):,.0f} km²",
+           12, "muted", "middle")
+
+    # Right: what the hub works out.
+    cx, cy = 655, 270
+    grid(cx, cy)
+    pts = " L".join(f"{x:.1f},{y:.1f}" for x, y in (at(cx, cy, a, r) for a, r in petal))
+    s.path("M" + pts + " Z", "hot", 2, "hotfill", 0.85)
+    for b, d, _ in DIRECT:
+        x, y = at(cx, cy, b, d)
+        s.line(cx, cy, x, y, "hot", 1.5, "5 4")
+        s.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" fill="{t["fg"]}" stroke="{t["bg"]}" stroke-width="1.5"/>')
+    for b, d in RELAYED:
+        x, y = at(cx, cy, b, d)
+        s.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" fill="{t["bg"]}" stroke="{t["muted"]}" stroke-width="2"/>')
+    hub(cx, cy)
+    b, d, snr = DIRECT[1]
+    x, y = at(cx, cy, b, d)
+    s.text(x - 22, y - 44, f"heard {d} km away with", 11, "fg", "end")
+    s.text(x - 22, y - 30, f"{snr - FLOOR_MF:.0f} dB to spare: could be {far:.0f} km", 11, "fg", "end")
+    x, y = at(cx, cy, *RELAYED[2])
+    s.text(x - 10, y + 4, f"{RELAYED[2][1]} km away, yet heard", 11, "muted", "end")
+    s.text(x - 10, y + 18, "only through relays", 11, "muted", "end")
+    s.text(cx, 430, "What batnet works out from the signal", 14, "fg", "middle", "bold")
+    s.text(cx, 448, f"{far:.0f} km to the north-west, unknown elsewhere: about {area(petal):,.0f} km²",
+           12, "muted", "middle")
+
+    # Legend and source.
+    y = 482
+    s.add(f'<circle cx="190" cy="{y - 4}" r="5" fill="{t["fg"]}"/>')
+    s.text(200, y, "heard straight, no relay", 12, "fg")
+    s.add(f'<circle cx="375" cy="{y - 4}" r="5" fill="{t["bg"]}" stroke="{t["muted"]}" stroke-width="2"/>')
+    s.text(385, y, "heard only through relays", 12, "fg")
+    s.rect(566, y - 11, 16, 12, "hotfill", "hot", rx=2)
+    s.text(588, y, "where it should hear a radio straight", 12, "fg")
+    s.text(450, 512, "Readings of 23 October 2026 on Medium Fast, rounded to 10° and 1 km. The antenna is near the roof on one side of the house,",
+           11, "muted", "middle", italic=True)
+    s.text(450, 527, "so the house itself is probably in the way of the rest. A radio lower down or indoors is heard less far.",
+           11, "muted", "middle", italic=True)
+    s.save("directivity", theme, "A range circle of 15 km all round against the zone the hub works out: 15 km to the north-west only, from four radios heard with no relay")
+
+
+def board(s, x, y, w_mm, h_mm, k, holes, header, chip, ports):
+    """A Raspberry Pi board seen from above, to scale (k pixels per mm)."""
+    t = s.t
+    s.add(f'<rect x="{x}" y="{y}" width="{w_mm * k:.1f}" height="{h_mm * k:.1f}" rx="{3 * k:.1f}" '
+          f'fill="{t["panel"]}" stroke="{t["gadget"]}" stroke-width="2"/>')
+    for hx, hy in holes:
+        s.add(f'<circle cx="{x + hx * k:.1f}" cy="{y + hy * k:.1f}" r="{1.4 * k:.1f}" fill="{t["bg"]}" stroke="{t["faint"]}"/>')
+    hx0, hy0 = header
+    for i in range(20):
+        for j in range(2):
+            s.add(f'<circle cx="{x + (hx0 + i * 2.54) * k:.1f}" cy="{y + (hy0 + j * 2.54) * k:.1f}" r="{0.6 * k:.1f}" fill="{t["muted"]}"/>')
+    cx_, cy_, cw = chip
+    s.rect(x + cx_ * k, y + cy_ * k, cw * k, cw * k, "faint", rx=2)
+    for px_, py_, pw, ph in ports:
+        s.rect(x + px_ * k, y + py_ * k, pw * k, ph * k, "muted", rx=2, opacity=0.6)
+
+
+def two_pis(theme):
+    """The two Pis batnet runs on in Berlin, to scale, with what each was tried with."""
+    t = THEMES[theme]
+    s = SVG(900, 400, t)
+    s.text(450, 30, "Tested on both: a Raspberry Pi 4 and a Pi Zero 2 W", 18, anchor="middle", weight="bold")
+    s.text(450, 52, "Drawn to scale. Each runs a hub in Berlin with the same software and a radio on a USB stick.", 12, "muted", "middle")
+    k = 2.6
+    # Pi 4: 85 x 56 mm, holes 58 x 49 mm apart, USB and Ethernet on the right edge.
+    board(s, 80, 80, 85, 56, k, [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)], (8, 2.3), (25, 25, 15),
+          [(66, 2, 21, 15), (68, 21, 19, 14), (68, 40, 19, 14), (12, 50, 8, 8), (26, 50, 7, 8), (40, 50, 7, 8)])
+    # Pi Zero 2 W: 65 x 30 mm, the same hole spacing along, ports on the long edge.
+    board(s, 520, 148, 65, 30, k, [(3.5, 3.5), (61.5, 3.5), (3.5, 26.5), (61.5, 26.5)], (8, 2.3), (25, 12, 11),
+          [(8, 25, 11, 6), (38, 25, 8, 6), (50, 25, 8, 6)])
+
+    def facts(x, title, sub, rows, price):
+        s.text(x, 255, title, 15, "fg", weight="bold")
+        s.text(x, 273, sub, 12, "muted")
+        for i, (ok, line) in enumerate(rows):
+            yy = 300 + i * 20
+            s.text(x, yy, "✓" if ok else "✗", 13, "gadget" if ok else "muted", weight="bold")
+            s.text(x + 18, yy, line, 12, "fg" if ok else "muted")
+        s.text(x, 300 + len(rows) * 20 + 6, price, 12, "hot", weight="bold")
+
+    facts(80, "Pi 4, 2 GB memory", "on the air since 21 October 2026",
+          [(True, "the radio, the app and the control panel"), (True, "200 phones at once, no errors"),
+           (True, "a screen and the offline translator"), (True, "15 h 48 min on a 72 Wh power bank")],
+          "about €106 for the 4 GB model")
+    facts(520, "Pi Zero 2 W, 512 MB memory", "on the air since 23 October 2026",
+          [(True, "the radio, the app and the control panel"), (True, "200 phones at once, no errors"),
+           (True, "offline maps of five areas"), (False, "too little memory for a screen or translator")],
+          "about €19")
+    s.save("two-pis", theme, "A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale, with what each hub was tested with")
+
+
 if __name__ == "__main__":
     for th in THEMES:
-        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync, presets, night):
+        for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync, presets, night,
+                     directivity, two_pis):
             draw(th)
     print("wrote", sorted(f for f in os.listdir(HERE) if f.endswith(".svg")))

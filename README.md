@@ -10,29 +10,76 @@ and no account with any company.
 
 [![The batnet film on YouTube: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang.](https://img.youtube.com/vi/zk5At_n8p_c/maxresdefault.jpg)](https://youtu.be/zk5At_n8p_c)
 
-batnet turns small, cheap computers into a local chat network for a house, a
-street, a village, a festival camp or a group on a hike. New to words like
-*node*, *mesh* or *LoRa*? See [Words we use](#words-we-use).
+## A €45 box that keeps a street talking when the grid goes down
+
+*When the power fails, the mobile masts can fall silent within hours. batnet, an
+open-source project being tested in Berlin, turns a computer the size of a
+bank card and a radio the size of a USB stick into a text network for a
+street or a village. It needs no masts, no internet and no licence, and it
+works out for itself which way it can hear.*
+
+In September 2025 an arson attack on two pylons blacked out 50,000 Berlin
+homes and businesses for two and a half days, and mobile coverage went
+down with them. batnet is built for days like that. A small Raspberry Pi
+computer in each house makes its own WiFi. Neighbours join it with any phone
+and chat in the web browser, much like WhatsApp: no app to install, no
+account with any company.
+
+Houses link up by radio. Close neighbours, a few hundred metres apart, will
+link over WiFi, which carries calls and photos too. Further out, a €25 radio
+stick speaks **LoRa** ("long range"), the same radio used by the thousands of
+hobbyist [Meshtastic](https://meshtastic.org/) radios on balconies and
+church towers around the world. It is slow, about as fast as a 1980s modem,
+and carries text only: each message holds about as much as a phone text
+(SMS). But it goes far. From near the roof of a Berlin house, the first hub reads
+a radio 12 km away with no help, and through radios that pass messages on,
+up to seven in a row, it heard 154 radios across the city in one night.
+
+The trick is in the signal. Every message is digital: a train of rising
+whistles, or **chirps**, scrambled with a key and checked on arrival. A
+receiver that knows the exact shape of a chirp can pick it out even when it
+is fainter than the radio's own background hiss: up to about 50 times
+fainter on the standard setting. (Bats hunt with chirps too, which suits a
+project called batnet.)
+
+Where it hears matters more than how loudly it shouts. With the antenna near
+the roof, the hub picked up 26 radios in 20 minutes; brought indoors behind
+a wall, it heard nothing for an hour. And it can tell which way it hears:
+rather than assume a neat circle of range, the hub uses the strength of each
+radio it hears to map its reach direction by direction.
+[It turned out to be a narrow petal](#which-way-the-hub-hears-a-shape-not-a-circle),
+pointing north-west.
+
+![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-light.svg#gh-light-mode-only)
+![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-dark.svg#gh-dark-mode-only)
 
 > **Half built.** The app, the way nodes keep each other up to date, and the
 > simulator are written and tested. Since October 2026
-> [the first real hub](#the-first-hub-on-a-bench-in-berlin) has been on the air
-> in Berlin, talking with
-> [the city's long-range radio mesh](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city).
-> Houses don't link to each other yet: that needs a second hub, which is next.
-> There's no simple installer yet either. If you're happy typing commands, you
-> can [build a hub today](#build-a-hub-today). To hear when batnet is ready
-> for everyone, click **Watch** at the top of this page (you need a free
-> GitHub account).
+> [two real hubs](#the-first-hub-on-a-bench-in-berlin), a Pi 4 and a Pi
+> Zero 2 W, have been on the air in Berlin, talking with
+> [the city's long-range radio mesh](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)
+> and with each other. Houses don't share their messages with each other yet:
+> that's next. There's no simple installer yet either. If you're happy typing
+> commands, you can [build a hub today](#build-a-hub-today). To hear when
+> batnet is ready for everyone, click **Watch** at the top of this page (you
+> need a free GitHub account). New to words like *node*, *mesh* or *LoRa*?
+> See [Words we use](#words-we-use).
 
 ## At a glance
 
 | | |
 |---|---|
-| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. Messages also hop from radio to radio: in Berlin the first hub hears radios right across the city, passed along by up to seven others. |
-| **People** | The app took **200 phones at once** on a Pi 4 and on a little Pi Zero 2 W, without an error ([measured](#which-raspberry-pi)). The real limit is how many phones the WiFi holds, not measured yet: probably under 10 on the Pi's built-in WiFi, as many as the router allows when the phones use a home router. |
+| **What it is** | A local chat network for a house, a street, a village, a festival camp or a group on a hike. One small computer (a *node*) per house; everyone else just uses their phone. |
+| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio** from house to house at ground level, much more from a roof: the first hub reads a radio **12 km away** directly. Messages also hop from radio to radio: in Berlin the first hub hears radios across 29 by 20 km of city, passed along by up to seven others. |
+| **Which way** | Not a circle. The hub [maps its reach in each direction](#which-way-the-hub-hears-a-shape-not-a-circle) from the radios it hears: 15 km to the north-west for the first hub, unknown elsewhere. |
+| **Messages** | Over the long-range radio, **text only, like an SMS**: up to 200 bytes in a packet, on the air for under half a second on Berlin's setting. Spoken messages are to cross as text, read aloud at the other end (planned). |
+| **The mesh** | Every node passes on what it hears, so messages travel further than any one radio reaches, with no central server. batnet shares the air with Meshtastic's radios, and they carry its messages too, without being able to read the private ones. |
+| **Legal** | **No licence needed in Europe**, in the slice from 869.4 to 869.65 MHz: at most half a watt, and on the air at most 10% of each hour. Our radio sends 0.16 W, about what a mobile phone sends; overnight in Berlin the hub used 1% of the hour while passing on 1,482 messages for others. [Is it legal?](#is-it-legal) |
+| **Tested on** | A **Raspberry Pi 4** and a **Pi Zero 2 W**, each on the air in Berlin. Both took **200 phones at once** without an error ([measured](#which-raspberry-pi)); up to 100 phones, a message typically reached every phone in under a tenth of a second. |
 | **Cost** | **From about €45**: a Pi Zero 2 W (€19) and the long-range radio (€25) make a pocket node. A house node that also links houses over WiFi is about **€150**. (EU prices, October 2026.) |
-| **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates. The first hub ran 15 h 48 min on a 72 Wh power bank, so it used at most about 4 W. |
+| **Power** | The Pi 4 hub ran **15 h 48 min on a 72 Wh power bank**, so it used at most about 4 W, like a small LED bulb. A pocket node should run about **1½ days on an ordinary 10,000 mAh power bank** (an estimate). Use a good 5 V, 3 A supply: the first hub's cheap one sagged when it worked hard. |
+| **Antenna** | The biggest single factor. Up high and outside if you can: near the roof the hub heard 26 radios in 20 minutes, behind a wall none in an hour. |
+| **Limits** | Long range is text only, and slow: a village shares roughly 100 to 600 radio messages an hour, depending on the setting. The Pi's own WiFi probably holds under 10 phones (not measured yet; a router holds many more). The app has no HTTPS yet, so on an open WiFi a neighbour with the know-how could read messages ([B50](knowledge/known-problems.md)). It doesn't replace the emergency services. |
 | **Setup** | Our goal is **under 15 minutes** per node, from download to first message. Today a hub is set up with one command from a laptop, for people used to a terminal. |
 
 ## Where it helps
@@ -116,8 +163,9 @@ How many radios there are, their signal, their relays and the timing are real.*
   arrive (✓ a radio passed it on, ✓✓ it got there).
 * **A radar, a list and a map** of the radios around it, and a view of all the
   traffic on the air. Click any radio, packet or sender for what it says. The
-  map shades where the hub should hear a radio directly, worked out from the
-  signal of the radios it does hear directly.
+  map shades where the hub should hear a radio directly, direction by
+  direction, worked out from the signal of the radios it does hear directly
+  ([not a circle](#which-way-the-hub-hears-a-shape-not-a-circle)).
 * **Settings for the radio:** its speed setting (Berlin uses
   [*MediumFast*](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)),
   relays, power, listen-only and its name.
@@ -251,6 +299,44 @@ Then the hub listened all night, from half past ten to a quarter past seven:
 
 ![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-light.svg#gh-light-mode-only)
 ![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-dark.svg#gh-dark-mode-only)
+
+### Which way the hub hears: a shape, not a circle
+
+Ask how far a radio reaches and you usually get one number, say "15 km", as
+if it reached that far in every direction. It doesn't. Hills, buildings and
+the house it sits in shade it one way and leave it clear another. So the hub
+works out its reach **direction by direction**, from what it actually hears.
+
+Every radio that shares where it is, and reaches the hub with no relay in
+between, tells the hub two things: how far away it is, and how much signal
+it had to spare above the faintest the hub can read. A radio 12 km away
+that arrives with 3 dB to spare could have been about 15 km away and still
+got through. (Among houses a signal fades by about 30 dB each time the
+distance grows tenfold, so 3 dB spare buys about a quarter more distance.)
+The hub spreads each of these reaches over a narrow wedge, 30° either side
+of the radio's direction, and joins them into a shape. Where no radio has
+reached it straight, it draws nothing: not known yet, rather than a guess.
+
+![A circle of 15 km all round, about 717 km², against the zone the hub works out: a narrow petal 15 km long to the north-west, about 45 km², from four radios heard with no relay; radios to the north, north-east and south come only through relays](docs/img/radio/directivity-light.svg#gh-light-mode-only)
+![A circle of 15 km all round, about 717 km², against the zone the hub works out: a narrow petal 15 km long to the north-west, about 45 km², from four radios heard with no relay; radios to the north, north-east and south come only through relays](docs/img/radio/directivity-dark.svg#gh-dark-mode-only)
+
+For the first hub the answer is a narrow petal pointing **north-west**. All
+four radios it hears straight lie in that direction, 1 to 12 km away. Radios
+to the north, the east and the south reach it only through relays, even one
+just 3 km to the south. A circle drawn from the best reading would claim
+about 717 km²; the readings support about 45 km², a sixteenth of that. The
+antenna sits near the roof on one side of the house, so the house itself is
+probably in the way of everything else. The fix is the same as ever: higher,
+and outside.
+
+The hub draws this shape live on its own map (the shaded zone, with a dashed
+line to each radio behind it), and redraws it as it hears more. It is an
+estimate: a radio lower down or indoors is heard less far than one up on a
+roof like those it is based on. The next step is a *range-test mode*, where
+someone walks or cycles about with a radio that shares its place and the hub
+fills in the shape from real measurements
+([ideas](knowledge/ideas.md)). The sum is in
+[`internal/hub/panel/panel.js`](internal/hub/panel/panel.js) (`coverage`).
 
 ### Joining Berlin's mesh with your own radio
 
@@ -406,7 +492,8 @@ CPE210 outdoor units does it, about €42 each at
 ### Which Raspberry Pi?
 
 We have tried two Pis as hubs: a **Pi 4** with 2 GB ("pi7", since 21 October
-2026) and a **Pi Zero 2 W** with 512 MB ("pz7", since 23 October). Both have the
+2026) and a **Pi Zero 2 W** with 512 MB ("pz7", since 23 October), drawn to
+scale [at the top](#a-45-box-that-keeps-a-street-talking-when-the-grid-goes-down). Both have the
 Elecrow Meshstick radio. The same set-up runs on both; a Pi with less than
 1 GB gets no screen and no translator, as they need more memory than it has.
 

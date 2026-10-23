@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="540" viewBox="0 0 900 540" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" role="img">
+<title>A range circle of 15 km all round against the zone the hub works out: 15 km to the north-west only, from four radios heard with no relay</title>
+<rect width="100%" height="100%" rx="10" fill="#0d1117"/>
+<text x="450.0" y="30.0" font-size="18" fill="#e6edf3" text-anchor="middle" font-weight="bold">Which way does the hub hear? Not in a circle</text>
+<text x="450.0" y="52.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="normal">The first hub in Berlin. Every radio it hears with no relay shows how far it reaches in that direction.</text>
+<circle cx="215" cy="255" r="141.6" fill="#3d2414" fill-opacity="0.85" stroke="#ff8c42" stroke-width="2" stroke-dasharray="5 4"/>
+<circle cx="215" cy="255" r="46.9" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="251.1" y="292.1" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">5 km</text>
+<circle cx="215" cy="255" r="93.8" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="284.3" y="325.3" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">10 km</text>
+<circle cx="215" cy="255" r="140.6" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="317.4" y="358.4" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">15 km</text>
+<line x1="215.0" y1="105.0" x2="215.0" y2="405.0" stroke="#3d444d" stroke-width="1" stroke-dasharray="2 4"/>
+<line x1="65.0" y1="255.0" x2="365.0" y2="255.0" stroke="#3d444d" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="215.0" y="99.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="bold">N</text>
+<rect x="210.0" y="250.0" width="10.0" height="10.0" rx="2" fill="#e6edf3" fill-opacity="1"/>
+<text x="224.0" y="271.0" font-size="11" fill="#e6edf3" text-anchor="start" font-weight="normal">hub</text>
+<text x="215.0" y="430.0" font-size="14" fill="#e6edf3" text-anchor="middle" font-weight="bold">The usual guess: one range, all the way round</text>
+<text x="215.0" y="448.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="normal">15 km in every direction: about 717 km²</text>
+<circle cx="655" cy="270" r="46.9" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="691.1" y="307.1" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">5 km</text>
+<circle cx="655" cy="270" r="93.8" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="724.3" y="340.3" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">10 km</text>
+<circle cx="655" cy="270" r="140.6" fill="none" stroke="#3d444d" stroke-width="1"/>
+<text x="757.4" y="373.4" font-size="10" fill="#9198a1" text-anchor="start" font-weight="normal">15 km</text>
+<line x1="655.0" y1="120.0" x2="655.0" y2="420.0" stroke="#3d444d" stroke-width="1" stroke-dasharray="2 4"/>
+<line x1="505.0" y1="270.0" x2="805.0" y2="270.0" stroke="#3d444d" stroke-width="1" stroke-dasharray="2 4"/>
+<text x="655.0" y="114.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="bold">N</text>
+<path d="M655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L655.0,270.0 L654.4,270.0 L652.8,269.8 L650.2,269.5 L646.6,268.8 L642.4,267.8 L637.8,266.3 L632.9,264.5 L627.9,262.2 L623.3,259.7 L619.1,256.9 L609.6,251.7 L597.1,244.2 L584.7,235.7 L573.2,226.5 L563.0,216.9 L554.8,207.4 L548.8,198.4 L545.4,190.4 L544.6,183.8 L546.5,179.0 L550.9,176.3 L557.5,175.9 L566.0,177.8 L575.9,182.2 L586.7,188.6 L597.9,197.0 L609.0,206.7 L619.5,217.4 L629.1,228.5 L637.3,239.3 L644.0,249.3 L649.1,257.8 L650.7,260.2 L651.3,260.9 L652.0,261.7 L652.6,262.7 L653.2,263.7 L653.7,264.9 L654.2,266.0 L654.5,267.1 L654.7,268.1 L654.9,268.9 L655.0,269.5 L655.0,269.9 Z" stroke="#ff8c42" stroke-width="2" fill="#3d2414" fill-opacity="0.85" stroke-linejoin="round" stroke-linecap="round"/>
+<line x1="655.0" y1="270.0" x2="622.5" y2="251.2" stroke="#ff8c42" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="622.5" cy="251.2" r="5" fill="#e6edf3" stroke="#0d1117" stroke-width="1.5"/>
+<line x1="655.0" y1="270.0" x2="568.8" y2="197.7" stroke="#ff8c42" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="568.8" cy="197.7" r="5" fill="#e6edf3" stroke="#0d1117" stroke-width="1.5"/>
+<line x1="655.0" y1="270.0" x2="642.9" y2="255.6" stroke="#ff8c42" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="642.9" cy="255.6" r="5" fill="#e6edf3" stroke="#0d1117" stroke-width="1.5"/>
+<line x1="655.0" y1="270.0" x2="650.3" y2="261.9" stroke="#ff8c42" stroke-width="1.5" stroke-dasharray="5 4"/>
+<circle cx="650.3" cy="261.9" r="5" fill="#e6edf3" stroke="#0d1117" stroke-width="1.5"/>
+<circle cx="655.0" cy="232.5" r="5" fill="#0d1117" stroke="#9198a1" stroke-width="2"/>
+<circle cx="705.3" cy="227.8" r="5" fill="#0d1117" stroke="#9198a1" stroke-width="2"/>
+<circle cx="645.4" cy="296.4" r="5" fill="#0d1117" stroke="#9198a1" stroke-width="2"/>
+<rect x="650.0" y="265.0" width="10.0" height="10.0" rx="2" fill="#e6edf3" fill-opacity="1"/>
+<text x="664.0" y="286.0" font-size="11" fill="#e6edf3" text-anchor="start" font-weight="normal">hub</text>
+<text x="546.8" y="153.7" font-size="11" fill="#e6edf3" text-anchor="end" font-weight="normal">heard 12 km away with</text>
+<text x="546.8" y="167.7" font-size="11" fill="#e6edf3" text-anchor="end" font-weight="normal">3 dB to spare: could be 15 km</text>
+<text x="635.4" y="300.4" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">3 km away, yet heard</text>
+<text x="635.4" y="314.4" font-size="11" fill="#9198a1" text-anchor="end" font-weight="normal">only through relays</text>
+<text x="655.0" y="430.0" font-size="14" fill="#e6edf3" text-anchor="middle" font-weight="bold">What batnet works out from the signal</text>
+<text x="655.0" y="448.0" font-size="12" fill="#9198a1" text-anchor="middle" font-weight="normal">15 km to the north-west, unknown elsewhere: about 45 km²</text>
+<circle cx="190" cy="478" r="5" fill="#e6edf3"/>
+<text x="200.0" y="482.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">heard straight, no relay</text>
+<circle cx="375" cy="478" r="5" fill="#0d1117" stroke="#9198a1" stroke-width="2"/>
+<text x="385.0" y="482.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">heard only through relays</text>
+<rect x="566.0" y="471.0" width="16.0" height="12.0" rx="2" fill="#3d2414" fill-opacity="1" stroke="#ff8c42"/>
+<text x="588.0" y="482.0" font-size="12" fill="#e6edf3" text-anchor="start" font-weight="normal">where it should hear a radio straight</text>
+<text x="450.0" y="512.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal" font-style="italic">Readings of 23 October 2026 on Medium Fast, rounded to 10° and 1 km. The antenna is near the roof on one side of the house,</text>
+<text x="450.0" y="527.0" font-size="11" fill="#9198a1" text-anchor="middle" font-weight="normal" font-style="italic">so the house itself is probably in the way of the rest. A radio lower down or indoors is heard less far.</text>
+</svg>
