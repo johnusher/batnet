@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/johnusher/batnet/internal/meshtastic"
 )
@@ -156,5 +159,30 @@ func TestSettings(t *testing.T) {
 		if msg, _ := out["error"].(string); code != 400 || !strings.Contains(msg, c.err) {
 			t.Errorf("%s %s: %d %v", c.path, c.body, code, out)
 		}
+	}
+}
+
+// Starting the zone again keeps the old readings aside and forgets them (B68).
+func TestZoneStartsAgain(t *testing.T) {
+	radio := meshtastic.New("127.0.0.1:1")
+	radio.LoadLinks(map[string]meshtastic.SavedLink{"!a1b2c3d4": {SNRs: []float32{-8}, Count: 1, At: time.Now()}})
+	dir := t.TempDir()
+	h := New(Config{DataDir: dir, Radio: radio}).Handler()
+	code, out := post(h, "/hub/api/zone", "127.0.0.1:5000", "", `{}`, true)
+	if code != 200 || out["forgot"] != 1.0 {
+		t.Fatalf("%d %v", code, out)
+	}
+	if n := len(radio.SavedLinks()); n != 0 {
+		t.Errorf("%d readings left", n)
+	}
+	kept, _ := filepath.Glob(filepath.Join(dir, "links-before-*.json"))
+	if len(kept) != 1 {
+		t.Fatalf("kept aside: %v", kept)
+	}
+	if b, _ := os.ReadFile(kept[0]); !strings.Contains(string(b), "!a1b2c3d4") {
+		t.Errorf("kept %s", b)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, LinksFile)); string(b) != "{}\n" {
+		t.Errorf("the saved readings are still %q", b)
 	}
 }

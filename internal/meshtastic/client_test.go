@@ -398,6 +398,33 @@ func TestLinksKeptBetweenRuns(t *testing.T) {
 	}
 }
 
+// Readings age out after linkKeep, and ForgetLinks starts the zone again (B68).
+func TestLinksAgeAndForget(t *testing.T) {
+	now := time.Date(2026, 10, 23, 14, 0, 0, 0, time.UTC)
+	c := New("127.0.0.1:1")
+	c.now = func() time.Time { return now }
+	c.LoadLinks(map[string]SavedLink{
+		"!a1b2c3d4": {SNRs: []float32{-8}, Count: 1, At: now.Add(-time.Hour)},
+		"!deadbeef": {SNRs: []float32{-9}, Count: 1, At: now.Add(-linkKeep - time.Hour)},
+	})
+	c.node(0xa1b2c3d4)
+	c.node(0xdeadbeef)
+	got := map[string]bool{}
+	for _, n := range c.Status().Nodes {
+		got[n.ID] = n.Link != nil
+	}
+	if !got["!a1b2c3d4"] || got["!deadbeef"] {
+		t.Errorf("links shown %v, want only the recent one", got)
+	}
+	if s := c.SavedLinks(); len(s) != 1 {
+		t.Errorf("saved %d links, want the recent one only", len(s))
+	}
+	old := c.ForgetLinks()
+	if len(old) != 1 || len(c.SavedLinks()) != 0 {
+		t.Errorf("forgot %d, kept %d", len(old), len(c.SavedLinks()))
+	}
+}
+
 // A radio's names are its own claim: too long or not text, they are kept out.
 // The hub knows which channels it has; the tables of radios and links are bounded.
 func TestNamesChannelsAndBounds(t *testing.T) {

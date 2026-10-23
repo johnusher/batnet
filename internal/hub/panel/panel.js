@@ -197,6 +197,13 @@ const SVGNS = "http://www.w3.org/2000/svg";
 function svg(tag, attrs) { const e = document.createElementNS(SVGNS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); return e; }
 const RINGS = [{ r: 52, label: "direct" }, { r: 96, label: "1 relay" }, { r: 140, label: "2+ relays" }];
 
+// ownSNR is the radio's own signal at the hub: its median heard straight, or
+// its last packet's if that came straight; null when only relays brought it
+// (a packet's SNR after relays is the last relay's, B71).
+function ownSNR(n) {
+  return n.link ? n.link.snr : n.hops === 0 ? n.snr : null;
+}
+
 function drawAir(p, list) {
   const pulsing = p.querySelector(".pulse.go");
   p.replaceChildren();
@@ -210,7 +217,7 @@ function drawAir(p, list) {
     const base = RINGS[ring].r - 22;
     // A stable angle per radio; inside its band, a stronger signal sits further in.
     const a = (hash(n.id) % 360) * Math.PI / 180;
-    const inward = Math.max(0, Math.min(1, ((n.snr || -10) + 20) / 30));
+    const inward = Math.max(0, Math.min(1, ((ownSNR(n) ?? -10) + 20) / 30));
     const r = base + 18 * (1 - inward);
     const x = Math.cos(a) * r, y = Math.sin(a) * r;
     const stale = Date.now() - new Date(n.lastHeard).getTime() > 2 * 3600e3;
@@ -609,6 +616,16 @@ $("place-hub").addEventListener("click", () => {
   setNote("place-note", "Click the map where this hub stands.");
 });
 
+// After the antenna moves, the old readings would mix with the new (B68).
+$("zone-again").addEventListener("click", async () => {
+  if (!confirm("Start the zone again? Do this after moving the antenna or the hub. The readings so far are kept in a file on the hub, and the zone fills in again as radios are heard.")) return;
+  try {
+    const out = await act("zone");
+    setNote("place-note", `Started again: ${out.forgot} ${out.forgot === 1 ? "radio's readings" : "radios' readings"} kept aside.`);
+    poll();
+  } catch (e) { setNote("place-note", e.message, true); }
+});
+
 // coverage works out where the hub should hear a radio straight. Each radio
 // heard straight at distance d with SNR s could be d * 10^((s - floor) / 30)
 // away and still be read: a signal fades about 30 dB for each tenfold
@@ -855,7 +872,9 @@ function renderRadios() {
     if (n.self) name.append(el("span", { class: "tag me", text: "this hub" }));
     if (n.position && !n.self) name.append(el("span", { class: "tag pos", text: "on the map" }));
     name.append(el("span", { class: "sub", text: [n.shortName, n.hardware, n.role].filter(Boolean).join(", ") || n.id }));
-    const sig = n.self ? el("td", { text: "" }) : el("td", {}, bars(n.snr), db(n.snr), n.rssi ? el("span", { class: "sub", text: `${minus(n.rssi)} dBm` }) : null);
+    const own = ownSNR(n);
+    const sig = n.self ? el("td", { text: "" }) : own == null ? el("td", { class: "muted", text: "only via relays" })
+      : el("td", {}, bars(own), db(own), n.hops === 0 && n.rssi ? el("span", { class: "sub", text: `${minus(n.rssi)} dBm` }) : null);
     const hops = el("td", { text: n.self ? "" : n.hops < 0 ? "?" : String(n.hops) });
     const heard = el("td", { text: n.self ? "" : ago(n.lastHeard) });
     if (!n.self && n.packets) heard.append(el("span", { class: "sub", text: `${n.packets} packet${n.packets > 1 ? "s" : ""}` }));

@@ -202,7 +202,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 
 	radio := meshtastic.New(radioAddr)
 	linksSaved := make(chan struct{})
-	go func() { keepLinks(ctx, radio, filepath.Join(data, "links.json")); close(linksSaved) }()
+	go func() { keepLinks(ctx, radio, filepath.Join(data, hub.LinksFile)); close(linksSaved) }()
 	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
 		h.mu.Lock()
 		defer h.mu.Unlock()

@@ -72,8 +72,12 @@ type Link struct {
 	At    time.Time `json:"at"`
 }
 
-// keepLinkSNRs is how many recent straight SNRs a link's median is taken over.
-const keepLinkSNRs = 15
+// keepLinkSNRs is how many recent straight SNRs a link's median is taken over;
+// linkKeep is how long a radio not heard straight since still counts (B68).
+const (
+	keepLinkSNRs = 15
+	linkKeep     = 21 * 24 * time.Hour
+)
 
 type link struct {
 	snrs  []float32
@@ -463,9 +467,22 @@ func (c *Client) SavedLinks() map[string]SavedLink {
 	defer c.mu.Unlock()
 	m := make(map[string]SavedLink, len(c.links))
 	for num, l := range c.links {
+		if c.now().Sub(l.at) >= linkKeep {
+			continue
+		}
 		m[fmt.Sprintf("!%08x", num)] = SavedLink{SNRs: append([]float32(nil), l.snrs...), Count: l.count, At: l.at}
 	}
 	return m
+}
+
+// ForgetLinks drops every link, for a hub whose antenna moved, and returns
+// them so they can be kept aside (B68).
+func (c *Client) ForgetLinks() map[string]SavedLink {
+	old := c.SavedLinks()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.links = map[uint32]*link{}
+	return old
 }
 
 // LoadLinks puts back links kept from an earlier run.
@@ -800,7 +817,7 @@ func (c *Client) Status() Status {
 	for _, n := range c.nodes {
 		cp := *n
 		cp.Self = n.Num == c.st.MyNum
-		if l := c.links[n.Num]; l != nil {
+		if l := c.links[n.Num]; l != nil && c.now().Sub(l.at) < linkKeep {
 			s := append([]float32(nil), l.snrs...)
 			sort.Slice(s, func(i, j int) bool { return s[i] < s[j] })
 			cp.Link = &Link{SNR: s[len(s)/2], Count: l.count, At: l.at}

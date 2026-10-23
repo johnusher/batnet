@@ -11,6 +11,8 @@ import (
 	"io/fs"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -139,6 +141,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /hub/api/radio", s.action(s.radio))
 	mux.HandleFunc("POST /hub/api/owner", s.action(s.owner))
 	mux.HandleFunc("POST /hub/api/settings", s.action(s.settings))
+	mux.HandleFunc("POST /hub/api/zone", s.action(s.zone))
 	mux.HandleFunc("GET /hub/logs/{name}", s.download)
 	s.kitRoutes(mux)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -438,6 +441,34 @@ func (s *Server) radio(b map[string]string) (any, error) {
 		return nil, err
 	}
 	return map[string]any{"ok": true, "restarting": true}, nil
+}
+
+// LinksFile is where batnetd keeps the zone's readings, in the data folder.
+const LinksFile = "links.json"
+
+// zone starts the map's zone again after the antenna moved (B68): the
+// readings so far are kept aside in the data folder and forgotten.
+func (s *Server) zone(map[string]string) (any, error) {
+	if s.cfg.Radio == nil {
+		return nil, meshtastic.ErrOffline
+	}
+	old := s.cfg.Radio.SavedLinks() // written aside before they are forgotten
+	if len(old) > 0 && s.cfg.DataDir != "" {
+		b, err := json.Marshal(old)
+		if err == nil {
+			err = os.WriteFile(filepath.Join(s.cfg.DataDir, "links-before-"+time.Now().Format("2006-01-02-1504")+".json"), append(b, '\n'), 0o600)
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+	n := len(s.cfg.Radio.ForgetLinks())
+	if s.cfg.DataDir != "" { // now, or a restart before the next save brings them back
+		if err := os.WriteFile(filepath.Join(s.cfg.DataDir, LinksFile), []byte("{}\n"), 0o600); err != nil {
+			return nil, err
+		}
+	}
+	return map[string]any{"ok": true, "forgot": n}, nil
 }
 
 // owner renames this hub's radio: long and short.
