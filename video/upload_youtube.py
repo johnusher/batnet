@@ -116,7 +116,7 @@ def api(method: str, url: str, data: bytes | None = None, headers: dict | None =
 
 CHAPTER_NAMES = {"title": "Title", "berlin": "Berlin, September 2025", "berlin2": None, "how": "How it works", "radio": "Why two radios",
                  "cost": "What it costs", "questions": "What people ask", "glasto": "Glastonbury: a lost child, a bang", "lostchild": None,
-                 "bang": None, "burningman": "Black Rock City", "proof": "The real code, simulated", "close": "Close"}
+                 "bang": None, "burningman": "Black Rock City", "proof": "The real code, simulated", "field": "Two real hubs in Berlin: what they heard", "close": "Close"}
 
 
 def chapters() -> str:
