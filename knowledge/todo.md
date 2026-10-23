@@ -23,7 +23,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 # Bench tests (need hardware)
 
-- [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups (one hub is up: set up the second Pi with `deploy/pi/deploy.sh`, copy `village.key`)
+- [ ] Two Pis + two Meshsticks: meshtasticd, range, airtime, priority queue, the bridge between two WiFi groups (two hubs are up: the second, [pz7](/hardware/bench-pz7.md), since 2026-10-23, has its Meshstick on MediumFast and still needs `village.key`)
 - [ ] The keyboard on the hub's screen (the 800 × 480 display works, 2026-10-21); real mesh mode with the USB WiFi stick
 - [ ] Microphone and WebRTC after the certificate warning on a real iPhone and Android (decision 0004 depends on it)
 - [ ] Captive-portal pop-up on each phone type; desktop notifications past the warning; Android background tab; iOS Wake Lock

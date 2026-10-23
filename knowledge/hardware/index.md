@@ -6,4 +6,5 @@
 * [SDR receivers](sdr-receivers.md) - an RTL-SDR v4 on a Pi 4/5 as the scanner's wide-band receiver (M4)
 * [EU shopping list](shopping-list-eu.md) - parts, article numbers and euro prices for house and pocket nodes, and what not to buy
 * [Printable cases and festivals](portable-cases.md) - 3D-printable cases for pocket and house nodes, and LoRa meshes at festivals
+* [pz7, the second bench hub (a Pi Zero 2 W)](bench-pz7.md) - the Raspberry Pi Zero 2 W with an Elecrow Meshstick that became batnet's second bench hub on 2026-10-23 - a small hub with no screen kiosk and no translator
 * [pi7, the first bench hub](bench-pi7.md) - the Raspberry Pi 4 (2 GB) with an Elecrow Meshstick that is batnet's first real hub from 2026-10-21 - what it is, what runs on it, how it starts and how to rebuild it

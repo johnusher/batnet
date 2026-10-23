@@ -9,6 +9,10 @@ cd "$(dirname "$0")"
 export DEBIAN_FRONTEND=noninteractive
 APT="apt-get -y -q -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold"
 say() { printf '\n== %s\n' "$*"; }
+# A small Pi (under 1 GB of memory, like a Zero 2 W) gets no screen kiosk and
+# no translator: Chromium alone would take most of its memory. BATNET_SMALL=0
+# or 1 overrides the guess.
+small=${BATNET_SMALL:-$(awk '/^MemTotal:/{print ($2 < 1000000)}' /proc/meminfo)}
 
 say "Clean-up: services a batnet hub does not use"
 # Printing, modems (ModemManager also grabs USB serial devices), NFS, VNC and
@@ -24,8 +28,11 @@ dpkg -l | awk '/^rc/{print $2}' | xargs -r dpkg --purge >/dev/null
 # Files from the Pi's earlier use stay in place: nothing of theirs starts on boot.
 
 say "Packages"
-$APT install batctl iw cage chromium curl jq pipx fonts-noto-color-emoji \
-  alsa-utils espeak-ng wlr-randr nftables polkitd >/dev/null
+# A fresh image's package lists are out of date: their files are gone from the mirror.
+apt-get update -q >/dev/null
+$APT install batctl iw curl jq pipx alsa-utils espeak-ng nftables polkitd >/dev/null
+if [ "$small" = 1 ]; then echo "A small Pi: no screen kiosk and no translator."
+else $APT install cage chromium fonts-noto-color-emoji wlr-randr >/dev/null; fi
 
 say "meshtasticd (Meshtastic's Linux daemon) from its Debian 13 repository"
 if [ ! -f /etc/apt/sources.list.d/meshtastic.sources ]; then
@@ -79,17 +86,25 @@ id batnet >/dev/null 2>&1 || useradd --system --home-dir /var/lib/batnet --shell
 id batnet-screen >/dev/null 2>&1 || useradd --system --create-home --home-dir /var/lib/batnet-screen \
   --shell /usr/sbin/nologin --groups video,render,input,audio batnet-screen
 if [ -f batnetd ]; then install -m755 batnetd /usr/local/bin/batnetd; fi
-install -m644 systemd/batnet-hub.service systemd/batnet-screen.service systemd/batnet-clock.service systemd/batnet-clock.timer \
+install -m644 systemd/batnet-hub.service systemd/batnet-clock.service systemd/batnet-clock.timer \
   systemd/batnet-power@.service systemd/batnet-console.service /etc/systemd/system/
+# Without the screen unit batnetd never starts a kiosk.
+if [ "$small" = 1 ]; then
+  systemctl disable --now batnet-screen.service 2>/dev/null || true
+  rm -f /etc/systemd/system/batnet-screen.service
+else install -m644 systemd/batnet-screen.service /etc/systemd/system/; fi
 systemctl daemon-reload
 systemctl enable --now batnet-clock.timer >/dev/null
 systemctl enable meshtasticd.service >/dev/null
 systemctl restart meshtasticd.service
 if [ -x /usr/local/bin/batnetd ]; then
-  systemctl enable batnet-hub.service batnet-screen.service >/dev/null
+  systemctl enable batnet-hub.service >/dev/null
   systemctl restart batnet-hub.service
-  # Only with a screen plugged in (batnetd starts and stops it as screens come and go).
-  if grep -qsx connected /sys/class/drm/card*-HDMI-A-*/status; then systemctl restart batnet-screen.service || true; fi
+  if [ "$small" != 1 ]; then
+    systemctl enable batnet-screen.service >/dev/null
+    # Only with a screen plugged in (batnetd starts and stops it as screens come and go).
+    if grep -qsx connected /sys/class/drm/card*-HDMI-A-*/status; then systemctl restart batnet-screen.service || true; fi
+  fi
 fi
 
 say "Meshtastic command-line tool for the pi user (meshtastic --host localhost ...)"
@@ -112,7 +127,8 @@ if ! pmtiles version 2>/dev/null | grep -q "$PMTILES_VERSION"; then
 fi
 
 say "Offline translator (German and English; decision 0030)"
-./translate-setup.sh || echo "The translator did not install (it needs the internet once); the hub works without it."
+if [ "$small" = 1 ]; then echo "Skipped on a small Pi."
+else ./translate-setup.sh || echo "The translator did not install (it needs the internet once); the hub works without it."; fi
 
 say "Done"
-systemctl --no-pager --lines=0 status meshtasticd batnet-hub batnet-screen | grep -E "●|Active:"
+systemctl --no-pager --lines=0 status meshtasticd batnet-hub $([ "$small" = 1 ] || echo batnet-screen) | grep -E "●|Active:" || true
