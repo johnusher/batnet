@@ -108,6 +108,17 @@ The map's zone needs the panel's own place as well as the radio's (B67): set
 to the house's on 2026-10-23. The readings it had from the room were moved
 aside when the antenna went up (B68), so its zone is the roof's alone.
 
+Its first 90 minutes up there (to 13:40): five radios heard straight, against
+three besides the first hub in the room, and four of the five new; the
+strongest about 6 dB stronger than anything the room heard. Only one of the
+five counts for the zone: two share no place, one only to about 2.9 km at
+2.4 km, too rough to say which way. So the zone was one petal of about 1.5 km,
+against the first hub's 15 km from a day of readings: too little time and too
+few placed radios, not proof of a poor antenna. The fair test is the same
+radios' SNR on both hubs over the same hours. The antenna stands about 20° off
+vertical: about 0.5 dB lost to polarisation, more in some directions if it is
+a high-gain one with a flat beam.
+
 # Limits
 
 * No translator and no screen ([L26](/known-problems.md)).
