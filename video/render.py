@@ -33,6 +33,7 @@ import voice
 HERE = Path(__file__).resolve().parent
 OUT = HERE / "out"
 PORT = 8766
+LEAD = 0.45  # seconds of picture before the narrator starts a scene: a clip on the cut itself sounds like an edit
 
 CHROME_CANDIDATES = [
     os.environ.get("CHROME", ""),
@@ -60,11 +61,12 @@ def build_timeline(draft: bool) -> dict:
     key = voice.api_key()
     t = 0.0
     scenes = []
-    for s in sc["scenes"]:
-        clip = voice.speak(s, v, model, key)
+    for s, prev, nxt in voice.neighbours(sc["scenes"]):
+        clip = voice.speak(s, v, model, key, prev, nxt)
         d = voice.duration(clip)
-        length = max(float(s.get("min", 0)), d + float(s.get("pad", 0.5)))
-        scenes.append({"id": s["id"], "start": round(t, 3), "end": round(t + length, 3), "speech": round(d, 3),
+        lead = float(s.get("lead", LEAD))
+        length = max(float(s.get("min", 0)), lead + d + float(s.get("pad", 0.5)))
+        scenes.append({"id": s["id"], "start": round(t, 3), "end": round(t + length, 3), "lead": lead, "speech": round(d, 3),
                        "text": s["text"], "caption": s.get("caption", s["text"]), "clip": clip.name})
         t += length
     tl = {"fps": 15 if draft else 30, "width": 1280 if draft else 1920, "height": 720 if draft else 1080,
@@ -227,15 +229,17 @@ def build_audio(tl: dict, events: list, music: bool) -> Path:
     inputs, filters, labels = [], [], []
     k = 0
 
-    def add(path: Path, at: float, gain_db: float):
+    def add(path: Path, at: float, gain_db: float, fade: float = 0):
         nonlocal k
         inputs.extend(["-i", str(path)])
-        filters.append(f"[{k}:a]aresample={RATE},aformat=channel_layouts=stereo,volume={gain_db}dB,adelay={int(at * 1000)}|{int(at * 1000)}[a{k}]")
+        # a short fade either end of a voice clip: no click where the synthesis starts or stops mid-sample
+        f = f"afade=t=in:d=0.03,afade=t=out:st={max(0, fade - 0.04):.3f}:d=0.04," if fade else ""
+        filters.append(f"[{k}:a]aresample={RATE},aformat=channel_layouts=stereo,{f}volume={gain_db}dB,adelay={int(at * 1000)}|{int(at * 1000)}[a{k}]")
         labels.append(f"[a{k}]")
         k += 1
 
     for s in tl["scenes"]:
-        add(voice.VOICE_DIR / s["clip"], s["start"], 0)
+        add(voice.VOICE_DIR / s["clip"], s["start"] + s.get("lead", 0), 0, s["speech"])
     counts: dict = {}
     for e in events:
         kind = e.get("kind")
@@ -267,7 +271,7 @@ def mux(tl: dict, audio: Path, draft: bool) -> Path:
 
 # ---------- the README's preview: a few seconds of the film as a GIF, with a play button ----------
 
-PREVIEW_CLIPS = [("berlin", .36), ("berlin2", .45), ("how", .25), ("radio", .72), ("cost", .55), ("questions", .4), ("glasto", .6), ("bang", .3), ("proof", .35)]
+PREVIEW_CLIPS = [("berlin", .36), ("berlin2", .45), ("how", .25), ("radio", .72), ("cost", .55), ("questions", .4), ("glasto", .6), ("bang", .3), ("proof", .35), ("field", .8)]
 
 
 def play_button_png(w: int, h: int, path: Path) -> None:

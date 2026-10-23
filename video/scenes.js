@@ -99,6 +99,7 @@
   }
   function caption(scene, u) {
     if (scene.id === 'title') return;
+    u -= scene.lead || 0; if (u < 0) return;
     const cs = chunks(scene.caption || scene.text), total = cs.reduce((n, c) => n + c.length, 0), speech = scene.speech || 5;
     let at = 0, cur = cs[cs.length - 1], start = 0, len = 1;
     for (const c of cs) { const d = speech * c.length / total; if (u < at + d) { cur = c; start = at; len = d; break; } at += d; start = at; }
@@ -122,7 +123,7 @@
   const ev = (id, u, kind, gain) => events.push({ t: +(sceneStart(id) + u).toFixed(3), kind, gain });
   // the second (from the scene's start) at which the narrator reaches a phrase: the words are
   // spread evenly over the clip, like the captions, so moments keyed to a phrase follow a re-write
-  const cue = (id, phrase) => { const s = tl.scenes.find((x) => x.id === id); if (!s) return 0; const i = s.text.indexOf(phrase); if (i < 0) { log('no cue', id, phrase); return 0; } return s.speech * i / s.text.length; };
+  const cue = (id, phrase) => { const s = tl.scenes.find((x) => x.id === id); if (!s) return 0; const i = s.text.indexOf(phrase); if (i < 0) { log('no cue', id, phrase); return 0; } return (s.lead || 0) + s.speech * i / s.text.length; };
 
   // --- title ---
   scenes.title = {
@@ -367,20 +368,21 @@
   // README's power table (18 Wh a day: about 1½ days on 10,000 mAh). Phones: the README's at-a-glance.
   scenes.cost = {
     setup() {
-      this.t = { zero: cue('cost', 'A Raspberry Pi Zero'), radio: cue('cost', 'A LoRa radio'), total: cue('cost', 'Zat is it'), bank: cue('cost', 'on ze power bank'), house: cue('cost', 'A house node'), phones: cue('cost', 'sixty phones'), est: cue('cost', 'Ja, estimates'), boy: cue('cost', 'not stupid boys') };
+      this.t = { zero: cue('cost', 'A Raspberry Pi Zero'), radio: cue('cost', 'A LoRa radio'), total: cue('cost', 'Zat is it'), bank: cue('cost', 'on ze power bank'), house: cue('cost', 'A house node'), phones: cue('cost', 'two hundred at vunce'), est: cue('cost', 'Ja, shop prices'), boy: cue('cost', 'not stupid boys') };
       ev('cost', this.t.zero, 'blip', -20); ev('cost', this.t.radio, 'blip', -20); ev('cost', this.t.total, 'swell', -14); ev('cost', this.t.house, 'blip', -22); ev('cost', this.t.boy, 'blip', -16);
     },
     draw(u, len) {
       const T = this.t; ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
       const line = (y, name, price, t0, big) => { const k = easeOut(ramp(u, t0, t0 + .5)); if (k <= 0) return; ctx.globalAlpha = k; ctx.save(); ctx.translate((1 - k) * -60, 0); text(name, 120, y, big ? 40 : 32, C.ink, 'left', big ? 700 : 500); text(price, 940, y, big ? 72 : 44, big ? C.warm : C.ink, 'right', 700, MONO); ctx.restore(); ctx.globalAlpha = 1; };
       line(250, 'Raspberry Pi Zero 2 W', '€19', T.zero);
-      line(330, 'LoRa radio module (868 MHz, antenna included)', '€25', T.radio);
+      line(330, 'LoRa radio stick (868 MHz, antenna included)', '€25', T.radio);
       const tk = ramp(u, T.total, T.total + .4); if (tk > 0) { ctx.globalAlpha = tk; ctx.fillStyle = C.warm; ctx.fillRect(120, 380, 820, 3); ctx.globalAlpha = 1; }
       line(460, 'a radio station in your pocket', '€44', T.total + .2, true);
       const bk = easeOut(ramp(u, T.bank, T.bank + .6)); if (bk > 0) { ctx.globalAlpha = bk; const x = 120, y = 560; ctx.fillStyle = '#1b222d'; rr(x, y, 220, 70, 12); ctx.fill(); ctx.fillStyle = '#3a4656'; rr(x + 220, y + 22, 10, 26, 3); ctx.fill(); const f = ramp(u, T.bank + .4, T.bank + 2.4); ctx.fillStyle = C.ok; rr(x + 10, y + 10, 200 * (1 - .6 * f), 50, 8); ctx.fill(); text('your own 10,000 mAh power bank: about 1½ days', x + 260, y + 35, 26, C.sub, 'left'); ctx.globalAlpha = 1; }
       const hk = easeOut(ramp(u, T.house, T.house + .6)); if (hk > 0) { ctx.globalAlpha = hk; const x = 1120, y = 230; house(x + 40, y + 70, 40, '#2c3a4e'); node(x + 40, y + 36, u, T.house + .3, C.wifi, 8); text('a house node', x + 110, y + 20, 32, C.ink, 'left', 700); text('Pi 4 or 5 + a WiFi stick to link houses', x + 110, y + 60, 24, C.sub, 'left'); text('about €150', x + 110, y + 108, 48, C.warm, 'left', 700, MONO); ctx.globalAlpha = 1; }
-      const pk = ramp(u, T.phones, T.phones + 1.5); if (pk > 0) { const n = Math.round(pk * 60); for (let i = 0; i < n; i++) { const x = 1120 + (i % 15) * 46, y = 400 + Math.floor(i / 15) * 60; phone(x, y, 28, 48, '#1a2230'); } ctx.globalAlpha = ramp(u, T.phones + .5, T.phones + 1); text('about 60 phones on one Pi 5', 1120, 665, 24, C.sub, 'left'); ctx.globalAlpha = 1; }
-      const ek = ramp(u, T.est, T.est + .5); if (ek > 0) { ctx.globalAlpha = ek; text('EU shop prices, October 2026, incl. VAT  ·  estimates, not yet measured on our own kit', 120, 760, 22, C.sub, 'left'); ctx.globalAlpha = 1; }
+      // 200 pretend phones at once on the Pi Zero 2 W, no errors: knowledge/tests/2026-10-23-hub-load-test.md
+      const pk = ramp(u, T.phones, T.phones + 2); if (pk > 0) { const n = Math.round(easeOut(pk) * 200); for (let i = 0; i < n; i++) { const x = 1120 + (i % 25) * 30, y = 400 + Math.floor(i / 25) * 40; phone(x, y, 20, 32, '#1a2230'); } ctx.globalAlpha = ramp(u, T.phones + 1.5, T.phones + 2); text('measured: 200 phones at once on the €19 Pi Zero 2 W, not one error', 1120, 750, 24, C.ok, 'left'); ctx.globalAlpha = 1; }
+      const ek = ramp(u, T.est, T.est + .5); if (ek > 0) { ctx.globalAlpha = ek; text('EU shop prices, October 2026, incl. VAT', 120, 760, 22, C.sub, 'left'); ctx.globalAlpha = 1; }
       const sk = easeOut(ramp(u, T.boy, T.boy + .5)); if (sk > 0) { ctx.save(); ctx.translate(1560, 790); ctx.rotate(-.1); ctx.scale(1.3 - .3 * sk, 1.3 - .3 * sk); ctx.globalAlpha = sk; ctx.strokeStyle = C.alert; ctx.lineWidth = 4; rr(-160, -30, 320, 60, 8); ctx.stroke(); text('NOT STUPID BOYS', 0, 0, 26, C.alert, 'center', 800); ctx.restore(); }
       label('What it costs', 'a pocket node: a Pi Zero 2 W and the radio, plus a memory card you may have'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
     },
@@ -558,7 +560,7 @@
       for (let i = 0; i < 40; i++) { const [cx, cy] = cs[i % 2]; const a = r() * 7, d = 60 + r() * 230; this.houses.push({ x: cx + Math.cos(a) * d * 1.3, y: cy + Math.sin(a) * d, r: 2 + r() * 4 }); }
       this.links = []; for (let a = 0; a < 40; a++) for (let b = a + 1; b < 40; b++) if (Math.hypot(this.houses[a].x - this.houses[b].x, this.houses[a].y - this.houses[b].y) < 150) this.links.push([a, b]);
       this.school = [760, 370];
-      this.t = { bang: cue('proof', 'a bang'), posts: cue('proof', 'two hundred'), delivered: cue('proof', 'ewery one delivered'), ms: cue('proof', 'twelve milliseconds'), signed: cue('proof', 'Ewery message is signed'), clock: cue('proof', 'Clocks?'), field: cue('proof', 'Zen ve take'), sim: cue('proof', 'simulator') };
+      this.t = { bang: cue('proof', 'a bang'), posts: cue('proof', 'two hundred'), delivered: cue('proof', 'ewery one delivered'), ms: cue('proof', 'twelve milliseconds'), signed: cue('proof', 'Ewery message is signed'), clock: cue('proof', 'Clocks?'), field: cue('proof', 'Zen ve took'), sim: cue('proof', 'simulator') };
       this.beams = Array.from({ length: 160 }, (_, i) => { const [a, b] = this.links[Math.floor(r() * this.links.length)]; return { a, b, t0: this.t.bang + .3 + i * .055 + r() * .05 }; });
       ev('proof', this.t.bang, 'boom', -16); for (let i = 0; i < 8; i++) ev('proof', this.t.bang + .5 + i * .5, 'blip', -26); ev('proof', this.t.signed, 'blip', -20); ev('proof', this.t.clock, 'blip', -20);
     },
@@ -581,6 +583,65 @@
     },
   };
 
+  // --- the field: two real hubs on the air in Berlin, October 2026, on the whole city's map ---
+  // Facts: knowledge/tests/2026-10-22-one-night-on-mediumfast.md (154 radios in 8.7 hours, spread 29 by 20 km),
+  // knowledge/hardware/bench-pi7.md (12 km read straight; indoors nothing in an hour, near the roof 26 in 20 min),
+  // knowledge/hardware/bench-pz7.md (the farthest radio heard: about 25 km, through two relays), the README's At a glance.
+  // The dots are a count only: neither the radios' places nor the hubs' are shown.
+  scenes.field = {
+    setup() {
+      const M = Object.assign({}, mapData, { s: 1, ox: 0, oy: 0 });
+      const city = this.city = Object.create(berlin); city.M = M;
+      const pts = M.berlin.map(([lo, la]) => city.raw(lo, la)); const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      const x0 = Math.min(...xs), y0 = Math.min(...ys), bw = Math.max(...xs) - x0, bh = Math.max(...ys) - y0;
+      const box = [90, 140, 1170, 610]; // the city fits in the left two thirds; a band below it for the scale bars, above the captions
+      M.s = Math.min(box[2] / bw, box[3] / bh); M.ox = box[0] + (box[2] - bw * M.s) / 2 - x0 * M.s; M.oy = box[1] + (box[3] - bh * M.s) / 2 - y0 * M.s;
+      this.pxKm = 1000 / (156543.03 * Math.cos(52.5 * Math.PI / 180) / 2 ** M.z) * M.s; // screen pixels per kilometre at Berlin's latitude
+      const oc = document.createElement('canvas'); oc.width = tl.width; oc.height = tl.height; const o = oc.getContext('2d');
+      o.setTransform(S, 0, 0, S, 0, 0); o.fillStyle = '#0a0d14'; o.fillRect(0, 0, W, H); o.filter = 'invert(1) hue-rotate(180deg) saturate(.45) brightness(.8)';
+      for (let x = 0; x < M.cols; x++) for (let y = 0; y < M.rows; y++) { const im = images[`berlin/${M.z}-${M.x0 + x}-${M.y0 + y}`]; if (im) o.drawImage(im, M.ox + x * M.tile * M.s, M.oy + y * M.tile * M.s, M.tile * M.s + .5, M.tile * M.s + .5); }
+      o.filter = 'none'; o.fillStyle = 'rgba(5,8,16,.3)'; o.fillRect(0, 0, W, H); this.mapCanvas = oc;
+      this.ring = M.berlin.map(([lo, la]) => city.proj(lo, la));
+      this.bb = [box[0] + (box[2] - bw * M.s) / 2, box[1] + (box[3] - bh * M.s) / 2, bw * M.s, bh * M.s];
+      const T = this.t = { hubs: cue('field', 'two real hubs'), zero: cue('field', 'Pi Zero'), roof: cue('field', 'on ze roof'), wise: cue('field', 'Do you sink'), indoors: cue('field', 'Indoors'),
+        heard: cue('field', 'a hundred unt fifty-four'), span: cue('field', 'twenty-nine'), far: cue('field', 'twenty-five kilometres'), straight: cue('field', 'twelve kilometres') };
+      const r = rng(29); this.radios = [];
+      while (this.radios.length < 154) { const p = [this.bb[0] + r() * this.bb[2], this.bb[1] + r() * this.bb[3]]; if (city.inside(p, this.ring)) this.radios.push({ x: p[0], y: p[1], t0: T.heard + this.radios.length * .022 + r() * .02 }); }
+      this.radios.forEach((x, i) => { if (i % 12 === 0) ev('field', x.t0, 'blip', -26); });
+      ev('field', T.hubs, 'swell', -14); ev('field', T.far, 'blip', -16); ev('field', T.straight, 'blip', -16);
+    },
+    draw(u, len) {
+      const T = this.t; ctx.drawImage(this.mapCanvas, 0, 0, W, H);
+      ctx.strokeStyle = 'rgba(238,242,246,.75)'; ctx.lineWidth = 2.5; ctx.setLineDash([6, 8]); ctx.beginPath(); this.ring.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.closePath(); ctx.stroke(); ctx.setLineDash([]);
+      for (const d of this.radios) { const k = ramp(u, d.t0, d.t0 + .3); if (k <= 0) continue; ctx.fillStyle = C.lora; ctx.globalAlpha = .9 * k; ctx.beginPath(); ctx.arc(d.x, d.y, 4, 0, 7); ctx.fill(); ring(d.x, d.y, u, d.t0, 1.2, 40, C.lora, 2); }
+      ctx.globalAlpha = 1;
+      const [bx, by, bw, bh] = this.bb, pk = this.pxKm;
+      // the spread of the radios heard, 29 km north to south, as a bracket left of the city
+      const sk = ramp(u, T.span, T.span + .8); if (sk > 0) {
+        ctx.globalAlpha = sk; ctx.strokeStyle = C.ink; ctx.lineWidth = 2; const x = bx - 36, yc = by + bh / 2, h = 29 * pk, yt = yc - h / 2 * sk, yb = yc + h / 2 * sk;
+        ctx.beginPath(); ctx.moveTo(x, yt); ctx.lineTo(x, yb); ctx.moveTo(x - 10, yt); ctx.lineTo(x + 10, yt); ctx.moveTo(x - 10, yb); ctx.lineTo(x + 10, yb); ctx.stroke();
+        text('29 km', x - 18, yc, 26, C.ink, 'right', 700, MONO); ctx.globalAlpha = 1;
+      }
+      // two bars to the map's scale, in the band under the city: the farthest radio heard (25 km) and the farthest read straight (12 km)
+      const bar = (y, km, s, color, t0) => { const k = easeOut(ramp(u, t0, t0 + .9)); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 3); ctx.strokeStyle = color; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(100, y); ctx.lineTo(100 + km * pk * k, y); ctx.stroke(); ctx.lineCap = 'butt'; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(100, y, 7, 0, 7); ctx.fill(); ctx.globalAlpha = ramp(u, t0 + .7, t0 + 1.1); text(s, 100 + km * pk + 18, y, 22, color, 'left', 700); ctx.globalAlpha = 1; };
+      bar(790, 25, '25 km: the farthest radio heard so far, through two relays', C.lora, T.far);
+      bar(838, 12, '12 km: read with no relay at all', C.ok, T.straight);
+      const hk = ramp(u, T.heard + 3.6, T.heard + 4.2); if (hk > 0) { ctx.globalAlpha = hk; text('154 dots: the count, not where they are; the hubs are not shown either', 100, 884, 19, C.sub, 'left'); ctx.globalAlpha = 1; }
+      // the house with the antenna on the roof, east of the city, and Wilson's doubt
+      const rk = easeOut(ramp(u, T.roof, T.roof + .5)); if (rk > 0) { const x = 1590, y = 880; ctx.globalAlpha = rk; house(x, y, 40, '#2c3a4e'); ctx.strokeStyle = C.sub; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x + 20, y - 40); ctx.lineTo(x + 20, y - 140); ctx.stroke(); ctx.fillStyle = C.lora; rr(x + 14, y - 140, 12, 50, 4); ctx.fill(); pulse(x + 20, y - 140, u, T.roof + .5, 'rgba(242,165,65,.5)', 2.2, 80, 2); ctx.globalAlpha = 1;
+        bubble("Do you think that's wise, sir?", x + 20, y - 160, u, T.wise, { fill: C.warm, alpha: 1 - ramp(u, T.indoors + 1.6, T.indoors + 2.2) }); }
+      const tile = (y, v, unit, t0) => { const k = ramp(u, t0, t0 + .6); if (k <= 0) return; ctx.globalAlpha = Math.min(1, k * 2); ctx.fillStyle = 'rgba(10,15,28,.8)'; rr(1300, y, 580, 90, 12); ctx.fill(); text(v, 1324, y + 36, 42, C.ink, 'left', 700, MONO); text(unit, 1324, y + 70, 18, C.sub); ctx.globalAlpha = 1; };
+      tile(140, '2 hubs', 'on the air in Berlin since October: a Pi 4 and a Pi Zero 2 W', T.hubs);
+      tile(240, '€19 + €25', 'the Pi Zero 2 W and the radio stick', T.zero);
+      tile(340, '0 → 26', 'heard indoors in an hour → near the roof in 20 minutes', T.indoors);
+      tile(440, '154', 'radios heard in one night (8.7 hours), most through relays', T.heard);
+      tile(540, '25 km', 'the farthest radio heard so far (through two relays)', T.far);
+      tile(640, '12 km', 'the farthest read straight, with no relay', T.straight);
+      text('Map © OpenStreetMap contributors', W - 64, H - 36, 15, 'rgba(154,166,180,.8)', 'right');
+      label('Berlin, October 2026', 'two real hubs on the air: what they heard (the write-ups: knowledge/tests)'); vignette(); fade(1 - ramp(u, 0, .5)); fade(ramp(u, len - .5, len));
+    },
+  };
+
   // --- close ---
   scenes.close = {
     setup() { const r = rng(23); this.lights = Array.from({ length: 160 }, () => ({ x: r() * W, y: r() * H, f: r() * 6, a: .15 + r() * .4 })); ev('close', 5.2, 'swell', -14); },
@@ -591,7 +652,7 @@
       const cx = W / 2; ctx.globalAlpha = easeOut(ramp(u, .2, 1.2)); font(150, 700); ctx.letterSpacing = '-3px'; ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('batnet', cx, 330); ctx.letterSpacing = '0px';
       ctx.globalAlpha = ramp(u, 1.2, 2); text('Open source (MIT)  ·  github.com/johnusher/batnet', cx, 460, 34, C.ink, 'center', 500);
       ctx.globalAlpha = ramp(u, 2.0, 2.8); text('Try the simulator in your browser: johnusher.github.io/batnet', cx, 520, 28, C.sub, 'center');
-      ctx.globalAlpha = ramp(u, 3.0, 3.8); text('Next: the field. Three to five houses, two radios, one bang.', cx, 575, 28, C.sub, 'center');
+      ctx.globalAlpha = ramp(u, 3.0, 3.8); text('Next: houses sharing their messages by radio, then a village of three to five.', cx, 575, 28, C.sub, 'center');
       const tg = cue('close', 'Good moaning'); ctx.globalAlpha = ramp(u, tg, tg + .6); text('Good moaning.', cx, 640, 30, C.warm, 'center', 600);
       const hs = [[cx - 320, 760], [cx - 160, 800], [cx, 740], [cx + 160, 800], [cx + 320, 760]];
       hs.forEach(([x, y], i) => { const t0 = 4.4 + i * .3; const k = ramp(u, t0, t0 + .4); if (k > 0) { ctx.globalAlpha = k; house(x, y, 22, '#2c3a4e'); node(x, y - 20, u, t0 + .2, i === 2 ? C.lora : C.wifi, 7); } });
@@ -636,7 +697,7 @@
       const dt = Math.min(.1, (now - last) / 1000); last = now;
       if (playing) { t += dt; if (t >= tl.total) { t = 0; } }
       const s = tl.scenes.find((x) => t >= x.start && t < x.end);
-      if (playing && s && cur !== s.id) { cur = s.id; const a = audio[s.id]; a.currentTime = Math.max(0, t - s.start); a.play().catch(() => {}); }
+      if (playing && s && cur !== s.id) { cur = s.id; const a = audio[s.id]; const off = t - s.start - (s.lead || 0); if (off >= 0) { a.currentTime = off; a.play().catch(() => {}); } else setTimeout(() => { if (playing && cur === s.id) { a.currentTime = 0; a.play().catch(() => {}); } }, -off * 1000); }
       if (!playing) cur = null;
       draw(t); document.getElementById('clock').textContent = t.toFixed(1) + ' s · ' + (s ? s.id : '');
       requestAnimationFrame(frame);

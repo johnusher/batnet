@@ -1,5 +1,5 @@
 {
-  "_about": "The narration of the batnet film, one scene per entry. `text` is spoken (ElevenLabs); `caption` is what the subtitles show, in plain English; `pad` is the pause after it, in seconds; `min` is the scene's least length. Spellings like 'ze', 'ven', 'willage', 'ewery' and 'unt' are on purpose: the narrator has a thick German accent. The 'Allo 'Allo! and Dad's Army lines are on purpose too. Scenes in scenes.js key their moments to phrases of `text` (cue()), so a phrase quoted there must stay in the text. Edit here, then `python3 video/render.py` (see video/README.md).",
+  "_about": "The narration of the batnet film, one scene per entry. `text` is spoken (ElevenLabs); `caption` is what the subtitles show, in plain English; `pad` is the pause after it, in seconds; `min` is the scene's least length. Spellings like 'ze', 'ven', 'willage', 'ewery' and 'unt' are on purpose: the narrator has a thick German accent. The 'Allo 'Allo! and Dad's Army lines are on purpose too. Scenes in scenes.js key their moments to phrases of `text` (cue()), so a phrase quoted there must stay in the text. Facts in the field scene: knowledge/tests/2026-10-22-one-night-on-mediumfast.md, knowledge/hardware/bench-pz7.md, bench-pi7.md, the README's At a glance. Edit here, then `python3 video/render.py` (see video/README.md).",
   "voice": {
     "name": "Klaus (batnet narrator)",
     "voice_id": "Jvf6TAXwMUVTSR20U0f9",
@@ -52,15 +52,15 @@
       "id": "cost",
       "min": 10,
       "pad": 0.8,
-      "text": "Vhat does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio module: twenty-five. Zat is it. Under fifty euros for a radio station in your pocket, on ze power bank you already own, for a day unt a half. A house node, vith Vee-Fee for ze vhole street unt sixty phones: about one hundred unt fifty. Ja, estimates: ve haff not measured zem yet. Ve are not stupid boys.",
-      "caption": "What does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio module: twenty-five. That is it. Under fifty euros for a radio station in your pocket, on the power bank you already own, for a day and a half. A house node, with WiFi for the whole street and sixty phones: about one hundred and fifty. Yes, estimates: we have not measured them yet. We are not stupid boys."
+      "text": "Vhat does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio stick: twenty-five. Zat is it. Under fifty euros for a radio station in your pocket, on ze power bank you already own. A house node, vith Vee-Fee for ze vhole street: about one hundred unt fifty. Ja, shop prices. But ze phones ve haff measured: two hundred at vunce on ze nineteen-euro Pi, not vun error. Ve are not stupid boys.",
+      "caption": "What does it cost? A Raspberry Pi Zero: nineteen euros. A LoRa radio stick: twenty-five. That is it. Under fifty euros for a radio station in your pocket, on the power bank you already own. A house node, with WiFi for the whole street: about one hundred and fifty. Yes, shop prices. But the phones we have measured: two hundred at once on the nineteen-euro Pi, not one error. We are not stupid boys."
     },
     {
       "id": "questions",
       "min": 10,
       "pad": 0.8,
-      "text": "Does it need ze internet? No. Nossing leaves ze willage. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? A pocket node: a day unt a half on a power bank. A house node: sree days on a car battery. Is it legal? Ja. A licence-free band, low power, unt ve keep to ze rules. Who can read my messages? Your willage only: zey are sealed vith ze willage key. Can strangers join? Only if a neighbour approves zem. My house loses power? Ze ozer houses keep copies; you catch up ven you are back. Photos, calls? Over Vee-Fee, ja. Over ze long radio, text only.",
-      "caption": "Does it need the internet? No. Nothing leaves the village. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? A pocket node: a day and a half on a power bank. A house node: three days on a car battery. Is it legal? Yes. A licence-free band, low power, and we keep to the rules. Who can read my messages? Your village only: they are sealed with the village key. Can strangers join? Only if a neighbour approves them. My house loses power? The other houses keep copies; you catch up when you are back. Photos, calls? Over WiFi, yes. Over the long radio, text only."
+      "text": "Does it need ze internet? No. Nossing leaves ze willage. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? Our Pi Four hub ran sixteen hours on vun power bank. A house node: sree days on a car battery. Is it legal? Ja. A licence-free band, low power, unt ve keep to ze rules. Who can read my messages? Your willage only: zey are sealed vith ze willage key. Can strangers join? Only if a neighbour approves zem. My house loses power? Ze ozer houses keep copies; you catch up ven you are back. Photos, calls? Over Vee-Fee, ja. Over ze long radio, text only.",
+      "caption": "Does it need the internet? No. Nothing leaves the village. Do I need an app? No, any browser. How many people? About sixty phones per house node, eight on a pocket node. How long on a battery? Our Pi 4 hub ran sixteen hours on one power bank. A house node: three days on a car battery. Is it legal? Yes. A licence-free band, low power, and we keep to the rules. Who can read my messages? Your village only: they are sealed with the village key. Can strangers join? Only if a neighbour approves them. My house loses power? The other houses keep copies; you catch up when you are back. Photos, calls? Over WiFi, yes. Over the long radio, text only."
     },
     {
       "id": "glasto",
@@ -87,8 +87,15 @@
       "id": "proof",
       "min": 8,
       "pad": 0.6,
-      "text": "Ve do not guess. Ve are wery sorough. Ze real code runs in a simulator: forty houses, a bang, two hundred unt forty-seven posts, ewery one delivered, twelve milliseconds in ze middle. Ewery message is signed vith ze house's own key, so nobody can fake your neighbour. Clocks? Ve do not trust zem: messages are ordered by a logical clock, so a Pi vith ze vrong time still agrees vith ze street. Zen ve take it to ze field.",
-      "caption": "We do not guess. We are very thorough. The real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered, twelve milliseconds in the middle. Every message is signed with the house's own key, so nobody can fake your neighbour. Clocks? We do not trust them: messages are ordered by a logical clock, so a Pi with the wrong time still agrees with the street. Then we take it to the field."
+      "text": "Ve do not guess. Ve are wery sorough. Ze real code runs in a simulator: forty houses, a bang, two hundred unt forty-seven posts, ewery one delivered, twelve milliseconds in ze middle. Ewery message is signed vith ze house's own key, so nobody can fake your neighbour. Clocks? Ve do not trust zem: messages are ordered by a logical clock, so a Pi vith ze vrong time still agrees vith ze street. Zen ve took it to ze field.",
+      "caption": "We do not guess. We are very thorough. The real code runs in a simulator: forty houses, a bang, two hundred and forty-seven posts, every one delivered, twelve milliseconds in the middle. Every message is signed with the house's own key, so nobody can fake your neighbour. Clocks? We do not trust them: messages are ordered by a logical clock, so a Pi with the wrong time still agrees with the street. Then we took it to the field."
+    },
+    {
+      "id": "field",
+      "min": 10,
+      "pad": 0.8,
+      "text": "Unt ve did. Since October, two real hubs are on ze air in Berlin: a Raspberry Pi Four, unt a Pi Zero for nineteen euros, each vith a twenty-five-euro radio stick. Ze antenna is on ze roof. Do you sink zat's vise, sir? Indoors it hears nossing, so ja. From near ze roof, in vun night, a hub heard a hundred unt fifty-four radios across ze city: twenty-nine kilometres from end to end. Ze farthest so far: twenty-five kilometres, srough two relays. Unt a radio twelve kilometres avay it reads vith no help at all.",
+      "caption": "And we did. Since October, two real hubs are on the air in Berlin: a Raspberry Pi 4, and a Pi Zero for nineteen euros, each with a twenty-five-euro radio stick. The antenna is on the roof. Do you think that's wise, sir? Indoors it hears nothing, so yes. From near the roof, in one night, a hub heard a hundred and fifty-four radios across the city: twenty-nine kilometres from end to end. The farthest so far: twenty-five kilometres, through two relays. And a radio twelve kilometres away it reads with no help at all."
     },
     {
       "id": "close",

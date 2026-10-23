@@ -36,12 +36,24 @@ video editor. Read `video/README.md` first.
    account, not the personal channel; until that is changed, upload by hand
    and print the description with
    `python3 -c "import sys; sys.path.insert(0,'video'); import upload_youtube as u; print(u.DESCRIPTION.replace('{chapters}', u.chapters()))"`.
-   The current video: https://youtu.be/zk5At_n8p_c (cut 2, 2026-10-15).
+   The current video: https://youtu.be/zk5At_n8p_c (cut 2, 2026-10-15); cut 3
+   (2026-10-23: the field scene, the measured phones and power, the voice
+   fixes below) is rendered at `video/out/batnet.mp4` and waits for its upload
+   and id.
 
 ## Rules
 
 * **Credible**: every number on screen comes from the repo or a public
-  record, and the knowledge bundle or the scene comment says where. The Berlin
+  record, and the knowledge bundle or the scene comment says where. The
+  field scene (cut 3) draws on the test write-ups: 154 radios in one night
+  across 29 by 20 km (`knowledge/tests/2026-10-22-one-night-on-mediumfast.md`),
+  12 km read straight and nothing indoors against 26 near the roof
+  (`knowledge/hardware/bench-pi7.md`), the farthest radio *heard* about 25 km
+  away through two relays (`bench-pz7.md`; the reach test had not reached it
+  when cut 3 was made: say *heard*, not *reached*, until a report says so),
+  200 phones at once (`knowledge/tests/2026-10-23-hub-load-test.md`), the
+  Pi 4 hub's 15 h 48 min on a 72 Wh bank. Its dots are a count: it never
+  shows where a radio or a hub is. The Berlin
   figures (the night of 8/9 September 2025, two 110 kV pylons in Johannisthal,
   about 50,000 customers, about 60 hours; the six localities drawn dark) are
   the public reporting of the arson attack, in
@@ -52,6 +64,15 @@ video editor. Read `video/README.md` first.
   before changing them. Crowd sizes: Glastonbury about 210,000, Black Rock
   City about 80,000. No made-up test results, no promised features shown as
   working: what isn't built yet is said to be next.
+* **The voice, joined up** (cut 3): each clip is spoken with the previous
+  scene's line as `previous_text`, so a scene does not start on a sudden new
+  pitch; never pass `next_text` (given the next line the voice runs its last
+  word to the clip's very end, every time, and it sounds cut). `voice.py`
+  checks a clip's last 120 ms and speaks it again if the voice is still
+  sounding there (`tail_db`). The narrator starts `LEAD` (0.45 s) after the
+  cut (`render.py`; the timeline's `lead`, which captions and cues follow),
+  and each clip gets a 30 ms fade either end against clicks. Cut 2's
+  narration sat on the cuts at full level, which played as sudden edits.
 * **The narrator** is Klaus (ElevenLabs library voice, thick German accent,
   on purpose). The phonetic spellings in `script.json` are the accent, and
   the owner wants it thick (cut 2, 2026-10-15): th becomes z or s ("ze",
@@ -88,9 +109,10 @@ video editor. Read `video/README.md` first.
   first render and stays out of the repo: gitleaks' `precise-coordinates`
   rule refuses it, rightly. Any new coordinate in the sources is rounded to
   two decimals (about a kilometre).
-* **Cost**: one full voice pass is about 1,800 characters (about 800 credits
-  on Multilingual v2, half that on Flash); clips are cached by text and voice,
-  so only changed scenes are re-spoken.
+* **Cost**: one full voice pass is about 4,600 characters (about as many
+  credits on Multilingual v2, half that on Flash); clips are cached by text,
+  voice and the previous line, so a changed scene re-speaks itself and the
+  one after it.
 
 ## When something is off
 

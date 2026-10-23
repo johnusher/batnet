@@ -6,7 +6,7 @@ and no account with any company.
 
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
-### [🎬 Watch the film (five minutes)](https://youtu.be/zk5At_n8p_c)
+### [🎬 Watch the film (five and a half minutes)](https://youtu.be/zk5At_n8p_c)
 
 [![The batnet film on YouTube: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang.](https://img.youtube.com/vi/zk5At_n8p_c/maxresdefault.jpg)](https://youtu.be/zk5At_n8p_c)
 

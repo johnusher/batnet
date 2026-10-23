@@ -30,9 +30,9 @@ FILM = Path(__file__).parent / "out" / "batnet.mp4"
 TITLE = "batnet: chat with your neighbours when the grid goes down (a Raspberry Pi mesh)"
 DESCRIPTION = """When the power and the phone network fail, a €45 Raspberry Pi in every third house keeps the street talking: an open WiFi with a WhatsApp-like web app, houses linked by a WiFi mesh and by a long-range LoRa radio over the hills.
 
-The film: the Berlin blackout of September 2025 on the real map, how a house node works, why it has two radios (and how your voice becomes text for the slow one), what it costs, the questions people ask, Glastonbury with a lost child and a bang that everyone reports, and the simulator that runs the real code.
+The film: the Berlin blackout of September 2025 on the real map, how a house node works, why it has two radios (and how your voice becomes text for the slow one), what it costs, the questions people ask, Glastonbury with a lost child and a bang that everyone reports, the simulator that runs the real code, and the first two real hubs on the air in Berlin: 154 radios heard in one night across 29 km of city, the farthest 25 km away, 200 phones at once on a €19 Pi Zero.
 
-Every number comes from the repo or the public record. The narrator's German accent, and the lines borrowed from 'Allo 'Allo! and Dad's Army, are part of the act.
+Every number comes from the repo or the public record (the test write-ups are in knowledge/tests/). The narrator's German accent, and the lines borrowed from 'Allo 'Allo! and Dad's Army, are part of the act.
 
 Open source (MIT): https://github.com/johnusher/batnet
 Try the app and a pretend village in your browser: https://johnusher.github.io/batnet/

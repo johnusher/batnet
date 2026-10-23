@@ -20,8 +20,8 @@ from pathlib import Path
 HERE = Path(__file__).parent
 TILES = HERE / "assets" / "berlin"
 DATA = HERE / "assets" / "berlin-map.json"
-UA = {"User-Agent": "batnet-film/1.0 (https://github.com/johnusher/batnet; one-off fetch of ~80 tiles)"}
-Z, WEST, NORTH, COLS, ROWS = 12, 13.08, 52.62, 12, 7
+UA = {"User-Agent": "batnet-film/1.0 (https://github.com/johnusher/batnet; one-off fetch of ~110 tiles)"}
+Z, WEST, NORTH, COLS, ROWS = 12, 12.99, 52.68, 13, 8  # a row above and a column west of the first cut: the field scene shows the whole city
 FIRE = [13.50, 52.45]  # the Koenigsheide pylons, Johannisthal, to about a kilometre
 DARK = ["Johannisthal", "Adlershof", "Niederschöneweide", "Altglienicke", "Grünau", "Rudow"]
 
@@ -70,7 +70,14 @@ def outline(query: str, threshold: float) -> list:
 def main() -> None:
     x0, y0 = fetch_tiles()
     if DATA.exists():
-        print(f"outlines: {DATA} exists")
+        data = json.loads(DATA.read_text())
+        grid = {"z": Z, "x0": x0, "y0": y0, "cols": COLS, "rows": ROWS}
+        if any(data.get(k) != v for k, v in grid.items()):
+            data.update(grid)
+            DATA.write_text(json.dumps(data))
+            print(f"outlines: {DATA} exists; its tile grid updated")
+        else:
+            print(f"outlines: {DATA} exists")
         return
     data = {"z": Z, "x0": x0, "y0": y0, "cols": COLS, "rows": ROWS, "tile": 256, "fire": FIRE,
             "source": "OpenStreetMap tiles (standard style) and outlines via Nominatim; (c) OpenStreetMap contributors, ODbL",
