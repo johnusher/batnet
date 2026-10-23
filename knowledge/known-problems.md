@@ -79,7 +79,6 @@ This page is the list.
 | L6 | An author signing two different entries with the same seq would not be detected (vectors hold seqs, not content) | plan 1 review; needs a protocol decision |
 | L14 | The hub's screen shows the hub PIN and the house admin PIN to anyone standing at it: physical access is trusted on the bench | [0025](/decisions/0025-hub-panel-and-mesh-modes.md); plan 5 decides for real houses |
 | L15 | The hub panel shows the public channel raw; the app's "Neighbourhood (public)" group and plain-text posts on the private channel come with the LoRa bridge in plan 3b (L8) | plan 3b |
-| L16 | The hub's messages and its traffic view live in memory: the last 200 messages and the last hour of traffic, gone when batnetd restarts (the log keeps them on disk while logging is on); what was read is kept per browser | hub panel 2026-10-21; changes when the hub's messages move into the house log (plan 3b) |
 | L17 | The panel's map uses OpenStreetMap's tiles: they need the internet, and OSM allows only light use. Grid-down, the map shows the radios on a plain grid without streets | hub panel 2026-10-21; changes with offline tiles for the village's area on the hub |
 | L18 | The panel names only six common boards (T-Beam, T-Echo, RAK 4631, Heltec V3, T1000-E, meshtasticd); others show as a model number | hub panel 2026-10-21 |
 | L19 | A Pi 4 has one built-in WiFi radio: the hub is on the home WiFi or runs its own, never both; while it runs its own there is no internet | [0028](/decisions/0028-hub-own-wifi.md); a second USB stick that does AP mode would lift it |
@@ -127,6 +126,7 @@ This page is the list.
 
 | Problem | Fixed by |
 |---|---|
+| L16: the panel's messages lived in memory only, gone at each restart (a message sent from the second bench hub vanished two minutes later, when the hub was updated) | 2026-10-23: the last 200 are kept in `texts.json` in the data folder, saved within a minute of a change and on every stop, and loaded before any heard since (`keepFile`, with the zone's readings). The traffic view still starts empty |
 | The panel could call the open channel *LongFast* on a hub on MediumFast: the primary channel, which has no name of its own, was named by the preset when the radio sent the channels, and it can send them before the LoRa settings | 2026-10-23: named when the status is read (`TestPrimaryChannelNamedByPreset`) |
 | B71: a radio's signal in the panel was its last packet's, which after relays is the last relay's (a radio 1 km away showed −7.75 dB through five relays against −12 dB heard straight) | 2026-10-23: the details say when it is a relay's; the Radios list and the radar use the radio's own signal (its median heard straight, or its last packet if that came straight) and say *only via relays* otherwise |
 | B68: the zone's readings never aged, so after the antenna moved the zone mixed the old place with the new | 2026-10-23: readings not renewed for three weeks drop out (`linkKeep`), and *Start the zone again* under the map keeps the readings so far aside in a file (`links-before-<date>.json`) and forgets them; used on the first bench hub when it went back downstairs |

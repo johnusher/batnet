@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -201,8 +202,28 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	}
 
 	radio := meshtastic.New(radioAddr)
+	var kept sync.WaitGroup // the last saves on the way out
+	kept.Add(2)
+	go func() {
+		defer kept.Done()
+		keepFile(ctx, filepath.Join(data, hub.LinksFile), 5*time.Minute, func(b []byte) error {
+			var m map[string]meshtastic.SavedLink
+			err := json.Unmarshal(b, &m)
+			radio.LoadLinks(m)
+			return err
+		}, func() ([]byte, error) { return json.Marshal(radio.SavedLinks()) })
+	}()
+	go func() { // the messages, which the panel showed only since the last start (L16)
+		defer kept.Done()
+		keepFile(ctx, filepath.Join(data, "texts.json"), time.Minute, func(b []byte) error {
+			var ts []meshtastic.Text
+			err := json.Unmarshal(b, &ts)
+			radio.LoadTexts(ts)
+			return err
+		}, func() ([]byte, error) { return json.Marshal(radio.SavedTexts()) })
+	}()
 	linksSaved := make(chan struct{})
-	go func() { keepLinks(ctx, radio, filepath.Join(data, hub.LinksFile)); close(linksSaved) }()
+	go func() { kept.Wait(); close(linksSaved) }()
 	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
 		h.mu.Lock()
 		defer h.mu.Unlock()
@@ -300,7 +321,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	shut, done := context.WithTimeout(context.Background(), 3*time.Second)
 	defer done()
 	hs.Shutdown(shut)
-	select { // the links' last save, or up to five minutes of them are lost
+	select { // the last saves, or up to five minutes of readings and a minute of messages are lost
 	case <-linksSaved:
 	case <-time.After(2 * time.Second):
 	}
@@ -633,32 +654,35 @@ func watchdog(ctx context.Context, addr string) {
 	}
 }
 
-// keepLinks keeps the radios heard straight (for the map's zone) across
-// restarts: loaded once, saved every few minutes and on the way out.
-func keepLinks(ctx context.Context, radio *meshtastic.Client, path string) {
+// keepFile keeps something of the radio's across restarts: loaded once,
+// saved every so often when it changed, and on the way out.
+func keepFile(ctx context.Context, path string, every time.Duration, load func([]byte) error, save func() ([]byte, error)) {
 	if b, err := os.ReadFile(path); err == nil {
-		var m map[string]meshtastic.SavedLink
-		if err := json.Unmarshal(b, &m); err != nil {
-			log.Printf("links: %v", err)
-		}
-		radio.LoadLinks(m)
-	}
-	save := func() {
-		if b, err := json.Marshal(radio.SavedLinks()); err == nil {
-			if err := writeFileAtomic(path, append(b, '\n'), 0o600); err != nil {
-				log.Printf("links: %v", err)
-			}
+		if err := load(b); err != nil {
+			log.Printf("%s: %v", filepath.Base(path), err)
 		}
 	}
-	t := time.NewTicker(5 * time.Minute)
+	var last []byte
+	write := func() {
+		b, err := save()
+		if err != nil || bytes.Equal(b, last) {
+			return // unchanged: spare the SD card
+		}
+		if err := writeFileAtomic(path, append(b, '\n'), 0o600); err != nil {
+			log.Printf("%s: %v", filepath.Base(path), err)
+			return
+		}
+		last = b
+	}
+	t := time.NewTicker(every)
 	defer t.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			save()
+			write()
 			return
 		case <-t.C:
-			save()
+			write()
 		}
 	}
 }

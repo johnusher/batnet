@@ -794,6 +794,25 @@ func (c *Client) event(p packet, n int) Event {
 	return e
 }
 
+// SavedTexts returns the messages to keep between runs (L16).
+func (c *Client) SavedTexts() []Text {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]Text(nil), c.st.Texts...)
+}
+
+// LoadTexts puts back messages kept from an earlier run, before any heard since.
+func (c *Client) LoadTexts(ts []Text) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	all := append(append([]Text(nil), ts...), c.st.Texts...)
+	if len(all) > keepTexts {
+		all = all[len(all)-keepTexts:]
+	}
+	c.st.Texts = all
+	c.changed()
+}
+
 func (c *Client) addText(t Text) {
 	c.st.Texts = append(c.st.Texts, t)
 	if len(c.st.Texts) > keepTexts {

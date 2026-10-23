@@ -437,6 +437,33 @@ func TestPrimaryChannelNamedByPreset(t *testing.T) {
 	}
 }
 
+// The messages are kept across restarts (L16): saved, loaded before any heard
+// since, and bounded.
+func TestTextsKeptBetweenRuns(t *testing.T) {
+	a := New("127.0.0.1:1")
+	a.mu.Lock()
+	a.addText(Text{At: time.Unix(100, 0), From: 7, To: Broadcast, Text: "hello"})
+	a.addText(Text{At: time.Unix(200, 0), From: 8, To: Broadcast, Channel: 1, Text: "on the group channel"})
+	a.mu.Unlock()
+	b := New("127.0.0.1:1")
+	b.mu.Lock()
+	b.addText(Text{At: time.Unix(300, 0), From: 9, To: Broadcast, Text: "heard since"})
+	b.mu.Unlock()
+	b.LoadTexts(a.SavedTexts())
+	got := b.Status().Texts
+	if len(got) != 3 || got[0].Text != "hello" || got[1].Channel != 1 || got[2].Text != "heard since" {
+		t.Errorf("after loading %+v", got)
+	}
+	many := make([]Text, keepTexts+50)
+	for i := range many {
+		many[i] = Text{At: time.Unix(int64(i), 0), Text: "x"}
+	}
+	b.LoadTexts(many)
+	if n := len(b.Status().Texts); n != keepTexts {
+		t.Errorf("%d messages kept, want %d", n, keepTexts)
+	}
+}
+
 // A radio's names are its own claim: too long or not text, they are kept out.
 // The hub knows which channels it has; the tables of radios and links are bounded.
 func TestNamesChannelsAndBounds(t *testing.T) {

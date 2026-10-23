@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-23
+* **Update**: The hub keeps its messages across restarts (`texts.json`, L16 resolved). The first bench hub was switched off: the second, on the roof, is now the only hub.
 * **Update**: The map's zone forgets readings older than three weeks and has a *Start the zone again* button (B68 resolved; used on the first bench hub, back downstairs); the Radios list and the radar show a radio's own signal, not the last relay's (B71 resolved).
 * **Update**: Hubs share the radios' places they heard (B70 resolved, `internal/hub/places.go`): a broadcast every 10 minutes on every network a hub is on, sealed with the village key, never by radio; the panel names the hub a place came from. The second bench hub's zone grew from 1.5 km to an 11.5 km petal within a minute.
 * **Update**: The second bench hub's antenna on the roof against the first hub's day with the same antenna ([bench notes](/hardware/bench-pz7.md)): the same radios as strong or stronger, one 11 km away heard only from the roof; its zone is small because it knows fewer radios' places (B70). A radio's signal in the panel after relays is the last relay's (B71): its details now say so. `tools/hubcompare` compares two hubs' straight readings; the first hub's kept as a baseline for 2026-10-25.
