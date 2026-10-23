@@ -28,6 +28,7 @@ implementation follows the plans in `docs/plans/`.
 | `.claude/skills/` | Agent skills (`.agents/skills` points here). Catalogue, including planned skills that do not exist yet: `knowledge/skills/catalog.md` |
 | `tools/okflint/` | Checks the knowledge bundle (`cd tools/okflint && go run . ../../knowledge`) |
 | `tools/hubload/` | Load test for a hub's app: pretend phones that sign up, hold the live stream, read and post (`main.go`), and a sampler for the hub (`sample.sh`) |
+| `tools/hubcompare/` | `compare.py`: how strongly two hubs hear the same radios straight, from their saved readings and panel status (never meshtasticd); prints real names and places, keep its output out of the repo |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |
 
 ## Rules

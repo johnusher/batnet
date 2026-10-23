@@ -118,7 +118,15 @@ same radios against the first hub's readings with this antenna before it moved
 were as strong or stronger (the strongest 4 dB up, three within 0.5 dB), and it
 heard one straight 11 km to the north-west that the first hub never did. It
 lacked places: it knew 37 to the first hub's 77, among them not that far one's
-(B70). The antenna stands about 20° off
+(B70).
+
+The first hub's readings with this antenna were kept on it as
+`/var/lib/batnet/antenna-links-2026-10-23.json` before it went back downstairs
+(its live ones now fill with indoor readings). After a day or two on the roof,
+`tools/hubcompare/compare.py pz7 pi7:/var/lib/batnet/antenna-links-2026-10-23.json`
+compares the radios both heard straight. On 2026-10-23 at 13:50: four in common,
+the roof a median 0.2 dB stronger (one 4 dB), one heard only from the roof
+(11 km), seven only before (most heard a few times in two days). The antenna stands about 20° off
 vertical: about 0.5 dB lost to polarisation, more in some directions if it is
 a high-gain one with a flat beam.
 

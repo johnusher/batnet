@@ -292,7 +292,8 @@ function showRadio(num) {
   if (!n) return;
   openDetail(nodeName(n), [n.shortName, n.hardware, n.role].filter(Boolean).join(", "), [
     ["ID", n.id],
-    ["Signal", n.self ? "" : `${db(n.snr)}${n.rssi ? `, ${minus(n.rssi)} dBm` : ""}`],
+    // Of the last packet only: after relays it is the last relay's signal, not this radio's.
+    ["Signal", n.self ? "" : `${db(n.snr)}${n.rssi ? `, ${minus(n.rssi)} dBm` : ""}${n.hops > 0 ? ` (last packet, from the last of its ${n.hops} relays, not from this radio)` : ""}`],
     ["Straight to this hub", n.self || !n.link ? "" : `${db(n.link.snr)} (median), ${n.link.count} ${n.link.count === 1 ? "packet" : "packets"}, last ${ago(n.link.at)}`],
     ["Relays", n.self ? "" : n.hops < 0 ? "not known" : n.hops === 0 ? "none: heard directly" : String(n.hops)],
     ["Last heard", n.self ? "" : ago(n.lastHeard)],
