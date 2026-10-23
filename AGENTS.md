@@ -30,6 +30,7 @@ implementation follows the plans in `docs/plans/`.
 | `tools/hubload/` | Load test for a hub's app: pretend phones that sign up, hold the live stream, read and post (`main.go`), and a sampler for the hub (`sample.sh`) |
 | `tools/hubcompare/` | `compare.py`: how strongly two hubs hear the same radios straight, from their saved readings and panel status (never meshtasticd); prints real names and places, keep its output out of the repo |
 | `tools/reachtest/` | `reachtest.py`, run on a hub: one friendly private message every 10 minutes to the next farthest radio, and a report of which were reached; through the panel API on localhost, never meshtasticd; its state names real radios, keep it out of the repo |
+| `tools/presetsurvey/` | `survey.py`, run on a hub: listens on one preset after another (an hour each), counts who is on each, goes back to the home preset and puts the zone's readings back; a guard (`restore`) for a reboot half-way; its state names real radios |
 | `.githooks/` | Pre-commit: gitleaks + okflint. Enable once per clone: `git config core.hooksPath .githooks` |
 
 ## Rules
@@ -57,3 +58,9 @@ implementation follows the plans in `docs/plans/`.
 7. **`cp` here means: commit and push this repo.** The session's record is
    [`knowledge/log.md`](knowledge/log.md) (plus the test write-ups and to-do);
    batnet keeps its own records and writes nothing into other projects' repos.
+8. **On the air, batnet is a guest.** Before a hub sends anything to people on
+   a public mesh (an answer, a test, a hello), follow the
+   `talking-on-the-mesh` skill: humble and friendly, honest about being
+   automatic, batnet and https://github.com/johnusher/batnet mentioned when
+   someone asks, one message per person and purpose, opt-outs kept for good
+   ([etiquette](knowledge/research/mesh-etiquette.md)).

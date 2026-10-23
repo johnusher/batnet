@@ -162,6 +162,28 @@ once through two relays, failed at once with error 39: the hub had never heard
 that radio's name card, so it had no key for it ([B72](/known-problems.md)). Of
 the 112 radios the hub knew after the change, 87 had a key.
 
+# Who is on the other presets: the night survey
+
+Berlin's mesh is on MediumFast, the hub's home preset; who is left on the
+others is not known from here. `tools/presetsurvey/survey.py` (on the hub as
+`batnet-presetsurvey`) listens on one preset after another and goes back to
+MediumFast at the end, putting the zone's readings back so other presets'
+signals do not reach the map. On each preset the hub says one hello that asks
+for answers; it sends no messages. Set for the night of 2026-10-24 from 02:00,
+55 minutes each on LongFast, LongModerate, LongSlow, MediumSlow, ShortSlow and
+ShortFast (ShortTurbo's 500 kHz does not fit the 250 kHz band at 869.525 MHz),
+back about 07:45. While it runs the hub cannot hear or answer anyone on
+MediumFast, and the reach test pauses. A guard timer (`restore`, at boot and at
+08:15, written as a unit file so a reboot does not lose it) brings the radio
+back if the survey stops half-way; it goes once the survey is done.
+
+A three-minute trial on LongFast at 21:30 on 2026-10-23 worked end to end (the
+change takes about 20 s): the radio received no packet at all, channel use 0%,
+as on 2026-10-21 indoors ([presets in Berlin](/research/meshtastic-presets-berlin.md)).
+The radio's own log confirmed the panel's 27 dBm is sent as 22 ([B69](/known-problems.md)).
+The trial restarted the radio ten seconds after a reach test message had gone
+out, so that message may have missed its repeats.
+
 # Limits
 
 * No translator and no screen ([L26](/known-problems.md)).

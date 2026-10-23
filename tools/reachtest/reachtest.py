@@ -13,7 +13,8 @@ with no known place that came through at least two relays; none that came
 through more relays than the hub's own messages may take (its hop limit). A radio with no key
 yet (error 39) is asked for its name card by the hub, which sends the message
 again once the key comes. The state file names real radios: keep it out of
-the repo.
+the repo. Radios in the state's "noContact" list (people who asked not to be
+written to) are never chosen. Answers to people: the talking-on-the-mesh skill.
 """
 import argparse, json, math, os, urllib.request
 from datetime import datetime, timedelta, timezone
@@ -89,7 +90,7 @@ def candidates(st, status, min_km, within_h):
     hop = radio.get("hopLimit") or 3  # a message goes through this many relays at most
     placed, unplaced = [], []
     for n in radio["nodes"]:
-        if n.get("self") or n.get("batnet") or n["id"] in st["tried"] or not n.get("lastHeard") or when(n["lastHeard"]) < since \
+        if n.get("self") or n.get("batnet") or n["id"] in st["tried"] or n["id"] in st.get("noContact", []) or not n.get("lastHeard") or when(n["lastHeard"]) < since \
                 or (n.get("hops") or 0) > hop:
             continue
         p = n.get("position")
@@ -114,6 +115,9 @@ def run(a):
     st = load(a.state)
     status = api("status")
     update(st, status)
+    if status["radio"].get("preset") != a.preset:
+        save(a.state, st)
+        return print(f"the radio is on {status['radio'].get('preset')}, not {a.preset}: nothing sent")  # a preset survey
     if len(st["tried"]) >= a.max:
         save(a.state, st)
         return print(f"done: {len(st['tried'])} radios tried")
@@ -164,6 +168,7 @@ def main():
     p.add_argument("--min-km", type=float, default=8)
     p.add_argument("--within", type=float, default=48, help="only radios heard in the last this many hours")
     p.add_argument("--max", type=int, default=30, help="radios to try in all")
+    p.add_argument("--preset", default="MediumFast", help="send only while the radio is on this preset")
     a = p.parse_args()
     (run if a.command == "run" else report)(a)
 

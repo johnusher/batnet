@@ -19,6 +19,7 @@ it, record what goes wrong, write the skill, re-run. Mechanical rules go in tool
 
 | Skill | Use when | Since |
 |---|---|---|
+| talking-on-the-mesh | sending anything to people on a public radio mesh from a hub (an answer to a reach test reply, a hello, a test, a channel post), or deciding whether to answer: humble, friendly, German first, honest about being automatic, batnet and its repo when asked about, at most 200 bytes, opt-outs kept ([etiquette](/research/mesh-etiquette.md)). Baseline 2026-10-23: an agent without it, given six replies to the reach test, was honest, apologised to an objection and let a bare "ok" be, but put the repo link on a plain thank-you, promised "never again" with nothing to remember it by, and did not check the byte limit | 2026-10-23 |
 | making-the-film | editing or re-rendering the film in `video/` (narration in `script.json`, scenes in `scenes.js`, `render.py` for voice, frames, sound and the MP4) or publishing a cut to the GitHub release; holds the credibility rules for what the film claims | 2026-10-15 |
 
 # Tried and not needed

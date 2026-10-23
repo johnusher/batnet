@@ -16,5 +16,6 @@ sources, not yet confirmed on our hardware.
 * [Village simulator findings](village-sim-findings.md) - findings from the in-browser village model - LoRa duty limits at busy gateways, WiFi groups with no LoRa radio, and recovery traffic
 * [EU868 radio basics](eu868-radio-basics.md) - the facts behind the README's radio section - the 863-870 MHz slices and limits, Meshtastic's LongFast parameters, ERP and antennas, Fresnel zone and horizon, range records, and the history of the bands and LoRa
 * [The Berlin blackout of September 2025](berlin-blackout-2025.md) - the public record behind the film's opening (two 110 kV pylons in Johannisthal set on fire the night of 8/9 September 2025, about 50,000 customers, about 60 hours, six localities), and where the scene's map and outlines come from
+* [Etiquette on Berlin's community mesh](mesh-etiquette.md) - what Freifunk, the Pico Peering Agreement, the CCC's hacker ethics, Berlin Chaos Mesh and Meshtastic say about sharing the mesh, and how batnet behaves there
 * [Meshtastic presets in Berlin](meshtastic-presets-berlin.md) - the city is split between LongFast and MediumFast, which share 869.525 MHz in the EU but cannot hear each other; what it means for a hub
 * [Power budget](power-budget.md) - daily energy for pocket, house and relay nodes; the Pi's idle draw dominates and messages cost almost nothing
