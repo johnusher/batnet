@@ -79,7 +79,8 @@ type Config struct {
 	Devices    *Devices
 	Translator *translate.Client
 	Notifier   *Notifier
-	Maps       *Maps // offline maps; nil: online tiles only
+	Maps       *Maps   // offline maps; nil: online tiles only
+	Places     *Places // the radios' places other hubs shared; nil: none
 	// Run runs the system's commands: reboot, power off, the clock, the console.
 	Run Runner
 }
@@ -200,6 +201,9 @@ func (s *Server) status(w http.ResponseWriter, r *http.Request) {
 		st := s.cfg.Radio.Status()
 		if len(st.Texts) > keepTexts {
 			st.Texts = st.Texts[len(st.Texts)-keepTexts:]
+		}
+		if s.cfg.Places != nil {
+			s.cfg.Places.Fill(st.Nodes)
 		}
 		out.Radio = &st
 	}

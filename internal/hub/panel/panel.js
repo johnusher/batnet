@@ -300,7 +300,7 @@ function showRadio(num) {
     ["Packets heard", n.self ? "" : n.packets],
     ["Battery", n.battery != null ? (n.battery > 100 ? "on mains power" : `${n.battery} %`) : ""],
     ["Its channel in use", n.chanUtil != null ? `${n.chanUtil.toFixed(1)} %` : ""],
-    ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)})` : "has not shared it"],
+    ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)}${n.position.from ? `, heard by the hub ${n.position.from}` : ""})` : "has not shared it"],
     ["How far, roughly", n.self || (n.position && where()) ? "" : farGuess(n)],
     ["Runs batnet", n.batnet ? "yes" : ""],
   ], { num: n.self ? null : n.num, pos: n.position });
@@ -710,7 +710,7 @@ function drawMap() {
   $("maplist").replaceChildren(...sorted.map((n) => {
     const b = el("button", { type: "button", class: "conv" },
       el("span", { class: "cn", text: nodeName(n) }),
-      el("span", { class: "cp", text: `${w ? km(distance(w, n.position)) + " away, " : ""}${n.position.accuracyM > 60 ? `rough area (${km(n.position.accuracyM)}), ` : ""}shared ${ago(n.position.at)}` }));
+      el("span", { class: "cp", text: `${w ? km(distance(w, n.position)) + " away, " : ""}${n.position.accuracyM > 60 ? `rough area (${km(n.position.accuracyM)}), ` : ""}shared ${ago(n.position.at)}${n.position.from ? `, via ${n.position.from}` : ""}` }));
     b.addEventListener("click", () => { map.setView([n.position.lat, n.position.lon], Math.max(map.getZoom(), 14)); showRadio(n.num); });
     return el("li", {}, b);
   }));

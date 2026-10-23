@@ -61,6 +61,7 @@ const (
 	meshUDPPort  = 4200
 	meshHTTPPort = 4201
 	meshBcast    = "172.27.255.255:4200"
+	placesPort   = 4202 // the radios' places hubs share (B70)
 )
 
 // pretend houses for mock mode (placeholders, never real people).
@@ -251,6 +252,21 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	})
 
 	kit := h.startKit(ctx, radio, id, wifiPass)
+	placesSealer, err := seal.NewSealer(vkey, seal.PurposePlaces)
+	if err != nil {
+		return err
+	}
+	places := hub.NewPlaces(hub.PlacesConfig{Hub: h.self, Sealer: placesSealer, Port: placesPort,
+		Nodes: func() []meshtastic.Node { return radio.Status().Nodes },
+		Name: func() string { // its radio's name, which the map shows; the house name is often the default
+			for _, n := range radio.Status().Nodes {
+				if n.Self && n.LongName != "" {
+					return n.LongName
+				}
+			}
+			return h.settings.House
+		}})
+	go places.Run(ctx)
 	maps := hub.NewMaps(hub.MapsConfig{Dir: filepath.Join(data, "maps"), Where: func() *hub.Where { return settings().Where }})
 	go maps.Run(ctx)
 
@@ -258,7 +274,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic,
 		Settings: settings, SaveSettings: saveSettings,
 		WiFi: kit.wifi, Sound: kit.sound, Light: kit.light, Power: kit.power, Devices: kit.devices, Translator: kit.translator,
-		Notifier: kit.notifier, Maps: maps, Run: hub.Exec})
+		Notifier: kit.notifier, Maps: maps, Places: places, Run: hub.Exec})
 	mux := http.NewServeMux()
 	mux.Handle("/hub/", panel.Handler())
 	mux.Handle("/", srv.Handler())

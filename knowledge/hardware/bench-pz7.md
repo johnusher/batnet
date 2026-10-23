@@ -118,7 +118,9 @@ same radios against the first hub's readings with this antenna before it moved
 were as strong or stronger (the strongest 4 dB up, three within 0.5 dB), and it
 heard one straight 11 km to the north-west that the first hub never did. It
 lacked places: it knew 37 to the first hub's 77, among them not that far one's
-(B70).
+(B70). Since 2026-10-23 the hubs share the places their radios heard: a minute
+after the change it held 25 places from the first hub, and the radio 11 km away
+gave its zone a petal of 11.5 km to the north-west.
 
 The first hub's readings with this antenna were kept on it as
 `/var/lib/batnet/antenna-links-2026-10-23.json` before it went back downstairs

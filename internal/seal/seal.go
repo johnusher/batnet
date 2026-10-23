@@ -16,6 +16,9 @@ import (
 // PurposeMesh is the key purpose for traffic over the WiFi mesh.
 const PurposeMesh = "batnet mesh v1"
 
+// PurposePlaces is the key purpose for the radios' places hubs share (B70).
+const PurposePlaces = "batnet places v1"
+
 // ErrOpen means the box wasn't made with this village's key, or was damaged.
 var ErrOpen = errors.New("seal: cannot open (wrong village key or damaged)")
 

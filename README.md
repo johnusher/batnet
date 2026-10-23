@@ -332,7 +332,11 @@ and outside.
 The hub draws this shape live on its own map (the shaded zone, with a dashed
 line to each radio behind it), and redraws it as it hears more. It is an
 estimate: a radio lower down or indoors is heard less far than one up on a
-roof like those it is based on. The next step is a *range-test mode*, where
+roof like those it is based on. A radio counts only once the hub knows where
+it is, and radios say that every few hours at most, so the hubs of a village
+pass each other the places they have heard over the home network or the WiFi
+mesh (sealed with the village's key; never by radio): a new hub draws its zone
+in minutes, not days. The next step is a *range-test mode*, where
 someone walks or cycles about with a radio that shares its place and the hub
 fills in the shape from real measurements
 ([ideas](knowledge/ideas.md)). The sum is in

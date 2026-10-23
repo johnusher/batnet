@@ -88,6 +88,8 @@ type NodePosition struct {
 	Alt       *int32    `json:"alt,omitempty"`
 	AccuracyM float64   `json:"accuracyM,omitempty"` // 0: exact
 	At        time.Time `json:"at"`
+	// From is the hub that shared it (B70); empty: this hub's radio heard it.
+	From string `json:"from,omitempty"`
 }
 
 func (c *Client) setPosition(n *Node, p Position) {
