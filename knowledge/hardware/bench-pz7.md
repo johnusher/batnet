@@ -113,9 +113,12 @@ three besides the first hub in the room, and four of the five new; the
 strongest about 6 dB stronger than anything the room heard. Only one of the
 five counts for the zone: two share no place, one only to about 2.9 km at
 2.4 km, too rough to say which way. So the zone was one petal of about 1.5 km,
-against the first hub's 15 km from a day of readings: too little time and too
-few placed radios, not proof of a poor antenna. The fair test is the same
-radios' SNR on both hubs over the same hours. The antenna stands about 20° off
+against the first hub's 15 km from a day of readings. Not a poor antenna: the
+same radios against the first hub's readings with this antenna before it moved
+were as strong or stronger (the strongest 4 dB up, three within 0.5 dB), and it
+heard one straight 11 km to the north-west that the first hub never did. It
+lacked places: it knew 37 to the first hub's 77, among them not that far one's
+(B70). The antenna stands about 20° off
 vertical: about 0.5 dB lost to polarisation, more in some directions if it is
 a high-gain one with a flat beam.
 
