@@ -22,7 +22,7 @@ and stay out of this repo ([secret hygiene](/security/secret-hygiene.md)).
 | Storage | 8 GB microSD: 6.8 GB root. 1.1 GB free after set-up on the desktop image; 3.2 GB free once the desktop was removed |
 | OS | Raspberry Pi OS (Debian 13 trixie, arm64), kernel 6.12. Came as the desktop image, booting to text; the desktop was removed on 2026-10-23 (below) |
 | LoRa | Elecrow **Meshstick** (CH341, USB ID `1a86:5512`) on the Zero's one micro-USB data port; a USB WiFi stick for batman-adv would need a hub as well. Found by meshtasticd as soon as it was plugged in |
-| WiFi | built-in only, on the home network |
+| WiFi | built-in only, on the home network: two profiles, the router (preferred) and its extender (same password, same network) |
 | Screen | none: no kiosk on a small Pi |
 
 # What runs
@@ -52,8 +52,12 @@ unset"). Set on 2026-10-23 with the Meshtastic command-line tool, as on the
 first hub: EU_868, MediumFast, hop limit 3, transmit power the region's default;
 node name "lorabatnet2", short name LB2. It heard 16 packets and 6
 radios in its first 90 s. The same second channel as the first hub,
-**BerlinMesh**, with the key copied from it (not in this repo). No place is set,
-so it shares no position.
+**BerlinMesh**, with the key copied from it (not in this repo). Since
+2026-10-23 it shares the same fixed house position as the first hub (they sit in
+one house), as the first hub does: on the primary channel only, rounded to
+precision 16 (about 364 m, the nearest Meshtastic step to 350 m), once an hour.
+Its primary channel had been at 13 (about 2.9 km); BerlinMesh shares no
+position.
 
 The two hubs hear each other straight. On 2026-10-23 a private message from
 this hub to the first, sent with the Meshtastic command-line tool, arrived and
@@ -76,6 +80,29 @@ on 2026-10-23 they were purged, after marking what the hub needs as wanted
 (NetworkManager, ssh, avahi, polkit, meshtasticd, Python and pipx, every WiFi
 firmware for a USB stick, the kernels, git). Everything ran on and the Pi came
 back by itself after a reboot.
+
+# In the loft
+
+On 2026-10-23 it moved to the loft, on mains, under the roof with the
+Meshstick on a 1 m antenna extension; the first hub stays downstairs as the
+house hub (screen, translator). Its built-in WiFi reached the home router from
+there, measured from a laptop with the same tests as in the router's room:
+
+| | Router's room | Loft |
+|---|---|---|
+| Router signal | -62 dBm | -75 dBm |
+| Extender signal (scan, 0 to 100) | 70 | 44 |
+| 30 MB over ssh, down / up | 19 / 18 Mbit/s | 6.1 / 6.7 Mbit/s |
+| Ping to the router | no loss | 1 of 30 lost, 6 ms average |
+| App page | 200 | 200 in 0.07 s |
+
+Enough for the app and the panel; a map download is slower. NetworkManager
+does not move between two network names by signal, so the stronger in the loft
+(the router) has the higher autoconnect priority and the extender is the
+fallback. Its address differs on each, so reach it by name, not number. In a
+power cut the loft socket and the router go off too: it needs a battery of its
+own ([power budget](/research/power-budget.md)), and reaches the house hub by
+radio only.
 
 # Limits
 

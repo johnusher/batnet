@@ -42,7 +42,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [ ] Try the power-cut kit with hands at the hub: a phone on the hub's own WiFi (QR, captive portal, the PIN when open), the router off for the fallback, the screen's sleep and reduced mode (B42), a screen and keyboard plugged in later, an LED on pin 11 and a button on pin 13, a speaker on the jack
 - [ ] Meanwhile try a laptop on a cable straight into the hub
 - [ ] Measure the bench hub's power with and without the screen, and in each power mode (the help says 3 to 4 W, the screen 1 to 3 W unmeasured)
-- [ ] Next for the kit (suggested): a battery HAT that reports its charge, so the hub switches to low power by itself; the button on GPIO edge events (B43); a German voice for speech; a second WiFi stick for the hub's own WiFi alongside the home WiFi
+- [ ] Next for the kit (suggested): a battery HAT that reports its charge, so the hub switches to low power by itself and shuts down cleanly before it is flat (the loft hub's UPS: [power budget](/research/power-budget.md)); the button on GPIO edge events (B43); a German voice for speech; a second WiFi stick for the hub's own WiFi alongside the home WiFi
 - [x] Help in the panel, offline and printable: start here, no power, no network, troubleshooting, commands, radio words, good manners
 - [ ] The bench hub's antenna outside and high on a short low-loss cable (RG-58 or thicker), or a 5 dBi collinear: inside, it hears nothing ([research](/research/meshtastic-presets-berlin.md))
 - [ ] Maybe: Berlin's coordination channel "BerlinMesh" as a secondary channel on the hub, to read the community (its key is on the Chaos Mesh page; kept on the hub only, never in the repo)

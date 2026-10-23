@@ -28,6 +28,20 @@ sources:
   - id: goughlui
     resource: https://goughlui.com/2023/08/31/quick-review-teardown-veektomx-vt103-10000mah-38-5wh-power-bank/
     title: 10,000 mAh power bank test
+  - id: ws-upsc
+    resource: https://www.waveshare.com/wiki/UPS_HAT_(C)
+    title: Waveshare UPS HAT (C) wiki
+    author: vendor:waveshare
+  - id: bb-upsc
+    resource: https://www.berrybase.de/en/waveshare-ups-hat-c-fuer-raspberry-pi-zero-i2c-batterieueberwachung-li-po-1000mah-schutzschaltungen
+    title: Berrybase - Waveshare UPS HAT (C)
+  - id: gw-x306
+    resource: https://geekworm.com/en-au/products/x306
+    title: Geekworm X306 18650 UPS for the Zero 2 W
+    author: vendor:geekworm
+  - id: mini-dc-ups
+    resource: https://www.ypc.co.uk/product/mini-ups-battery-backup-10400mah-intelligent-uninterruptible-power-supply-for-security-camera-router-wifi-computer/
+    title: Mini DC UPS 10,400 mAh (a typical listing)
   - id: moonshine-bench
     resource: https://www.mintlify.com/moonshine-ai/moonshine/models/benchmarks
     title: Moonshine benchmarks
@@ -73,7 +87,29 @@ Moonshine (vendor latency figures[^moonshine-bench], no power measured).
   choice matters (Moonshine about 6× less than Whisper per message, by latency).
 * Phones are not counted here; their own batteries are the usual limit.
 
+# Keeping a mains hub up (UPS)
+
+For a hub on mains, such as a Zero 2 W in a loft (about 0.8 to 1 W with a
+Meshstick, an estimate from the figures above, so 20 to 24 Wh a day), a
+battery that takes over when the mains goes. Looked at on 2026-10-23:
+
+| Option | Battery | Zero + radio, about | Price | Notes |
+|---|---|---|---|---|
+| Waveshare UPS HAT (C) | 1000 mAh Li-Po, 3.7 Wh | 3 to 4 h (7 h for a bare idle Zero, the vendor says[^ws-upsc]) | €22.90[^bb-upsc] | spring pins under the Zero; INA219 reports the charge over I2C |
+| Geekworm X306 V1.5 | one 18650, about 12 Wh, not included | 10 to 13 h | $54.99 (US), no EU price found | Zero 2 W only; spring pins; switches without a break, the seller says[^gw-x306] |
+| Mini DC UPS for routers, 10,400 mAh | about 38 Wh | about 1.5 days | not checked | USB 5 V 2 A, 9 V and 12 V out; switch-over time not given[^mini-dc-ups] |
+
+* No source gives a switch-over time: pull the plug once to check the Pi does
+  not restart.
+* Lithium cells are usually rated to charge up to about 45 °C (cell data
+  sheets); a loft passes that in summer, so the battery goes low and shaded.
+* A board that runs flat cuts the Pi off hard; a board that reports its charge
+  lets the hub shut down cleanly first, which batnet does not do yet.
+* The router goes off too, so a hub on its own battery still loses the home
+  WiFi; phones need a hub (or router) that also has a battery.
+
 # To measure
 
 USB WiFi stick current in mesh mode; Zero 2 W as hotspot with phones attached;
-Pi 5 during transcription; a full pocket node on a power bank, end to end.
+Pi 5 during transcription; a full pocket node on a power bank, end to end;
+a Zero 2 W with a Meshstick at the wall; a UPS's switch-over with the Pi on it.
