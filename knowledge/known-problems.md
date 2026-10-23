@@ -86,7 +86,7 @@ This page is the list.
 | L7 | Sealed packets can be replayed (no sequence or associated data in `seal`); harmless today (dedup), to settle with the HTTPS transport | plan 1 review |
 | L24 | Offline maps do not update by themselves (Update in System fetches the day's build), and each area is fetched once from Protomaps' build server, a third party; the online tiles are still asked for where an offline map covers | decision 0032, 2026-10-22 |
 | L25 | A stamp more than a day ahead of a plausible clock moves no clock, but its entry is still stored and sorts last; only stamps past the year 2100 are refused (review 2026-10-22). A hub that is behind after a power cut (B39) must still take the village's entries, so a tighter rule waits for a time source of the hub's own | review 2026-10-22 |
-| L26 | A small Pi (under 1 GB of memory, like a Zero 2 W) gets no screen kiosk and no offline translator from `setup.sh`: Chromium alone would take most of its memory. On the [second bench hub](/hardware/bench-pz7.md) its 8 GB card also leaves too little room for offline maps (they keep 2 GB free) | bench 2026-10-23 |
+| L26 | A small Pi (under 1 GB of memory, like a Zero 2 W) gets no screen kiosk and no offline translator from `setup.sh`: Chromium alone would take most of its memory. A desktop image on an 8 GB card leaves too little room for offline maps (they keep 2 GB free): on the [second bench hub](/hardware/bench-pz7.md) the desktop had to go first | bench 2026-10-23 |
 
 # Deferred minors (from reviews)
 

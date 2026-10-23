@@ -19,8 +19,8 @@ and stay out of this repo ([secret hygiene](/security/secret-hygiene.md)).
 | Part | What |
 |---|---|
 | Board | Raspberry Pi Zero 2 W rev 1.0, 512 MB (416 MB usable), swap on zram |
-| Storage | 8 GB microSD: 6.8 GB root, about 1.1 GB free after set-up (the desktop image, Chromium included, takes most of it) |
-| OS | Raspberry Pi OS (Debian 13 trixie, arm64, the desktop image, booting to text), kernel 6.12 |
+| Storage | 8 GB microSD: 6.8 GB root. 1.1 GB free after set-up on the desktop image; 3.2 GB free once the desktop was removed |
+| OS | Raspberry Pi OS (Debian 13 trixie, arm64), kernel 6.12. Came as the desktop image, booting to text; the desktop was removed on 2026-10-23 (below) |
 | LoRa | Elecrow **Meshstick** (CH341, USB ID `1a86:5512`) on the Zero's one micro-USB data port; a USB WiFi stick for batman-adv would need a hub as well. Found by meshtasticd as soon as it was plugged in |
 | WiFi | built-in only, on the home network |
 | Screen | none: no kiosk on a small Pi |
@@ -47,14 +47,39 @@ A new Meshstick has no region and will not send ("lora tx disabled: Region
 unset"). Set on 2026-10-23 with the Meshtastic command-line tool, as on the
 first hub: EU_868, MediumFast, hop limit 3, transmit power the region's default;
 node name "lorabatnet2", short name LB2. It heard 16 packets and 6
-radios in its first 90 s. No position shared and no BerlinMesh channel yet.
+radios in its first 90 s. The same second channel as the first hub,
+**BerlinMesh**, with the key copied from it (not in this repo). No place is set,
+so it shares no position.
+
+The two hubs hear each other straight. On 2026-10-23 a private message from
+this hub to the first, sent with the Meshtastic command-line tool, arrived and
+was acknowledged (PKI: each had the other's public key from its
+name card).
+
+# One village with the first hub
+
+`village.key` was copied from the first hub on 2026-10-23 (by hand, B37), so
+both hubs seal and open the same village's log. The key it had made for itself
+and its empty log went into a dated folder beside them in `/var/lib/batnet/`;
+its own `node.key` stayed.
+
+# The desktop removed
+
+The card came with Raspberry Pi OS's desktop image: Chromium, Firefox, the
+desktop, VLC, Thonny, Geany, RealVNC, Imager and the user guide, about 650
+packages with what only they needed, 2.2 GB. A hub never starts any of it, so
+on 2026-10-23 they were purged, after marking what the hub needs as wanted
+(NetworkManager, ssh, avahi, polkit, meshtasticd, Python and pipx, every WiFi
+firmware for a USB stick, the kernels, git). Everything ran on and the Pi came
+back by itself after a reboot.
 
 # Limits
 
-* No offline maps: the hub keeps 2 GB free and this card has 1.1 GB
-  ([0032](/decisions/0032-offline-maps.md), [L26](/known-problems.md)). Removing
-  the desktop packages, or a bigger card, would make room.
-* No translator and no screen (L26).
+* No translator and no screen ([L26](/known-problems.md)).
+* An 8 GB card leaves room for few offline maps above the 2 GB a hub keeps free
+  ([0032](/decisions/0032-offline-maps.md)). Berlin's (87 MB) was fetched on
+  2026-10-23 once the desktop was gone, and the hub serves it with range
+  requests like the first hub; 3.2 GB stayed free.
 
 # Rebuilding it
 
