@@ -63,6 +63,10 @@ Ready about 25 s after power on. Every service restarts by itself after a crash
 restarts it. The Pi's hardware watchdog reboots the board if systemd itself
 hangs for 15 s. The kiosk's browser profile lives in memory and is new on every start (a profile left from before a hostname change once stopped Chromium). All of this was tried on 2026-10-21 (see the [test](/tests/2026-10-21-pi7-hub-bring-up.md)).
 
+Under load ([test](/tests/2026-10-23-hub-load-test.md)): 200 pretend phones
+on the app in every power mode with no errors; in high mode its power supply
+sagged when two cores worked hard (under-voltage and throttling, B65).
+
 # Radio settings
 
 EU_868, MediumFast (869.525 MHz) since the evening of 2026-10-21: it heard five times more radios than LongFast at this house ([test](/tests/2026-10-21-presets-and-antenna.md)); hop limit 3, 27 dBm configured (the

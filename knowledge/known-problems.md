@@ -56,6 +56,8 @@ This page is the list.
 | B62 | Translate requests queue on a lock that ignores their 60 s deadline: a burst of requests can stop and restart the 400 MB helper again and again | review 2026-10-22 | `internal/translate` |
 | B63 | `pipx install meshtastic` in `setup.sh` is unpinned and goes into the sudo user's account; the translator's pip and model downloads have versions but no hashes; the meshtasticd repository key is trusted on first use (pmtiles is pinned and checksummed) | review 2026-10-22 | `deploy/pi/setup.sh`, `deploy/pi/translate-setup.sh` |
 | B64 | On the home LAN and the closed own WiFi the panel's status and traffic (every message to the hub, radio positions, saved WiFi names) need no PIN (decision [0025](/decisions/0025-hub-panel-and-mesh-modes.md) chose this), and `/hub/api/seen` needs none from anywhere; the app's directory tells every approved person each neighbour's speaker and quiet-hours settings | review 2026-10-22 | `internal/hub`, `internal/web` |
+| B65 | The first bench hub's power supply sags under load: in high mode with two cores busy (a burst of sign-ups) the Pi reports under-voltage and throttles; 76 under-voltage events in 14 hours since its last boot, most in the evening (48 between 20:00 and 22:00). In the load test only high mode showed it. Fix: a better 5 V 3 A supply or cable | load test 2026-10-23 ([test](/tests/2026-10-23-hub-load-test.md)) | bench pi7 |
+| B66 | A phone more than 64 live events behind misses the rest without knowing: `hub.send` drops them and the stream stays open, so an open conversation never shows them until reopened (the app catches up only on the home screen or after a reconnect). In the load test 0.1-1.9% of live copies were missing in 4 of 24 runs at 100-200 phones (some were posts still in flight when a run stopped). Fix: end the stream when a phone's buffer is full, and have the app reload the open conversation on every reconnect | load test 2026-10-23 ([test](/tests/2026-10-23-hub-load-test.md)) | `internal/web/server.go`, `internal/web/app/app.js` |
 
 
 # Known limits (by design, for now)
@@ -115,6 +117,7 @@ This page is the list.
 * Two Meshsticks with meshtasticd: range, airtime, priority queue (the first hub runs: [bring-up](/tests/2026-10-21-pi7-hub-bring-up.md)).
 * The keyboard on the hub's screen (the 800 × 480 display works).
 * Real mesh mode with a USB WiFi stick and a second Pi (IBSS, batman-adv, sync over bat0).
+* How many phones the Pi's built-in WiFi takes as the hub's own WiFi (an access point), on a Pi 4 and a Zero 2 W: forum reports say about 6 to 8; the app itself took 200 ([load test](/tests/2026-10-23-hub-load-test.md)).
 * The hub's power: each power mode, the screen awake, asleep and unplugged, with a USB power meter ([0029](/decisions/0029-hub-power-modes.md)).
 * The power-cut kit with hands at the hub: a phone on the hub's own WiFi, the fallback with the router off, the screen's sleep, a screen and keyboard plugged in later, the LED, the button, a speaker ([test](/tests/2026-10-21-hub-power-cut-kit.md)).
 

@@ -41,6 +41,10 @@ Measured on 2026-10-23: 158 MB of 416 MB in use with batnetd and no radio,
 stops with "Could not initialize CH341 device!" and systemd starts it again
 every 5 s; the panel shows no radio.
 
+Under load ([test](/tests/2026-10-23-hub-load-test.md)): 200 pretend phones
+on the app in every power mode with no errors, on average at most 18% of the CPU while
+chatting, at least 149 MB free; a sign-up takes 1.7 s (2.8 s in low).
+
 # Radio settings
 
 A new Meshstick has no region and will not send ("lora tx disabled: Region
@@ -76,10 +80,11 @@ back by itself after a reboot.
 # Limits
 
 * No translator and no screen ([L26](/known-problems.md)).
-* An 8 GB card leaves room for few offline maps above the 2 GB a hub keeps free
-  ([0032](/decisions/0032-offline-maps.md)). Berlin's (87 MB) was fetched on
-  2026-10-23 once the desktop was gone, and the hub serves it with range
-  requests like the first hub; 3.2 GB stayed free.
+* Offline maps fit only without the desktop: a hub keeps 2 GB free
+  ([0032](/decisions/0032-offline-maps.md)), which left 1.1 GB on the desktop
+  image and leaves 1.2 GB now, enough for all five areas (about 450 MB).
+  Berlin's (87 MB) was fetched on 2026-10-23 and is served with range requests
+  like the first hub's; 3.2 GB stayed free.
 
 # Rebuilding it
 

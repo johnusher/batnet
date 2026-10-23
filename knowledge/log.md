@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-23
+* **Creation**: Test report [how many phones a hub's app takes](/tests/2026-10-23-hub-load-test.md): up to 200 pretend phones on both bench hubs in each power mode (`tools/hubload`), no errors; under 0.1 s per message up to 100 phones; at 200 the WiFi slows it, not the processor; low mode costs only sign-ups. [Known problems](/known-problems.md) B65 (the first hub's supply sags in high mode), B66 (a phone more than 64 live events behind misses the rest), a to-measure for the built-in WiFi's phone limit; [Pi models](/hardware/raspberry-pi-models.md) gained what was tried. The README gained *Which Raspberry Pi?* (a table of what works on each Pi, and the test in more detail); its phone counts are measured now, not estimates.
 * **Creation**: The second bench hub, [pz7](/hardware/bench-pz7.md), a Pi Zero 2 W with a Meshstick, on the air as "lorabatnet2" (EU_868, MediumFast), with BerlinMesh, in one village with the first hub (`village.key` copied, B37), its desktop removed (3.2 GB free instead of 1.1) and Berlin's offline map on it; a private LoRa message from it reached the first hub and was acknowledged. `setup.sh` gained a small-Pi path (under 1 GB of memory: no kiosk, no translator; [L26](/known-problems.md)), runs `apt-get update` first (a fresh card's package lists were out of date) and no longer fails at the end when meshtasticd waits for a radio.
 
 ## 2026-10-22

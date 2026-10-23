@@ -30,7 +30,7 @@ street, a village, a festival camp or a group on a hike. New to words like
 | | |
 |---|---|
 | **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio**, text only. Messages also hop from radio to radio: in Berlin the first hub hears radios right across the city, passed along by up to seven others. |
-| **People** | About **60 phones** on a Pi 5 node, 40 on a Pi 4, 8 on a pocket Pi Zero 2 W. These are estimates, not measured yet. |
+| **People** | The app took **200 phones at once** on a Pi 4 and on a little Pi Zero 2 W, without an error ([measured](#which-raspberry-pi)). The real limit is how many phones the WiFi holds, not measured yet: probably under 10 on the Pi's built-in WiFi, as many as the router allows when the phones use a home router. |
 | **Cost** | **From about €45**: a Pi Zero 2 W (€19) and the long-range radio (€25) make a pocket node. A house node that also links houses over WiFi is about **€150**. (EU prices, October 2026.) |
 | **Power** | A pocket node runs about **1½ days on an ordinary 10,000 mAh power bank**. A house node uses about as much as a 4 W LED bulb left on all day. These are estimates. The first hub ran 15 h 48 min on a 72 Wh power bank, so it used at most about 4 W. |
 | **Setup** | Our goal is **under 15 minutes** per node, from download to first message. Today a hub is set up with one command from a laptop, for people used to a terminal. |
@@ -77,8 +77,9 @@ street, a village, a festival camp or a group on a hike. New to words like
 Since 21 October 2026 the first real batnet **hub** has been running at home in
 Berlin: a Raspberry Pi 4 with a USB long-range radio stick (an Elecrow
 Meshstick, about €25). You use it on its own small screen and keyboard, or in
-any web browser on the home WiFi. There is only one hub so far, so it doesn't
-link houses yet. Today it listens to the [Meshtastic](https://meshtastic.org/)
+any web browser on the home WiFi. Since 23 October a second hub, a Pi Zero 2 W,
+sits beside it and the two radios message each other, but the hubs don't link
+houses yet. Today it listens to the [Meshtastic](https://meshtastic.org/)
 radios around it, talks with them, and keeps going when the power and the
 internet are gone.
 
@@ -141,7 +142,9 @@ How many radios there are, their signal, their relays and the timing are real.*
 
 | Tried and working | Not tried yet |
 |---|---|
-| The radio: it hears Berlin's mesh, sends, replies and passes other radios' messages on (1,482 in one night) | A second hub, so two houses link over WiFi and over the radio |
+| The radio: it hears Berlin's mesh, sends, replies and passes other radios' messages on (1,482 in one night) | Two hubs sharing their houses' messages, over WiFi or over the radio |
+| A second hub on a Pi Zero 2 W: its radio and the first hub's message each other | How many phones the hub's own WiFi holds at once |
+| 200 pretend phones at once on each hub, in every power mode ([test](knowledge/tests/2026-10-23-hub-load-test.md)) | Many real phones over a whole day |
 | Starting by itself after a power cut, and restarting itself after a crash (watchdogs) | A phone joining the hub's own WiFi, with the QR code and the page that pops up |
 | Nearly 16 hours on a 72 Wh power bank, and an hour in a bag on a bike ride | The hub making its own WiFi by itself when the router is really off |
 | Its own WiFi from the panel, with and without a password, and back to the home WiFi | The screen going to sleep and waking, and plugging a screen or keyboard in later |
@@ -150,8 +153,8 @@ How many radios there are, their signal, their relays and the timing are real.*
 | The Terminal button, and setting the hub's clock from a phone | The antenna outside on a cable |
 | Offline maps of the area round the hub and four cities, drawn with the internet's map blocked | The map on the hub's own screen with the router really off |
 
-The details are in the [bench hub's notes](knowledge/hardware/bench-pi7.md) and
-the [test reports](knowledge/tests/).
+The details are in the bench hubs' notes ([pi7](knowledge/hardware/bench-pi7.md),
+[pz7](knowledge/hardware/bench-pz7.md)) and the [test reports](knowledge/tests/).
 
 ## Berlin's long-range radio mesh: LongFast, MediumFast and a split city
 
@@ -339,7 +342,7 @@ needs only a radio per person.
 | You have | What you can do |
 |---|---|
 | **Just a phone** | Join the nearest batnet WiFi and use everything: messages, groups, calls. |
-| **A pocket node** (Pi Zero 2 W + radio + power bank) | Bring batnet to a camp, a hike or a small household. It serves about 8 phones and links to other nodes by radio, as text. |
+| **A pocket node** (Pi Zero 2 W + radio + power bank) | Bring batnet to a camp, a hike or a small household. Its app takes far more phones than its own WiFi does (probably under 10), and it links to other nodes by radio, as text. |
 | **A house node** (Pi 4 or 5) | Serve a whole household, link to neighbouring houses over WiFi, and add the radio to reach houses 1–3 km away. |
 | **A Meshtastic radio** paired with your phone | Read and post on the public channel from anywhere in radio range, even with no node nearby. |
 
@@ -359,7 +362,8 @@ on any USB power bank, and it is a Meshtastic radio too.
 | + its radio module RAK13300, EU868, antenna included | [Hexaspot](https://hexaspot.com/products/module-for-lorawan-with-semtech-lora-chip-sx1262-rak13300) | `RAK-105006` | €10 |
 | A [3D-printed case](#3d-printable-cases) | print your own, or ask a local makerspace | | €2 of plastic |
 
-**A house node, about €150.** A bigger Pi, for about 60 phones, and a WiFi
+**A house node, about €150.** A bigger Pi, with room for a screen, the
+translator and more maps ([which Pi](#which-raspberry-pi)), and a WiFi
 stick that links it to the neighbours' nodes. Add the €25 radio above to reach
 over the hills.
 
@@ -399,14 +403,83 @@ CPE210 outdoor units does it, about €42 each at
 
 ## Installing
 
+### Which Raspberry Pi?
+
+We have tried two Pis as hubs: a **Pi 4** with 2 GB ("pi7", since 21 October
+2026) and a **Pi Zero 2 W** with 512 MB ("pz7", since 23 October). Both have the
+Elecrow Meshstick radio. The same set-up runs on both; a Pi with less than
+1 GB gets no screen and no translator, as they need more memory than it has.
+
+✅ tried and works · ❌ can't · ❔ not tried yet
+
+| | Pi Zero 2 W | Pi 4 (2 GB) | Pi 5 | Pi 3 | Pi Zero W (the first) |
+|---|---|---|---|---|---|
+| The radio, the app and the control panel | ✅ | ✅ | ❔ should work | ❔ should work | ❌ the set-up needs a 64-bit Pi |
+| 200 phones on the app at once ([test](knowledge/tests/2026-10-23-hub-load-test.md)) | ✅ | ✅ | ❔ | ❔ | ❌ |
+| Its own WiFi for phones in a power cut | ❔ | ✅ (how many phones: ❔) | ❔ | ❔ | ❌ |
+| A screen and keyboard on the hub | ❌ too little memory | ✅ | ❔ | ❌ too little memory | ❌ |
+| The offline translator | ❌ too little memory | ✅ about 1 s a message | ❔ | ❌ | ❌ |
+| Offline maps | ✅ all five areas, once the desktop is off an 8 GB card | ✅ | ❔ | ❔ | ❌ |
+| Power modes (high, medium, low) | ✅ | ✅ | ❔ | ❔ | ❌ |
+| Runs on a power bank | ❔ uses about a fifth of a Pi 4 | ✅ almost 16 h on 72 Wh | ❔ | ❔ | ❌ |
+| Linking houses over WiFi | ❔ needs a USB WiFi stick and a USB hub | ❔ needs a USB WiFi stick | ❔ | ❔ | ❌ |
+| The Pi's price ([what to buy](#what-to-buy-europe)) | €19 | €106 (4 GB) | €119 (4 GB) | | |
+
+**In short:** a Pi Zero 2 W is a complete hub for a small household or a camp,
+without a screen. Use the Lite version of Raspberry Pi OS on it: the desktop
+version fills a small card and has to be removed again. Take a Pi 4 or 5 for a screen, the translator, or many maps.
+
+<details>
+<summary><b>The phone test in more detail</b></summary>
+
+A laptop played up to 200 phones on the home WiFi. Every phone kept the app
+open, looked at the Everyone conversation every 10 seconds and wrote in it
+every 30 seconds. That is far busier than any real house: 200 such phones
+send nearly 7 messages a second, and the hub hands out 1,300 a second. We ran
+it on both Pis in each power mode. The full numbers are in the
+[test report](knowledge/tests/2026-10-23-hub-load-test.md).
+
+How long a message took to reach every phone (typical, and the slowest 5%), in
+high power mode:
+
+| Phones | Pi 4 | Pi Zero 2 W |
+|---|---|---|
+| 25 | 0.02 s, 0.03 s | 0.02 s, 0.08 s |
+| 50 | 0.02 s, 0.1 s | 0.02 s, 0.06 s |
+| 100 | 0.03 s, 0.13 s | 0.04 s, 0.09 s |
+| 200 | 0.08 s, 1.2 s | 0.3 s, 0.7 s |
+
+* **No errors** in any run, on either Pi, in any mode. A few messages (under
+  2%) didn't show up live on a few phones at 100 to 200 phones; they show when
+  the conversation is opened again ([B66](knowledge/known-problems.md)).
+* **The processor is not the limit.** While chatting with 200 phones, the Zero's
+  processor was on average less than a fifth busy, the Pi 4's under a tenth. At 200 phones the WiFi slowed
+  things, not the Pi.
+* **Low power mode is fine for messages.** It only slows signing up: 1.4 s on a
+  Pi 4 and 2.8 s on a Zero, because the PIN is checked with deliberately slow
+  maths that makes guessing it expensive.
+* **Memory is the Zero's tightest part,** and it held: at least 149 MB of its
+  416 MB stayed free.
+* **The Pi 4's power supply was too weak** in high power mode: the Pi reported
+  low voltage when two of its cores worked hard. Use a good 5 V, 3 A supply.
+* **The real limit is the WiFi.** Here the home router carried the phones. In
+  a power cut, phones join the hub's own WiFi from the Pi's built-in radio,
+  and people report that it holds only about 6 to 8 phones. A battery-powered
+  router or a separate access point holds many more. We haven't measured this
+  yet.
+
+</details>
+
 ### Build a hub today
 
 This works now, but it's for people who are happy in a terminal. It turns a
 Raspberry Pi into a hub like the one in Berlin: the radio, the panel, the
 screen, the power-cut kit. It doesn't link houses yet.
 
-**You need:** a Raspberry Pi 4 or 5 (2 GB is enough), the Elecrow Meshstick
-radio on USB (`EL-LMM15202D` in [What to buy](#what-to-buy-europe)), a memory
+**You need:** a Raspberry Pi 4 (2 GB is enough) or a Pi Zero 2 W, which works
+too but without a screen or the translator ([which Pi](#which-raspberry-pi)),
+the Elecrow Meshstick radio on USB (`EL-LMM15202D` in
+[What to buy](#what-to-buy-europe); a Zero needs a micro-USB adapter), a memory
 card, and a laptop with `git` and [Go](https://go.dev/dl/). A small HDMI screen
 and a keyboard are nice but not needed. **Use a Pi you don't need for
 anything else:** the set-up removes printing, Bluetooth, remote desktop and
@@ -414,8 +487,9 @@ other things a hub doesn't use.
 
 1. **Put Raspberry Pi OS on the card** with
    [Raspberry Pi Imager](https://www.raspberrypi.com/software/): the 64-bit
-   version (Debian 13, "trixie"). In Imager's settings, give the Pi a name,
-   your WiFi and SSH with your key.
+   version (Debian 13, "trixie"); on a Pi Zero 2 W, the Lite one, without a
+   desktop. In Imager's settings, give the Pi a name, your WiFi and SSH with
+   your key.
 2. **Screw the antenna onto the Meshstick first,** then plug it into the Pi
    and switch the Pi on.
 3. **On the laptop:**
@@ -429,6 +503,7 @@ other things a hub doesn't use.
 4. **Set the radio's region,** once (the radio won't send until you do).
    Log in with `ssh <your-pi>` and type
    `meshtastic --host localhost --set lora.region EU_868`
+   (and `--set-owner "a name"` to give the radio a name the others will see)
 5. **Open `http://<your-pi>/hub/`** in a browser on the same WiFi. The PINs
    for the buttons are on the hub's own screen, or on the Pi with
    `sudo cat /var/lib/batnet/hub-pin /var/lib/batnet/admin-pin`. Under **Settings**, pick the
@@ -951,9 +1026,9 @@ you, which is why batnet's own scanner reports activity only
 |---|---|
 | **House** | A household on batnet: the people who share one node, plus that node. It has a name, such as "Miller House", which is also the name of its WiFi. A house doesn't have to be a building. It can be a flat, a camp at a festival or a group on a hike. |
 | **Node** | One of batnet's small computers (a Raspberry Pi) running batnet. Every node keeps a copy of all the village's messages. |
-| **House node** | The node a house uses: a Pi 4 or Pi 5 at home on mains power. It makes the house's WiFi, runs the app for up to about 40–60 phones, and links to the houses around it. |
+| **House node** | The node a house uses: a Pi 4 or Pi 5 at home on mains power. It makes the house's WiFi, runs the app for the whole house (200 phones in a test), and links to the houses around it. |
 | **Hub** | A house node with its own control panel (on `/hub/` in the browser, or on a small screen of its own): the radio's settings, the radios around it, the traffic on the air, and the power-cut kit. The first one has been running in Berlin since October 2026. |
-| **Pocket node** | A small node (a Pi Zero 2 W) with the long-range radio, running on a power bank. For a camp, a hike or a small household. It serves about 8 phones. |
+| **Pocket node** | A small node (a Pi Zero 2 W) with the long-range radio, running on a power bank. For a camp, a hike or a small household. Its own WiFi probably holds under 10 phones. |
 | **Relay** | A node that serves no phones. It sits on a pole or a roof between two houses that are too far apart to reach each other over WiFi, and passes messages between them. |
 | **Gateway** | Any node with the long-range radio fitted. It carries messages to and from houses too far away for WiFi. |
 | **Village** | All the houses that share one village key and so can talk to each other, whether by WiFi or by radio. One village might be a street, a hamlet or a festival. |
