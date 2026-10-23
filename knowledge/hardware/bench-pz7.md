@@ -135,7 +135,7 @@ before are kept aside), then `tools/hubcompare` against them.
 The first hub's readings with this antenna were kept on it as
 `/var/lib/batnet/antenna-links-2026-10-23.json` before it went back downstairs
 (its live ones now fill with indoor readings). After a day or two on the roof,
-`tools/hubcompare/compare.py pz7 pi7:/var/lib/batnet/antenna-links-2026-10-23.json`
+`tools/hubcompare/compare.py pz7 pz7:/var/lib/batnet/first-hub-antenna-links-2026-10-23.json` (the first hub's readings, copied to the second as the first was switched off)
 compares the radios both heard straight. On 2026-10-23 at 13:50: four in common,
 the roof a median 0.2 dB stronger (one 4 dB), one heard only from the roof
 (11 km), seven only before (most heard a few times in two days). The antenna stands about 20° off
