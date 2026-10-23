@@ -122,6 +122,16 @@ lacked places: it knew 37 to the first hub's 77, among them not that far one's
 after the change it held 25 places from the first hub, and the radio 11 km away
 gave its zone a petal of 11.5 km to the north-west.
 
+The south is its blind side, as it was for the first hub with this antenna:
+every radio heard straight with a known place lies between 287° and 327°, and
+two to the south-south-west (a Heltec V3 at 3.3 km, a T1000-E tracker at about
+6 km) come only through relays. A chimney stands due south of the antenna. At
+868 MHz the signal needs about 0.6 to 0.8 m of clearance over an obstacle 1 to
+2 m from the antenna (the first Fresnel zone; 60% of it is enough for most of
+the signal), so the antenna's lower end should sit at least that far above the
+chimney's top. To judge a move: *Start the zone again* afterwards (the readings
+before are kept aside), then `tools/hubcompare` against them.
+
 The first hub's readings with this antenna were kept on it as
 `/var/lib/batnet/antenna-links-2026-10-23.json` before it went back downstairs
 (its live ones now fill with indoor readings). After a day or two on the roof,
