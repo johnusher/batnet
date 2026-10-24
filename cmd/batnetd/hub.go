@@ -267,7 +267,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	go logbook.Run(ctx, data)
 	go radio.Run(ctx)
 	go meshtastic.WatchJournal(ctx, "meshtasticd.service", meshtastic.JournalHandlers{
-		Unreadable: func(u meshtastic.Unreadable) { logbook.Unreadable(u); traffic.Garbled(u) },
+		Unreadable: func(u meshtastic.Unreadable) { logbook.Unreadable(u); traffic.Garbled(u); radio.Echo(u) },
 		Relayed:    func(r string) { logbook.Note("relayed", map[string]any{"relay": r}); traffic.Relayed(r) },
 		Busy:       traffic.Busy,
 	})

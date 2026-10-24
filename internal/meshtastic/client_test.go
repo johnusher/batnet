@@ -546,3 +546,53 @@ func TestNoKeyAsksForItAndSendsAgain(t *testing.T) {
 	f.send(routingPacket(0xa1b2c3d4, again.id, 0))
 	waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "delivered" })
 }
+
+func TestGarbledEchoCountsAsPassedOn(t *testing.T) {
+	f, c, _ := readyRadio(t)
+	sent, err := c.Send(0xa1b2c3d4, 0, "hallo Anna", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sentPacket(t, f)
+
+	// Garbled packets that are not our message's echo change nothing.
+	c.Echo(Unreadable{ID: sent.ID, From: "!a1b2c3d4", To: "!deadbeef"}) // another radio's packet with the same ID
+	c.Echo(Unreadable{ID: sent.ID + 1, From: "!deadbeef", To: "!a1b2c3d4"})
+	if tx := c.Status().Texts[0]; tx.Status != "sending" || tx.Echoed {
+		t.Fatalf("after unrelated garbled packets %+v", tx)
+	}
+
+	// A neighbour passes it on; we hear that echo, too garbled for the radio to count it.
+	c.Echo(Unreadable{ID: sent.ID, From: "!deadbeef", To: "!a1b2c3d4", Error: -7})
+	st := waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "passed on" })
+	if tx := st.Texts[0]; !tx.Echoed || tx.Code != 0 || tx.Detail != "" {
+		t.Errorf("after the echo %+v", tx)
+	}
+
+	// The radio, which never counted the echo, gives up after three tries: it stays passed on.
+	in := st.PacketsIn
+	f.send(routingPacket(0xdeadbeef, sent.ID, ErrMaxRetransmit))
+	st = waitFor(t, c, func(s Status) bool { return s.PacketsIn > in })
+	if tx := st.Texts[0]; tx.Status != "passed on" || tx.Code != 0 {
+		t.Errorf("after the radio gave up %+v", tx)
+	}
+
+	// The radio it was for confirms after all: delivered.
+	f.send(routingPacket(0xa1b2c3d4, sent.ID, 0))
+	waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "delivered" })
+}
+
+func TestGarbledEchoAfterTheRadioGaveUp(t *testing.T) {
+	f, c, _ := readyRadio(t)
+	sent, err := c.Send(0xa1b2c3d4, 0, "hallo Anna", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sentPacket(t, f)
+	f.send(routingPacket(0xdeadbeef, sent.ID, ErrMaxRetransmit))
+	waitFor(t, c, func(s Status) bool { return s.Texts[0].Status == "failed" })
+	c.Echo(Unreadable{ID: sent.ID, From: "!deadbeef", To: "!a1b2c3d4"})
+	if tx := c.Status().Texts[0]; tx.Status != "passed on" || tx.Code != 0 {
+		t.Errorf("an echo logged after the radio gave up %+v", tx)
+	}
+}

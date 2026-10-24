@@ -129,6 +129,9 @@ type Text struct {
 	// KeyAsked: it failed for want of the radio's key, the hub asked that
 	// radio for its name card, and sends the message again once it comes.
 	KeyAsked bool `json:"keyAsked,omitempty"`
+	// Echoed: a radio nearby was heard passing it on, though too garbled for
+	// the radio to count it (see Echo).
+	Echoed bool `json:"echoed,omitempty"`
 }
 
 // Channel is one of the radio's channels.
@@ -748,6 +751,8 @@ func (c *Client) receipt(p packet) *Event {
 			return nil
 		}
 		switch code := routingError(p.payload); {
+		case code == ErrMaxRetransmit && t.Echoed:
+			t.Status, t.Detail, t.Code = "passed on", "", 0
 		case code != 0:
 			t.Status, t.Detail, t.Code = "failed", routingErrors[code], code
 			if t.Detail == "" {
@@ -765,6 +770,36 @@ func (c *Client) receipt(p packet) *Event {
 		return &Event{At: c.now(), Kind: "receipt", ID: t.ID, To: nodeID(t.To), Status: t.Status, Error: t.Detail, Local: p.from == c.st.MyNum}
 	}
 	return nil
+}
+
+// Echo applies a packet the radio heard but could not read (from meshtasticd's
+// log). When its header carries this hub's own ID and the ID of a message this
+// hub sent, a radio nearby was passing that message on: the radio counts a
+// relay's echo as passed on only when it reads it, and an echo garbled by
+// several relays sending at once left messages "failed" that had gone out
+// (B73). The radio's later "no answer after three tries" does not undo it.
+func (c *Client) Echo(u Unreadable) {
+	c.mu.Lock()
+	var e *Event
+	if u.ID != 0 && c.st.MyNum != 0 && u.From == nodeID(c.st.MyNum) {
+		for i := len(c.st.Texts) - 1; i >= 0; i-- {
+			t := &c.st.Texts[i]
+			if !t.Mine || t.ID != u.ID {
+				continue
+			}
+			t.Echoed = true
+			if t.Status == "sending" || t.Status == "failed" && t.Code == ErrMaxRetransmit {
+				t.Status, t.Detail, t.Code = "passed on", "", 0
+				e = &Event{At: c.now(), Kind: "receipt", ID: t.ID, To: nodeID(t.To), Status: t.Status, Local: true}
+			}
+			c.changed()
+			break
+		}
+	}
+	c.mu.Unlock()
+	if e != nil {
+		c.emit(*e)
+	}
 }
 
 func nodeID(n uint32) string {

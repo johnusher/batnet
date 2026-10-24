@@ -424,7 +424,7 @@ const ERRORS = {
   2: "A radio on the way refused to pass it on.",
   3: "It timed out waiting for an answer.",
   4: "The radio had no way to send it.",
-  5: "The radio sent it three times and no radio confirmed it: most likely out of reach.",
+  5: "The radio sent it three times and heard no radio nearby pass it on, not even garbled: most likely nobody in reach took it.",
   6: "The radio has no channel for it (was the channel removed?).",
   7: "Too long for one radio packet.",
   8: "It arrived, but nothing on that radio answered.",

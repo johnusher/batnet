@@ -57,6 +57,10 @@ var routingErrors = map[uint32]string{1: "no route to that radio", 2: "refused",
 // (its name card), and it no longer sends private messages unencrypted.
 const ErrNoKey = 39
 
+// ErrMaxRetransmit is Routing.Error MAX_RETRANSMIT: the radio sent a message
+// three times and heard neither a receipt nor a radio nearby passing it on.
+const ErrMaxRetransmit = 5
+
 // Ports (portnums.proto).
 const (
 	PortText      = 1

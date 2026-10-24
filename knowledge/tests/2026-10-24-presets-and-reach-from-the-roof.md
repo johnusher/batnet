@@ -122,3 +122,10 @@ LongFast gets no ellipse: no place came with it.
   more into error 5, then repeat by day.
 * A preset survey needs its own way out of a frozen radio stick: a USB reset
   and the home preset when the radio is not back within minutes.
+
+# Afterwards
+
+B73 was fixed the same morning: the hub now counts a garbled echo carrying
+its own ID and a sent message's packet ID as *passed on*. Checked against the
+radio's log of the night, 10 of the 16 error-5 messages had such an echo, so
+they would have read *passed on*; 6 had none heard.
