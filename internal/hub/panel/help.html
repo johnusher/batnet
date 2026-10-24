@@ -196,7 +196,7 @@
     <dt>LoRa</dt><dd>"long range": a way of sending small messages slowly, a few kilometres, with very little power.</dd>
     <dt>Meshtastic</dt><dd>the free software most LoRa radios run; every radio passes others' messages on, so they hop further.</dd>
     <dt>Preset</dt><dd>the speed setting. Radios only hear others on the same one. LongFast reaches furthest but is slow, so a busy city clogs; MediumFast is three times faster and what Berlin uses.</dd>
-    <dt>Relay, hop</dt><dd>a radio that passed a message on. "Heard directly" means no relay in between; most messages here come through a few relays.</dd>
+    <dt>Relay, hop</dt><dd>a radio that passed a message on. "Heard directly" means no relay in between; most messages here come through a few relays. A message often arrives more than once, by different ways; a radio's relays are those of the shortest way it came, even when that copy was too weak to read.</dd>
     <dt>SNR</dt><dd>how far a signal stands above the background noise, in dB. LoRa can read signals below the noise: MediumFast down to about −12.5 dB, LongFast to about −17.5 dB. Higher is better.</dd>
     <dt>RSSI</dt><dd>how strong the signal is, in dBm; −120 is very faint. SNR says more about whether it can be read.</dd>
     <dt>Unreadable</dt><dd>heard but damaged: too weak, or two radios sent at once.</dd>
@@ -217,5 +217,6 @@
     <li>Say hello rarely. The Say hello button, and the log's hellos when they come more often than every 30 minutes, ask every radio in range to answer, and in a busy mesh the answers collide and crowd everyone out. The log's hellos at 30 minutes or more apart only announce the hub.</li>
     <li>Stay on the preset your neighbours use. A new preset splits the mesh and leaves people out.</li>
     <li>Positions are shared on purpose by the people who choose to. This hub does not send its own.</li>
+    <li>The <b>away note</b> (Settings, Away note) answers someone who wrote to this hub alone when you haven't answered after a while: in simple German, saying it is automatic. It writes to each radio at most once a week, never on a channel, never to a bare "ok" or 👍. Someone who writes to you hopes for a person: answer them yourself when you can.</li>
   </ul>
 </section>

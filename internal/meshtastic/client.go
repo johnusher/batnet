@@ -50,11 +50,16 @@ type Node struct {
 	SNR       float32   `json:"snr"`
 	RSSI      int32     `json:"rssi,omitempty"`
 	Hops      int       `json:"hops"` // -1: unknown
-	Battery   *uint32   `json:"battery,omitempty"`
-	ChanUtil  *float32  `json:"chanUtil,omitempty"`
-	AirUtilTx *float32  `json:"airUtilTx,omitempty"`
-	Packets   int       `json:"packets"`
-	Hardware  string    `json:"hardware,omitempty"`
+	// Garbled: Hops, SNR and RSSI are from a copy of the last packet that
+	// came a shorter way than the first one the radio could read (B76).
+	Garbled   bool     `json:"garbled,omitempty"`
+	Battery   *uint32  `json:"battery,omitempty"`
+	ChanUtil  *float32 `json:"chanUtil,omitempty"`
+	AirUtilTx *float32 `json:"airUtilTx,omitempty"`
+	Packets   int      `json:"packets"`
+	lastID    uint32   // the last packet read, and its hop start: garbled copies of it may have come a shorter way
+	lastStart uint32
+	Hardware  string `json:"hardware,omitempty"`
 	// Position is where the radio last said it was; nil: it never said.
 	Position *NodePosition `json:"position,omitempty"`
 	// Link is how strongly the radio's own signal reaches this hub: heard
@@ -210,8 +215,9 @@ type Client struct {
 	lastSend  time.Time
 	lastHello time.Time
 	lastAdmin time.Time
-	askedKey  map[uint32]time.Time // when the hub last asked a radio for its name card
-	loraRaw   []byte               // the radio's LoRaConfig as it sent it, for changing a few fields
+	askedKey  map[uint32]time.Time   // when the hub last asked a radio for its name card
+	garbled   map[copyKey]Unreadable // the closest garbled copy of recent packets, by sender and packet ID
+	loraRaw   []byte                 // the radio's LoRaConfig as it sent it, for changing a few fields
 	listeners map[chan struct{}]bool
 	onEvent   []func(Event)
 }
@@ -236,7 +242,7 @@ func (c *Client) emit(e Event) {
 // New returns a client for meshtasticd at addr (host:port, usually 127.0.0.1:4403).
 func New(addr string) *Client {
 	return &Client{addr: addr, now: time.Now, nodes: map[uint32]*Node{}, links: map[uint32]*link{}, channels: map[int]Channel{},
-		askedKey: map[uint32]time.Time{}, listeners: map[chan struct{}]bool{}, st: Status{Addr: addr}}
+		askedKey: map[uint32]time.Time{}, garbled: map[copyKey]Unreadable{}, listeners: map[chan struct{}]bool{}, st: Status{Addr: addr}}
 }
 
 // Changed returns a channel that gets a signal when something changes, and a function to stop.
@@ -693,8 +699,12 @@ func (c *Client) packet(p packet) *Event {
 		n.SNR, n.RSSI = p.snr, p.rssi
 	}
 	if h := p.hops(); h >= 0 {
-		n.Hops = h
+		n.Hops, n.Garbled = h, false
+		if g, ok := c.garbled[copyKey{p.from, p.id}]; ok && p.id != 0 && g.HopStart == int(p.hopStart) && g.Hops < h {
+			n.Hops, n.SNR, n.RSSI, n.Garbled = g.Hops, float32(g.SNR), int32(g.RSSI), true
+		}
 	}
+	n.lastID, n.lastStart = p.id, p.hopStart
 	if p.snr != 0 && p.from != c.st.MyNum {
 		if h := p.hops(); h == 0 {
 			c.heardStraight(p.from, p.snr)
@@ -778,8 +788,13 @@ func (c *Client) receipt(p packet) *Event {
 // relay's echo as passed on only when it reads it, and an echo garbled by
 // several relays sending at once left messages "failed" that had gone out
 // (B73). The radio's later "no answer after three tries" does not undo it.
+//
+// It also keeps the copy of another radio's packet that came the shortest
+// way: the radio reads only the first copy it can, often one that took more
+// relays than a garbled one before it (B76).
 func (c *Client) Echo(u Unreadable) {
 	c.mu.Lock()
+	c.closerCopy(u)
 	var e *Event
 	if u.ID != 0 && c.st.MyNum != 0 && u.From == nodeID(c.st.MyNum) {
 		for i := len(c.st.Texts) - 1; i >= 0; i-- {
@@ -800,6 +815,55 @@ func (c *Client) Echo(u Unreadable) {
 	if e != nil {
 		c.emit(*e)
 	}
+}
+
+type copyKey struct{ from, id uint32 }
+
+// Garbled copies of one packet come within seconds of each other; keepCopies
+// bounds the table, as a garbled header can name any sender.
+const (
+	keepCopiesFor = 2 * time.Minute
+	keepCopies    = 512
+)
+
+// closerCopy applies a garbled copy of another radio's packet: kept for the
+// readable copy still to come, or, when that came already, its hops and
+// signal if this one came a shorter way. A copy whose hop start differs from
+// the readable one's has a garbled header and counts for nothing; a radio
+// never read is not made up from one. Caller holds mu.
+func (c *Client) closerCopy(u Unreadable) {
+	var from uint32
+	if _, err := fmt.Sscanf(u.From, "!%08x", &from); err != nil || u.ID == 0 || u.HopStart <= 0 || u.HopStart > 7 || u.Hops < 0 || u.Hops > u.HopStart {
+		return
+	}
+	n := c.nodes[from]
+	if n == nil || from == c.st.MyNum {
+		return
+	}
+	if n.lastID == u.ID {
+		if int(n.lastStart) == u.HopStart && u.Hops < n.Hops {
+			n.Hops, n.SNR, n.RSSI, n.Garbled = u.Hops, float32(u.SNR), int32(u.RSSI), true
+			c.changed()
+		}
+		return
+	}
+	k := copyKey{from, u.ID}
+	if g, ok := c.garbled[k]; ok && g.Hops <= u.Hops {
+		return
+	}
+	now := c.now()
+	if len(c.garbled) >= keepCopies {
+		for k, g := range c.garbled {
+			if now.Sub(g.At) > keepCopiesFor {
+				delete(c.garbled, k)
+			}
+		}
+		if len(c.garbled) >= keepCopies {
+			return
+		}
+	}
+	u.At = now
+	c.garbled[k] = u
 }
 
 func nodeID(n uint32) string {

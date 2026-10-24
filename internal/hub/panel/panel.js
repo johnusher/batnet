@@ -302,7 +302,9 @@ function showRadio(num) {
     // Of the last packet only: after relays it is the last relay's signal, not this radio's.
     ["Signal", n.self ? "" : `${db(n.snr)}${n.rssi ? `, ${minus(n.rssi)} dBm` : ""}${n.hops > 0 ? ` (last packet, from the last of its ${n.hops} relays, not from this radio)` : ""}`],
     ["Straight to this hub", n.self || !n.link ? "" : `${db(n.link.snr)} (median), ${n.link.count} ${n.link.count === 1 ? "packet" : "packets"}, last ${ago(n.link.at)}`],
-    ["Relays", n.self ? "" : n.hops < 0 ? "not known" : n.hops === 0 ? "none: heard directly" : String(n.hops)],
+    // Garbled: from the copy of the last packet that came the shortest way, too weak to read.
+    ["Relays", n.self ? "" : (n.hops < 0 ? "not known" : n.hops === 0 ? "none: heard directly" : String(n.hops)) +
+      (n.garbled ? " (a copy too weak to read; the first copy the radio could read came the longer way)" : "")],
     ["Last heard", n.self ? "" : ago(n.lastHeard)],
     ["Packets heard", n.self ? "" : n.packets],
     ["Battery", n.battery != null ? (n.battery > 100 ? "on mains power" : `${n.battery} %`) : ""],
@@ -771,7 +773,7 @@ function drawMap() {
 
 // ---- settings ----
 const formsDirty = new Set();
-for (const f of ["radio-form", "owner-form", "hub-form"]) $(f).addEventListener("input", () => formsDirty.add(f));
+for (const f of ["radio-form", "owner-form", "hub-form", "away-form"]) $(f).addEventListener("input", () => formsDirty.add(f));
 const bytes = (s) => new TextEncoder().encode(s).length;
 function counts() {
   $("long-count").textContent = `${bytes($("set-long").value)} of 39 bytes`;
@@ -782,6 +784,14 @@ function counts() {
 $("set-long").addEventListener("input", counts);
 $("set-short").addEventListener("input", counts);
 $("set-short").removeAttribute("maxlength"); // bytes, not letters: an emoji is one letter and four bytes
+// The away note's default: the same as DefaultAwayText in away.go.
+const AWAY_TEXT = "Hallo! Das ist eine automatische Antwort. Ich bin gerade nicht am Funkgerät. Ich schreibe dir bald zurück. Liebe Grüße";
+function awayCount() {
+  const n = bytes($("away-text").value.trim());
+  $("away-count").textContent = `${n} of 200 bytes`;
+  $("away-count").className = "hint" + (n > 200 ? " bad" : "");
+}
+$("away-text").addEventListener("input", awayCount);
 
 function renderSettings(s) {
   const r = s.radio, me = nodes().find((n) => n.self);
@@ -810,6 +820,14 @@ function renderSettings(s) {
     $("set-hello").value = v;
     $("set-lat").value = s.settings.where ? String(s.settings.where.lat) : "";
     $("set-lon").value = s.settings.where ? String(s.settings.where.lon) : "";
+  }
+  if (s.settings && !formsDirty.has("away-form")) {
+    const aw = s.settings.away || {}, m = String(aw.minutes || 15);
+    $("away-on").checked = !!aw.on;
+    if (![...$("away-wait").options].some((o) => o.value === m)) $("away-wait").append(el("option", { value: m, text: `${m} minutes` }));
+    $("away-wait").value = m;
+    $("away-text").value = aw.text || AWAY_TEXT;
+    awayCount();
   }
 }
 
@@ -846,6 +864,15 @@ $("hub-form").addEventListener("submit", async (ev) => {
     setNote("hub-note", "Saved.");
     poll();
   } catch (e) { setNote("hub-note", e.message, true); }
+});
+$("away-form").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  try {
+    await act("settings", { awayOn: String($("away-on").checked), awayMinutes: $("away-wait").value, awayText: $("away-text").value.trim() || AWAY_TEXT });
+    formsDirty.delete("away-form");
+    setNote("away-note", $("away-on").checked ? "Saved. It answers from now on." : "Saved. It is off.");
+    poll();
+  } catch (e) { setNote("away-note", e.message, true); }
 });
 $("forget-place").addEventListener("click", async () => {
   try {

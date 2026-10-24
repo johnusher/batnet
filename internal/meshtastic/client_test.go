@@ -469,7 +469,7 @@ func TestTextsKeptBetweenRuns(t *testing.T) {
 func TestNamesChannelsAndBounds(t *testing.T) {
 	f, c, _ := readyRadio(t)
 	f.send(nodeInfo(0xa1b2c3d4, userMsg("!a1b2c3d4", strings.Repeat("x", MaxLongName+1), "\xff\xfe"), 6.5, 1))
-	f.send(nodeInfo(0x0badf00d, userMsg("!00000000", "Fine name", "FN"), 2, 1))
+	f.send(nodeInfo(0xdeadbeef, userMsg("!00000000", "Fine name", "FN"), 2, 1))
 	st := waitFor(t, c, func(s Status) bool { return len(s.Nodes) == 3 })
 	for _, n := range st.Nodes {
 		if n.Num == 0xa1b2c3d4 && (n.LongName != "Anna's handheld" || n.ShortName != "ANNA") {
@@ -594,5 +594,62 @@ func TestGarbledEchoAfterTheRadioGaveUp(t *testing.T) {
 	c.Echo(Unreadable{ID: sent.ID, From: "!deadbeef", To: "!a1b2c3d4"})
 	if tx := c.Status().Texts[0]; tx.Status != "passed on" || tx.Code != 0 {
 		t.Errorf("an echo logged after the radio gave up %+v", tx)
+	}
+}
+
+// A radio's hops are those of the copy of its packet that came the shortest
+// way, even when only a copy that took longer could be read (B76).
+func TestHopsFromTheClosestCopy(t *testing.T) {
+	c := New("127.0.0.1:1")
+	c.node(0xa1b2c3d4)
+	hops := func() Node {
+		for _, n := range c.Status().Nodes {
+			if n.Num == 0xa1b2c3d4 {
+				return n
+			}
+		}
+		t.Fatal("no node")
+		return Node{}
+	}
+
+	// Copies after 2 and 4 relays, too garbled to read, then one read after 6.
+	c.Echo(Unreadable{ID: 0x5b72d, From: "!a1b2c3d4", To: "everyone", Hops: 2, HopStart: 7, SNR: -15.75, RSSI: -126})
+	c.Echo(Unreadable{ID: 0x5b72d, From: "!a1b2c3d4", To: "everyone", Hops: 4, HopStart: 7, SNR: -7.5, RSSI: -118})
+	c.mu.Lock()
+	c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, id: 0x5b72d, snr: -12.25, rssi: -123, hopStart: 7, hopLimit: 1, relay: 0x07})
+	c.mu.Unlock()
+	if n := hops(); n.Hops != 2 || n.SNR != -15.75 || n.RSSI != -126 || !n.Garbled {
+		t.Errorf("garbled copies first: %+v", n)
+	}
+
+	// The next packet is read after 3 relays; a garbled copy straight from the radio comes later.
+	c.mu.Lock()
+	c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, id: 0x99, snr: -9, rssi: -120, hopStart: 7, hopLimit: 4})
+	c.mu.Unlock()
+	if n := hops(); n.Hops != 3 || n.Garbled {
+		t.Errorf("read after 3: %+v", n)
+	}
+	c.Echo(Unreadable{ID: 0x99, From: "!a1b2c3d4", Hops: 0, HopStart: 7, SNR: -17, RSSI: -127})
+	if n := hops(); n.Hops != 0 || n.SNR != -17 || !n.Garbled {
+		t.Errorf("garbled copy afterwards: %+v", n)
+	}
+
+	// Copies that do not fit change nothing: another packet ID, another hop start
+	// (a garbled header), more hops, nonsense, a radio never read.
+	c.mu.Lock()
+	c.packet(packet{from: 0xa1b2c3d4, to: Broadcast, id: 0x100, snr: -9, rssi: -120, hopStart: 7, hopLimit: 4})
+	c.mu.Unlock()
+	c.Echo(Unreadable{ID: 0x101, From: "!a1b2c3d4", Hops: 1, HopStart: 7})
+	c.Echo(Unreadable{ID: 0x100, From: "!a1b2c3d4", Hops: 1, HopStart: 3})
+	c.Echo(Unreadable{ID: 0x100, From: "!a1b2c3d4", Hops: 5, HopStart: 7})
+	c.Echo(Unreadable{ID: 0x100, From: "!a1b2c3d4", Hops: -2, HopStart: 7})
+	c.Echo(Unreadable{ID: 0x100, From: "!deadbeef", Hops: 0, HopStart: 7})
+	if n := hops(); n.Hops != 3 || n.Garbled {
+		t.Errorf("after copies that do not fit: %+v", n)
+	}
+	for _, n := range c.Status().Nodes {
+		if n.Num == 0xdeadbeef {
+			t.Errorf("a radio made up from a garbled header: %+v", n)
+		}
 	}
 }
