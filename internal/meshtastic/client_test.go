@@ -469,7 +469,7 @@ func TestTextsKeptBetweenRuns(t *testing.T) {
 func TestNamesChannelsAndBounds(t *testing.T) {
 	f, c, _ := readyRadio(t)
 	f.send(nodeInfo(0xa1b2c3d4, userMsg("!a1b2c3d4", strings.Repeat("x", MaxLongName+1), "\xff\xfe"), 6.5, 1))
-	f.send(nodeInfo(0xdeadbeef, userMsg("!00000000", "Fine name", "FN"), 2, 1))
+	f.send(nodeInfo(0x0badf00d, userMsg("!00000000", "Fine name", "FN"), 2, 1))
 	st := waitFor(t, c, func(s Status) bool { return len(s.Nodes) == 3 })
 	for _, n := range st.Nodes {
 		if n.Num == 0xa1b2c3d4 && (n.LongName != "Anna's handheld" || n.ShortName != "ANNA") {
