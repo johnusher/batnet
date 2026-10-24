@@ -50,15 +50,16 @@ radio it hears to map its reach direction by direction.
 [It turned out to be a narrow petal](#which-way-the-hub-hears-a-shape-not-a-circle),
 pointing north-west.
 
-![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-light.svg#gh-light-mode-only)
-![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-dark.svg#gh-dark-mode-only)
+![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both have run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-light.svg#gh-light-mode-only)
+![A Raspberry Pi 4 and a Pi Zero 2 W drawn to scale: both have run a hub in Berlin, both took 200 phones at once without an error](docs/img/radio/two-pis-dark.svg#gh-dark-mode-only)
 
 > **Half built.** The app, the way nodes keep each other up to date, and the
 > simulator are written and tested. Since October 2026
-> [two real hubs](#the-first-hub-on-a-bench-in-berlin), a Pi 4 and a Pi
-> Zero 2 W, have been on the air in Berlin, talking with
+> [two real hubs](#the-first-hub-on-a-bench-in-berlin), first a Pi 4 and then
+> a Pi Zero 2 W, have been on the air in Berlin, talking with
 > [the city's long-range radio mesh](#berlins-long-range-radio-mesh-longfast-mediumfast-and-a-split-city)
-> and with each other. Houses don't share their messages with each other yet:
+> and with each other. The Zero runs there today, in a loft with its antenna
+> on the roof. Houses don't share their messages with each other yet:
 > that's next. There's no simple installer yet either. If you're happy typing
 > commands, you can [build a hub today](#build-a-hub-today). To hear when
 > batnet is ready for everyone, click **Watch** at the top of this page (you
@@ -121,12 +122,14 @@ pointing north-west.
 
 ## The first hub, on a bench in Berlin
 
-Since 21 October 2026 the first real batnet **hub** has been running at home in
+On 21 October 2026 the first real batnet **hub** went on the air at home in
 Berlin: a Raspberry Pi 4 with a USB long-range radio stick (an Elecrow
 Meshstick, about €25). You use it on its own small screen and keyboard, or in
-any web browser on the home WiFi. Since 23 October a second hub, a Pi Zero 2 W,
-sits beside it and the two radios message each other, but the hubs don't link
-houses yet. Today it listens to the [Meshtastic](https://meshtastic.org/)
+any web browser on the home WiFi. On 23 October a second hub, a Pi Zero 2 W,
+joined it and the two radios messaged each other, but the hubs don't link
+houses yet. The Zero then took over, in the loft with its antenna on the roof,
+and the Pi 4 was switched off. The pictures here are from the Pi 4. A hub
+listens to the [Meshtastic](https://meshtastic.org/)
 radios around it, talks with them, and keeps going when the power and the
 internet are gone.
 

@@ -771,7 +771,7 @@ def two_pis(theme):
     t = THEMES[theme]
     s = SVG(900, 400, t)
     s.text(450, 30, "Tested on both: a Raspberry Pi 4 and a Pi Zero 2 W", 18, anchor="middle", weight="bold")
-    s.text(450, 52, "Drawn to scale. Each runs a hub in Berlin with the same software and a radio on a USB stick.", 12, "muted", "middle")
+    s.text(450, 52, "Drawn to scale. Both have run a hub in Berlin, with the same software and a radio on a USB stick.", 12, "muted", "middle")
     k = 2.6
     # Pi 4: 85 x 56 mm, holes 58 x 49 mm apart, USB and Ethernet on the right edge.
     board(s, 80, 80, 85, 56, k, [(3.5, 3.5), (61.5, 3.5), (3.5, 52.5), (61.5, 52.5)], (8, 2.3), (25, 25, 15),
@@ -789,11 +789,11 @@ def two_pis(theme):
             s.text(x + 18, yy, line, 12, "fg" if ok else "muted")
         s.text(x, 300 + len(rows) * 20 + 6, price, 12, "hot", weight="bold")
 
-    facts(80, "Pi 4, 2 GB memory", "on the air since 21 October 2026",
+    facts(80, "Pi 4, 2 GB memory", "on the air from 21 to 23 October 2026",
           [(True, "the radio, the app and the control panel"), (True, "200 phones at once, no errors"),
            (True, "a screen and the offline translator"), (True, "15 h 48 min on a 72 Wh power bank")],
           "about €106 for the 4 GB model")
-    facts(520, "Pi Zero 2 W, 512 MB memory", "on the air since 23 October 2026",
+    facts(520, "Pi Zero 2 W, 512 MB memory", "on the air since 23 October 2026, in a loft",
           [(True, "the radio, the app and the control panel"), (True, "200 phones at once, no errors"),
            (True, "offline maps of five areas"), (False, "too little memory for a screen or translator")],
           "about €19")
