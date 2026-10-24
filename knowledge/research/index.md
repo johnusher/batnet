@@ -19,3 +19,4 @@ sources, not yet confirmed on our hardware.
 * [Etiquette on Berlin's community mesh](mesh-etiquette.md) - what Freifunk, the Pico Peering Agreement, the CCC's hacker ethics, Berlin Chaos Mesh and Meshtastic say about sharing the mesh, and how batnet behaves there
 * [Meshtastic presets in Berlin](meshtastic-presets-berlin.md) - the city is split between LongFast and MediumFast, which share 869.525 MHz in the EU but cannot hear each other; what it means for a hub
 * [Power budget](power-budget.md) - daily energy for pocket, house and relay nodes; the Pi's idle draw dominates and messages cost almost nothing
+* [What Meshtastic does for privacy, keys and trust](meshtastic-security.md) - channels under one shared AES key anyone holding it can read and forge, direct messages under X25519 and AES-CCM since 2.5, signed broadcasts since 2.8, keys trusted on first sight, bare headers, the 2025 key advisories; what that leaves for batnet's own layer

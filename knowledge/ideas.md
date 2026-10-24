@@ -54,6 +54,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 - [ ] **Backup to a USB stick** from the panel: the house log, keys and settings, encrypted with the admin PIN; and restore on a fresh Pi. Grab-and-go for a long outage.
 - [ ] **Rename, merge and archive groups**; an admin's note on a person ("GP, house 12").
 - [ ] **Delegate**: a second admin per house, so one phone's battery does not decide.
+- [ ] **A chain of trust for the village.** Meshtastic gives one shared channel key and nothing above it ([research](research/meshtastic-security.md)): anyone holding the village key is anyone (B51). A decision on the admin's key as the root, houses admitted by its signature, people vouched for by their house, a lost phone or a stolen Pi revoked without re-keying the village, and person-to-person secrecy inside the village; the pattern to copy is Meshtastic's own direct messages and admin keys (a key pair per node, the public key announced, a shared secret per pair, admins as a short list of public keys).
 - [ ] **A daily mesh health note** on Home, worked out from the log: "Last night: 154 radios, 7 % unreadable, most within 3 minutes of a hello" (what found B47 and B48 by hand).
 
 # Radio and mesh
