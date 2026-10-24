@@ -2,6 +2,14 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+// A script error while the page loads stops everything after it; say so rather
+// than leave "Connecting to the radio…" up over a working radio.
+let loaded = false;
+window.addEventListener("error", (e) => {
+  if (loaded) return;
+  $("onair").textContent = `The panel's page has a fault (${e.message}). Reload it; if it stays, the hub's software needs updating.`;
+  $("onair").className = "onair down";
+});
 const screen = new URLSearchParams(location.search).has("screen");
 if (screen) document.documentElement.classList.add("screen");
 const BCAST = 0xffffffff;
@@ -1006,6 +1014,7 @@ function renderSysFacts(s) {
 
 let asking = false, locked = false;
 async function poll() {
+  let st;
   try {
     const res = await fetch("api/status", { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
     locked = res.status === 401 || res.status === 429;
@@ -1024,10 +1033,18 @@ async function poll() {
       return;
     }
     if (!res.ok) throw new Error(res.status);
-    const st = await res.json();
-    render(redact ? redactStatus(st) : st);
+    st = await res.json();
   } catch (e) {
     $("onair").textContent = "The hub is not answering. Retrying…";
+    $("onair").className = "onair down";
+    return;
+  }
+  // The hub answered: a fault from here on is the page's, not the hub's.
+  try {
+    render(redact ? redactStatus(st) : st);
+  } catch (e) {
+    console.error(e);
+    $("onair").textContent = `The panel's page has a fault (${e.message}). Reload it; if it stays, the hub's software needs updating.`;
     $("onair").className = "onair down";
   }
 }
@@ -1779,6 +1796,7 @@ document.querySelector(".tabs").addEventListener("keydown", (ev) => {
 window.addEventListener("resize", () => { if (view === "traffic") drawTraffic(); if (map && view === "map") map.invalidateSize(); });
 
 setView(view);
+loaded = true;
 // The refresh slows down in low power and while the hub's screen sleeps (decision 0029).
 function every() {
   const pw = last && last.power;
