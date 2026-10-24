@@ -154,11 +154,12 @@ td.acts .btn + .btn { margin-left: 0.3rem; }
 .replying { display: flex; gap: 0.6rem; align-items: center; justify-content: space-between; font-size: 0.88rem; color: var(--muted); border-left: 3px solid var(--signal); padding-left: 0.6rem; }
 .send { display: flex; gap: 0.6rem; }
 .send input { flex: 1; min-width: 0; }
-input, select {
+input, select, textarea {
   font: inherit; color: var(--ink); background: var(--sheet); border: 1.5px solid var(--rule);
   border-radius: 0.4rem; padding: 0.55rem 0.7rem;
 }
-input:focus, select:focus { border-color: var(--signal); outline: none; }
+textarea { resize: vertical; }
+input:focus, select:focus, textarea:focus { border-color: var(--signal); outline: none; }
 .note { min-height: 1.4em; color: var(--muted); font-size: 0.9rem; }
 .note.bad { color: var(--onair); font-weight: 650; }
 

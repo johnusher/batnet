@@ -34,3 +34,4 @@ Architecture decision records. `draft` = proposed, not yet agreed. The approved 
 * [0030 Offline translator](0030-offline-translator.md) - Argos models on CTranslate2 in a helper process: German and English on the hub, no internet (draft)
 * [0031 Root actions through polkit](0031-root-actions-through-polkit.md) - batnetd stays unprivileged; polkit allows NetworkManager, a few batnet units, reboot, power off, the clock; the terminal is the Pi's own console (draft)
 * [0032 Offline maps](0032-offline-maps.md) - Protomaps extracts of OpenStreetMap, fetched by each hub while it has internet (round the hub by itself, cities at a button), drawn by protomaps-leaflet; no map data in the repository (draft)
+* [0033 The away note](0033-away-note.md) - a private message unanswered after 15 minutes gets one short note in simple German that says it is automatic; once per radio a week, never on a channel, never to an "ok" or a machine; off unless switched on (draft)

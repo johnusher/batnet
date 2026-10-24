@@ -18,6 +18,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -55,6 +56,7 @@ type hubSettings struct {
 	Power         hub.PowerSettings `json:"power"`
 	TranslateTo   string            `json:"translateTo,omitempty"`
 	TranslateAuto bool              `json:"translateAuto,omitempty"`
+	Away          hub.AwaySettings  `json:"away"`
 }
 
 // The real mesh: bat0 in 172.27.0.0/16, broadcasts on UDP 4200, repairs on HTTP 4201.
@@ -248,12 +250,13 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 		h.mu.Lock()
 		defer h.mu.Unlock()
 		return hub.HubSettings{HelloMinutes: h.settings.HelloMinutes, Where: h.settings.Where,
-			TranslateTo: h.settings.TranslateTo, TranslateAuto: h.settings.TranslateAuto}
+			TranslateTo: h.settings.TranslateTo, TranslateAuto: h.settings.TranslateAuto, Away: h.settings.Away}
 	}
 	saveSettings := func(hs hub.HubSettings) error {
 		h.mu.Lock()
 		h.settings.HelloMinutes, h.settings.Where = hs.HelloMinutes, hs.Where
 		h.settings.TranslateTo, h.settings.TranslateAuto = hs.TranslateTo, hs.TranslateAuto
+		h.settings.Away = hs.Away
 		err := h.save()
 		h.mu.Unlock()
 		setHello(hs.HelloMinutes)
@@ -273,6 +276,18 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	})
 
 	kit := h.startKit(ctx, radio, id, wifiPass)
+	away := hub.NewAway(hub.AwayConfig{Settings: func() hub.AwaySettings { return settings().Away },
+		MyID: kit.notifier.MyID, File: filepath.Join(data, "away.json"), NoContact: func() []string { return noContact(data) },
+		Send: func(to, text string, reply uint32) error {
+			n, err := strconv.ParseUint(strings.TrimPrefix(to, "!"), 16, 32)
+			if err != nil {
+				return err
+			}
+			_, err = radio.Send(uint32(n), 0, text, reply)
+			return err
+		}})
+	radio.OnEvent(away.Event)
+	go away.Run(ctx)
 	placesSealer, err := seal.NewSealer(vkey, seal.PurposePlaces)
 	if err != nil {
 		return err
@@ -335,6 +350,18 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 }
 
 var errRestart = errors.New("restart in the new mode")
+
+// noContact is the radios that asked not to be written to: the reach test's
+// list (tools/reachtest), which the away note keeps to as well.
+func noContact(data string) []string {
+	var st struct {
+		NoContact []string `json:"noContact"`
+	}
+	if b, err := os.ReadFile(filepath.Join(data, "reachtest.json")); err == nil {
+		json.Unmarshal(b, &st)
+	}
+	return st.NoContact
+}
 
 func (h *hubRun) save() error {
 	b, _ := json.MarshalIndent(h.settings, "", "  ")

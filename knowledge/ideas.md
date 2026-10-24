@@ -28,6 +28,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 
 - [ ] **Nicknames and notes on radios.** Call `!a1b2c3d4` "Tom, roof at the school" on this hub only; search by it.
 - [ ] **Watch a radio.** Chime or blink when a chosen radio is heard again, or has been silent for N hours.
+- [ ] **Tell the owner's phone about a private message**, wherever the phone is: a push through ntfy (self-hosted or ntfy.sh) with the sender's name only, never the words; the hub needs the internet for it. The away note ([0033](/decisions/0033-away-note.md)) holds the door meanwhile.
 - [ ] **Statistics from the log.** Radios per day, the busiest hours, how the coverage zone changes over days: the log already has it all; draw it offline.
 - [ ] **Replay a night.** Scrub through the log on the map: who was heard when, with what signal.
 - [ ] **Export.** The radios heard as GPX or GeoJSON, a log as CSV, the coverage zone as a picture.

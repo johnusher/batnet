@@ -190,6 +190,16 @@
       <div class="actions"><button class="btn" type="submit">Save</button><button id="forget-place" class="btn ghost" type="button">Forget the place</button><span id="hub-note" class="note"></span></div>
     </form>
 
+    <form id="away-form" class="card" autocomplete="off">
+      <h2>Away note</h2>
+      <label class="check"><input id="away-on" type="checkbox"> Answer private messages when I don't <span class="hint">a short note that says it is automatic</span></label>
+      <label>Answer after
+        <select id="away-wait"><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">an hour</option></select></label>
+      <label>The note <span class="hint" id="away-count"></span><textarea id="away-text" rows="3"></textarea></label>
+      <p class="muted small">Only to someone who writes to this hub alone, never on a channel. Once per radio a week, at most 10 a day. Not to a bare "ok", "danke" or 👍, not to a message from a machine, and not to a radio that asked not to be written to. Anything you send them first cancels it.</p>
+      <div class="actions"><button class="btn" type="submit">Save</button><span id="away-note" class="note"></span></div>
+    </form>
+
     <div class="card">
       <div class="head"><h2>Log</h2><button id="logbtn" class="btn" disabled>Start logging</button></div>
       <p class="muted small">Records every packet the radio hears, even those too weak to read. It keeps going after a restart or a power cut until you stop it: take the hub along on a trip.</p>

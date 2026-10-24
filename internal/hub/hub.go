@@ -8,6 +8,7 @@ import (
 	"embed"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"net"
 	"net/http"
@@ -99,6 +100,8 @@ type HubSettings struct {
 	// TranslateAuto translates them without being asked.
 	TranslateTo   string `json:"translateTo,omitempty"`
 	TranslateAuto bool   `json:"translateAuto,omitempty"`
+	// Away is the note to a private message the owner has not answered.
+	Away AwaySettings `json:"away"`
 }
 
 // Where is a place on the map.
@@ -483,7 +486,8 @@ func (s *Server) owner(b map[string]string) (any, error) {
 }
 
 // settings changes the hub's own settings: helloMinutes; lat and lon (both
-// empty: forget where the hub is).
+// empty: forget where the hub is); translateTo, translateAuto; awayOn,
+// awayMinutes, awayText (empty: the default note).
 func (s *Server) settings(b map[string]string) (any, error) {
 	if s.cfg.Settings == nil || s.cfg.SaveSettings == nil {
 		return nil, errors.New("This hub's settings are fixed.")
@@ -514,6 +518,26 @@ func (s *Server) settings(b map[string]string) (any, error) {
 	}
 	if v, ok := b["translateAuto"]; ok {
 		hs.TranslateAuto = v == "true"
+	}
+	if v, ok := b["awayOn"]; ok {
+		hs.Away.On = v == "true"
+	}
+	if v, ok := b["awayMinutes"]; ok {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 24*60 {
+			return nil, errors.New("Answer after: a number of minutes.")
+		}
+		hs.Away.Minutes = n
+	}
+	if v, ok := b["awayText"]; ok {
+		v = strings.TrimSpace(v)
+		if len(v) > meshtastic.MaxText {
+			return nil, fmt.Errorf("The note holds %d bytes; this one has %d.", meshtastic.MaxText, len(v))
+		}
+		if v == DefaultAwayText {
+			v = ""
+		}
+		hs.Away.Text = v
 	}
 	if err := s.cfg.SaveSettings(hs); err != nil {
 		return nil, err

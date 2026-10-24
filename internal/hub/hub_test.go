@@ -147,6 +147,12 @@ func TestSettings(t *testing.T) {
 	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"lat":"","lon":""}`, true); code != 200 || hs.Where != nil {
 		t.Errorf("forget the place: %d %+v", code, hs)
 	}
+	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"awayOn":"true","awayMinutes":"30","awayText":"Bin gleich da."}`, true); code != 200 || hs.Away != (AwaySettings{On: true, Minutes: 30, Text: "Bin gleich da."}) {
+		t.Errorf("the away note: %d %+v", code, hs)
+	}
+	if code, _ := post(h, "/hub/api/settings", "127.0.0.1:1", "", `{"awayText":"`+strings.Repeat("ä", 101)+`"}`, true); code != 400 || hs.Away.Text != "Bin gleich da." {
+		t.Errorf("an away note over 200 bytes: %d %+v", code, hs)
+	}
 	if code, _ := post(h, "/hub/api/settings", "10.0.0.1:1", "", `{"helloMinutes":"5"}`, true); code != 401 || hs.HelloMinutes != 60 {
 		t.Errorf("from the LAN without the PIN: %d %+v", code, hs)
 	}
