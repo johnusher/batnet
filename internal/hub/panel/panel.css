@@ -136,6 +136,9 @@ td.acts .btn + .btn { margin-left: 0.3rem; }
 .conv .cn { font-weight: 750; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv .cp { grid-column: 1 / -1; font-size: 0.85rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .conv.on .cp { color: var(--rule); }
+.conv.fold { margin-top: 0.4rem; border-top: 1px solid var(--rule); border-radius: 0; }
+.conv.fold .cn { font-weight: 600; color: var(--muted); }
+.conv.quiet:not(.on) .cn { font-weight: 600; color: var(--muted); }
 .thread { display: flex; flex-direction: column; gap: 0.5rem; padding-left: 1.1rem; min-width: 0; min-height: 0; }
 .thread-head { border-bottom: 1px solid var(--rule); padding-bottom: 0.5rem; }
 .bubbles { list-style: none; padding: 0.25rem 0; display: flex; flex-direction: column; gap: 0.45rem; overflow-y: auto; flex: 1; min-height: 10rem; max-height: 28rem; }

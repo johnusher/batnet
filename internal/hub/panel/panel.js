@@ -388,6 +388,8 @@ let firstStatus = true;
 const pageStart = Date.now();
 const lastRead = load("hub.read", {});
 let threadSig = "", homeSig = "";
+let quietOpen = load("hub.quietOpen", false); // the fold of unanswered conversations is open
+const QUIET_AFTER = 6 * 3600e3;
 
 const readTime = (c) => (lastRead[c] ? Date.parse(lastRead[c]) : pageStart);
 const textKey = (t) => `${t.id}:${t.from}:${t.at}`;
@@ -415,6 +417,9 @@ function conversations(r) {
     c.name = c.id === "pub" ? "Everyone nearby" : c.channel ? `${chName} channel` : nameOfNum(c.num);
     c.lastAt = c.texts.length ? Date.parse(c.texts[c.texts.length - 1].at) : 0;
     c.unread = c.texts.filter((t) => !t.mine && Date.parse(t.at) > readTime(c.id)).length;
+    // Only this hub has written, nobody answered, and not for six hours (a night of
+    // reach tests): folded away at the bottom, back by itself when an answer comes.
+    c.quiet = !c.channel && c.id !== "pub" && c.texts.length > 0 && c.texts.every((t) => t.mine) && Date.now() - c.lastAt > QUIET_AFTER;
   }
   const rank = (c) => (c.id === "pub" ? 0 : c.channel ? 1 : 2); // everyone, the group channels, then people
   return [...out.values()].sort((a, b) => rank(a) - rank(b) || (rank(a) === 1 ? a.channel - b.channel : b.lastAt - a.lastAt));
@@ -526,15 +531,22 @@ function renderMessages(r, convs) {
   }
   if (view !== "messages") return;
 
-  $("convs").replaceChildren(...convs.map((x) => {
+  const quiet = convs.filter((x) => x.quiet);
+  const fold = quiet.length ? el("button", { class: "conv fold", type: "button", "aria-expanded": String(quietOpen || c.quiet) },
+    el("span", { class: "cn", text: `${quietOpen || c.quiet ? "▾" : "▸"} No answer (${quiet.length})` }),
+    el("span", { class: "cp", text: "Sent by this hub hours ago, never answered" })) : null;
+  if (fold) fold.addEventListener("click", () => { quietOpen = !(quietOpen || c.quiet); save("hub.quietOpen", quietOpen); if (!quietOpen && c.quiet) conv = "pub"; renderMessages(r, convs); });
+  const shown = convs.filter((x) => !x.quiet).concat(quietOpen || c.quiet ? quiet : []);
+  $("convs").replaceChildren(...shown.map((x) => {
     const lastT = x.texts[x.texts.length - 1];
-    const b = el("button", { class: "conv" + (x.id === conv ? " on" : ""), type: "button", "aria-current": String(x.id === conv) },
+    const b = el("button", { class: "conv" + (x.id === conv ? " on" : "") + (x.quiet ? " quiet" : ""), type: "button", "aria-current": String(x.id === conv) },
       el("span", { class: "cn", text: x.name }),
       x.unread ? el("span", { class: "badge", text: String(x.unread) }) : null,
       el("span", { class: "cp", text: lastT ? `${lastT.mine ? "You: " : x.num === BCAST ? nameOfNum(lastT.from) + ": " : ""}${lastT.text}` : x.id === "pub" ? "The open channel" : x.channel ? "A group channel" : "No messages yet" }));
     b.addEventListener("click", () => openConv(x.id));
     return el("li", {}, b);
   }));
+  if (fold) $("convs").insertBefore(el("li", {}, fold), $("convs").children[convs.length - quiet.length] || null);
 
   const node = c.num === BCAST ? null : byNum(c.num);
   if (node) {
@@ -608,7 +620,7 @@ function renderHome(s, convs) {
 
   drawAir($("plot-home"), nodes());
   const recent = [];
-  for (const c of convs) for (const t of c.texts) recent.push({ t, c });
+  for (const c of convs) if (!c.quiet) for (const t of c.texts) recent.push({ t, c });
   recent.sort((a, b) => Date.parse(a.t.at) - Date.parse(b.t.at));
   const show = recent.slice(-5);
   $("home-empty").hidden = show.length > 0;
