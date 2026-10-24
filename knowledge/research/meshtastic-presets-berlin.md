@@ -161,3 +161,9 @@ MediumFast channel itself.
   of the city, five of them heard directly, most packets through two to four
   relays and some through seven; 77 % of senders set a hop limit of 7, not
   Meshtastic's default 3.
+* [A night on the other presets](/tests/2026-10-24-presets-and-reach-from-the-roof.md)
+  from the roof hub, 2026-10-24: 55 minutes on LongFast at night read 5
+  packets from 2 radios (5.5 an hour against MediumFast's 205), all through
+  relays at the noise floor (SNR about −20 dB); none shared a place. The radio
+  stick froze when switched to LongModerate, so the slower presets are still
+  unheard.

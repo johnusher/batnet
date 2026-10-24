@@ -155,7 +155,10 @@ radios six or seven hops away are left out. Each radio gets one message, 30
 in all. With a place it says how far: "Du bist etwa 25 km entfernt". A radio
 counts as reached when its radio confirms the message, when its name card
 comes back after the hub asked for it, or when someone answers. Results:
-`sudo batnet-reachtest report` on the hub (it names real radios: not here).
+`sudo batnet-reachtest report` on the hub (it names real radios: not here). It
+stopped at 01:55 with 29 tried: none confirmed, two passed on by a relay, 16
+out of tries though a neighbour passed them on ([B73](/known-problems.md)), ten
+with no key, no answers ([test](/tests/2026-10-24-presets-and-reach-from-the-roof.md)).
 
 The first message, by hand, to a radio 25 km to the north-north-west heard
 once through two relays, failed at once with error 39: the hub had never heard
@@ -183,6 +186,14 @@ as on 2026-10-21 indoors ([presets in Berlin](/research/meshtastic-presets-berli
 The radio's own log confirmed the panel's 27 dBm is sent as 22 ([B69](/known-problems.md)).
 The trial restarted the radio ten seconds after a reach test message had gone
 out, so that message may have missed its repeats.
+
+The night itself ([test](/tests/2026-10-24-presets-and-reach-from-the-roof.md)):
+LongFast from 02:00 read 5 packets from 2 radios in 55 minutes. At 02:56 the
+Meshstick froze as the radio was switched to LongModerate and stayed frozen,
+through a restart of meshtasticd and with its saved preset set back, until a
+USB reset (`sudo usbreset 1a86:5512`) at 08:01 ([B74](/known-problems.md)). A
+copy of the saved config from that night is kept beside it in meshtasticd's
+`prefs/` folder. The guard was removed the same morning.
 
 # Limits
 

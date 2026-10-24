@@ -151,7 +151,7 @@ def restore(a):
             st = json.load(f)
     except (FileNotFoundError, ValueError):
         return
-    if "back" not in st and os.path.exists(LINKS + ".survey"):
+    if not st.get("back", "").startswith("20") and os.path.exists(LINKS + ".survey"):  # none yet, or "failed: ..."
         subprocess.run(["systemctl", "stop", "batnet-hub"], check=False)
         shutil.copy2(LINKS + ".survey", LINKS)
         subprocess.run(["systemctl", "start", "batnet-hub"], check=False)
