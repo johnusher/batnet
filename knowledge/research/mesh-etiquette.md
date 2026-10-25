@@ -57,6 +57,7 @@ how many are too many: the rules below are batnet's own reading of the spirit.
 * Airtime is shared: one private message per radio and purpose, never
   repeated; tests that go to everyone use the TEST channel, not the public one;
   hellos that ask for answers rarely (each answer is someone else's airtime).
+* The SOS channel is for emergencies: a hub only listens there. Nothing automatic goes on it, and the hub refuses a message unless a person confirms it (types SOS), one per 10 minutes (2026-10-25).
 * Honest: an automatic message says it is automatic when asked.
 * Humble: batnet is a guest in a network others built. It mentions itself and
   its repository when someone asks what it is, thanks people, invites their

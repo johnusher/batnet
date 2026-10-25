@@ -444,6 +444,7 @@ function conversations(r) {
     c.channel = c.id.startsWith("ch") ? Number(c.id.slice(2)) : 0;
     const chName = ((r.channels || []).find((x) => x.index === c.channel) || {}).name || `channel ${c.channel}`;
     c.name = c.id === "pub" ? "Everyone nearby" : c.channel ? `${chName} channel` : nameOfNum(c.num);
+    c.listenOnly = !!((r.channels || []).find((x) => x.index === c.channel) || {}).listenOnly;
     c.lastAt = c.texts.length ? Date.parse(c.texts[c.texts.length - 1].at) : 0;
     c.unread = c.texts.filter((t) => !t.mine && Date.parse(t.at) > readTime(c.id)).length;
     // Only this hub has written, nobody answered, and not for six hours (a night of
@@ -585,6 +586,7 @@ function renderMessages(r, convs) {
   } else $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
+    : c.listenOnly ? `The emergency channel: anyone nearby can read it. The hub only listens here; to send, you type SOS to confirm, one message per 10 minutes.`
     : c.channel ? `A group channel: radios that have its name and password read it. Its password is often public, so don't send anything private.`
     : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
   $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : c.channel ? `Message to the ${c.name}` : `Message to ${c.name}`;
@@ -1516,7 +1518,14 @@ $("send").addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const body = {};
   if (conv.startsWith("ch")) body.channel = conv.slice(2);
-  else if (conv !== "pub") body.to = "!" + hex8(Number(conv));
+  const ch = body.channel && ((last && last.radio && last.radio.channels) || []).find((x) => String(x.index) === body.channel);
+  if (ch && ch.listenOnly) { // the emergency channel: only on purpose (ListenOnly in Go)
+    if (!$("msg").value.trim()) return;
+    const typed = window.prompt("The SOS channel is for emergencies only: everyone nearby gets it. Type SOS to send.");
+    if (typed == null) return;
+    body.confirm = typed;
+    replyTo = null;
+  } else if (!body.channel && conv !== "pub") body.to = "!" + hex8(Number(conv));
   if (replyTo && replyTo.id) body.replyId = String(replyTo.id);
   if (await sendText($("msg"), "send-note", body)) { replyTo = null; showReply(); }
 });

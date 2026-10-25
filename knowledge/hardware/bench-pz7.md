@@ -53,7 +53,7 @@ unset"). Set on 2026-10-23 with the Meshtastic command-line tool, as on the
 first hub: EU_868, MediumFast, hop limit 3, transmit power the region's default;
 node name "lorabatnet2", short name LB2. It heard 16 packets and 6
 radios in its first 90 s. The same second channel as the first hub,
-**BerlinMesh**, with the key copied from it (not in this repo). It is quiet: the first hub logged 3 messages on it in two days against 48 on the open channel. Since
+**BerlinMesh**, with the key copied from it (not in this repo). It is quiet: the first hub logged 3 messages on it in two days against 48 on the open channel. From 2026-10-25 a third channel, **SOS** (index 2), Berlin's emergency channel with the open default key and no position shared: the hub only listens there. batnetd refuses any text on it unless a person types SOS to confirm in the panel, one per 10 minutes, never a reply; nothing automatic goes there (`ListenOnly` in `internal/meshtastic`). Added with the command-line tool while batnetd was stopped (`--ch-add` gives a random key: set `--ch-set psk default` after). Since
 2026-10-23 it shares the same fixed house position as the first hub (they sit in
 one house), as the first hub does: on the primary channel only, rounded to
 precision 16 (about 364 m, the nearest Meshtastic step to 350 m), once an hour.

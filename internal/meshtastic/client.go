@@ -30,7 +30,18 @@ const (
 	SendGap  = 5 * time.Second
 	adminGap = 5 * time.Second
 	HelloGap = 5 * time.Minute
+	// OnPurposeGap is how often at most a person may send on a listen-only
+	// channel (SOS), after confirming it.
+	OnPurposeGap = 10 * time.Minute
 )
+
+// ErrListenOnly means the hub only listens on that channel: nothing goes
+// there by accident or automatically (ListenOnly).
+var ErrListenOnly = errors.New("meshtastic: the hub only listens on the SOS channel; a person sends there only on purpose")
+
+// ErrTooSoonOnPurpose means the last message on a listen-only channel was
+// less than OnPurposeGap ago.
+var ErrTooSoonOnPurpose = errors.New("meshtastic: one message on the SOS channel per 10 minutes")
 
 // ErrTooSoon means the last send was too recent.
 var ErrTooSoon = errors.New("meshtastic: wait a few seconds before sending again")
@@ -141,10 +152,16 @@ type Text struct {
 
 // Channel is one of the radio's channels.
 type Channel struct {
-	Index int    `json:"index"`
-	Name  string `json:"name"`
-	Role  string `json:"role"`
+	Index      int    `json:"index"`
+	Name       string `json:"name"`
+	Role       string `json:"role"`
+	ListenOnly bool   `json:"listenOnly,omitempty"`
 }
+
+// ListenOnly reports whether the hub only listens on a channel of this name:
+// SOS, the emergency channel. A text goes there only through SendOnPurpose,
+// after a person confirmed it; never by accident, never automatically.
+func ListenOnly(name string) bool { return strings.EqualFold(strings.TrimSpace(name), "SOS") }
 
 // Event is one thing that happened on the radio, for a log: every packet
 // received (decoded or not), and the connection coming and going.
@@ -205,21 +222,22 @@ type Client struct {
 	addr string
 	now  func() time.Time
 
-	mu        sync.Mutex
-	conn      net.Conn
-	st        Status
-	nodes     map[uint32]*Node
-	links     map[uint32]*link
-	channels  map[int]Channel
-	selfUser  []byte // our own User message, for "say hello"
-	lastSend  time.Time
-	lastHello time.Time
-	lastAdmin time.Time
-	askedKey  map[uint32]time.Time   // when the hub last asked a radio for its name card
-	garbled   map[copyKey]Unreadable // the closest garbled copy of recent packets, by sender and packet ID
-	loraRaw   []byte                 // the radio's LoRaConfig as it sent it, for changing a few fields
-	listeners map[chan struct{}]bool
-	onEvent   []func(Event)
+	mu            sync.Mutex
+	conn          net.Conn
+	st            Status
+	nodes         map[uint32]*Node
+	links         map[uint32]*link
+	channels      map[int]Channel
+	selfUser      []byte // our own User message, for "say hello"
+	lastSend      time.Time
+	lastOnPurpose time.Time // the last text on a listen-only channel
+	lastHello     time.Time
+	lastAdmin     time.Time
+	askedKey      map[uint32]time.Time   // when the hub last asked a radio for its name card
+	garbled       map[copyKey]Unreadable // the closest garbled copy of recent packets, by sender and packet ID
+	loraRaw       []byte                 // the radio's LoRaConfig as it sent it, for changing a few fields
+	listeners     map[chan struct{}]bool
+	onEvent       []func(Event)
 }
 
 // OnEvent adds a function called for every Event (from the client's own
@@ -971,6 +989,7 @@ func (c *Client) Status() Status {
 					ch.Name = "LongFast"
 				}
 			}
+			ch.ListenOnly = ListenOnly(ch.Name)
 			st.Channels = append(st.Channels, ch)
 		}
 	}
@@ -986,6 +1005,23 @@ func (c *Client) HasChannel(i int) bool {
 	return ok && ch.Role != "disabled"
 }
 
+// ListenOnlyChannel reports whether channel index i is in use and one the hub
+// only listens on (ListenOnly), with its name.
+func (c *Client) ListenOnlyChannel(i int) (string, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.listenOnly(uint32(i))
+}
+
+// listenOnly is ListenOnlyChannel; caller holds mu.
+func (c *Client) listenOnly(i uint32) (string, bool) {
+	ch, ok := c.channels[int(i)]
+	if !ok || ch.Role == "disabled" {
+		return "", false
+	}
+	return ch.Name, ListenOnly(ch.Name)
+}
+
 // SendText sends text to everyone on a channel (0 is the primary).
 func (c *Client) SendText(text string, channel uint32) error {
 	_, err := c.Send(Broadcast, channel, text, 0)
@@ -996,7 +1032,18 @@ func (c *Client) SendText(text string, channel uint32) error {
 // optionally as a reply to message replyID, asking for a receipt. A message
 // to one radio is encrypted end to end by meshtasticd once it knows that
 // radio's key. It returns the message as the panel shows it.
+// A listen-only channel (SOS) refuses it: see SendOnPurpose.
 func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, error) {
+	return c.send(to, channel, text, replyID, false)
+}
+
+// SendOnPurpose sends text to everyone on a listen-only channel (SOS), for a
+// person who confirmed it; at most once per OnPurposeGap.
+func (c *Client) SendOnPurpose(channel uint32, text string) (Text, error) {
+	return c.send(Broadcast, channel, text, 0, true)
+}
+
+func (c *Client) send(to, channel uint32, text string, replyID uint32, onPurpose bool) (Text, error) {
 	if text == "" || len(text) > MaxText {
 		return Text{}, fmt.Errorf("meshtastic: text must be 1-%d bytes", MaxText)
 	}
@@ -1009,11 +1056,26 @@ func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, er
 		c.mu.Unlock()
 		return Text{}, errors.New("meshtastic: that is this hub")
 	}
+	_, guarded := c.listenOnly(channel)
+	switch {
+	case guarded && (!onPurpose || to != Broadcast):
+		c.mu.Unlock()
+		return Text{}, ErrListenOnly
+	case onPurpose && !guarded:
+		c.mu.Unlock()
+		return Text{}, errors.New("meshtastic: not a listen-only channel")
+	case guarded && !c.lastOnPurpose.IsZero() && c.now().Sub(c.lastOnPurpose) < OnPurposeGap:
+		c.mu.Unlock()
+		return Text{}, ErrTooSoonOnPurpose
+	}
 	if c.now().Sub(c.lastSend) < SendGap {
 		c.mu.Unlock()
 		return Text{}, ErrTooSoon
 	}
 	c.lastSend = c.now()
+	if guarded {
+		c.lastOnPurpose = c.now()
+	}
 	hop := c.st.HopLimit
 	c.mu.Unlock()
 	if hop == 0 {
@@ -1123,6 +1185,12 @@ func (c *Client) resend(id uint32) {
 	}
 	t.ID = nid
 	to, ch, text, reply := t.To, t.Channel, t.Text, t.ReplyID
+	if _, guarded := c.listenOnly(ch); guarded {
+		t.Status, t.Detail = "failed", "the hub only listens on the SOS channel"
+		c.changed()
+		c.mu.Unlock()
+		return
+	}
 	c.changed()
 	c.mu.Unlock()
 	pb := encodePacket(to, ch, nid, hop, PortText, []byte(text), sendOpts{wantAck: true, replyID: reply})

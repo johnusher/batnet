@@ -17,7 +17,9 @@ good neighbour there first, and known second. Background and sources:
 1. **Is it worth the airtime?** Every message is repeated by up to three
    relays, on a channel everyone shares. One message per person and purpose;
    never the same twice; no broadcast tests on the public channel (the Berlin
-   community has a TEST channel for pings and tests).
+   community has a TEST channel for pings and tests). Never anything on the
+   SOS channel: it is for emergencies, the hub only listens there, and
+   batnetd refuses it unless a person types SOS to confirm.
 2. **Should batnet answer at all?** Not to a bare acknowledgement ("ok",
    "👍", "angekommen" with nothing else): the conversation is over. Not to
    someone who asked not to be written to. Not after two exchanges unless the
