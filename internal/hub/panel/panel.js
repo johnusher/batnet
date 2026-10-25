@@ -800,7 +800,7 @@ function guesses() {
   if (guessed && guessed.key === key) return guessed;
   const hopsOf = (n) => (sightings[n.id] ? sightings[n.id].hops : n.hops);
   const known = all.filter((n) => !n.self && n.position && (n.position.accuracyM || 0) <= ROUGH)
-    .map((n) => ({ lat: n.position.lat, lon: n.position.lon, via: (sightings[n.id] || {}).via || {}, hops: hopsOf(n) }));
+    .map((n) => ({ lat: n.position.lat, lon: n.position.lon, acc: n.position.accuracyM || 0, via: (sightings[n.id] || {}).via || {}, hops: hopsOf(n) }));
   const want = all.filter((n) => !n.self && sightings[n.id] && !(n.position && (n.position.accuracyM || 0) <= ROUGH));
   const g = Guess.grid(w, known, want.filter((n) => n.position).map((n) => n.position));
   const list = [];
@@ -923,17 +923,28 @@ function drawMap() {
   const placed = nodes().filter((n) => n.position && !n.self);
   const pts = [];
   const ink = css("--dot"), teal = css("--batnet"), sheet = css("--sheet");
+  // A rough place is the middle of a square of the grid Meshtastic rounds to,
+  // as wide in degrees as it is tall: many radios share one middle (the
+  // apps' "approximate" squares are 5.8 by 3.6 km here). One dot for them all.
+  const at = new Map();
   for (const n of placed) {
-    const p = [n.position.lat, n.position.lon];
+    const k = `${n.position.lat},${n.position.lon}`;
+    if (!at.has(k)) at.set(k, []);
+    at.get(k).push(n);
+  }
+  for (const group of at.values()) {
+    const n = group[0], p = [n.position.lat, n.position.lon];
     pts.push(p);
-    const col = n.batnet ? teal : ink;
-    const old = Date.now() - Date.parse(n.position.at) > 6 * 3600e3;
+    const col = group.some((x) => x.batnet) ? teal : ink;
+    const old = group.every((x) => Date.now() - Date.parse(x.position.at) > 6 * 3600e3);
     if (n.position.accuracyM > 60) {
-      L.circle(p, { radius: n.position.accuracyM, color: col, weight: 1, opacity: old ? 0.3 : 0.6, fillOpacity: 0.06, interactive: false }).addTo(mapLayer);
+      const h = n.position.accuracyM / 111320;
+      L.rectangle([[p[0] - h, p[1] - h], [p[0] + h, p[1] + h]], { color: col, weight: 1, opacity: old ? 0.3 : 0.6, fillOpacity: 0.06, interactive: false }).addTo(mapLayer);
     }
     const m = L.circleMarker(p, { radius: 7, color: sheet, weight: 2, fillColor: col, fillOpacity: old ? 0.45 : 1 }).addTo(mapLayer);
     // An element, not a string: Leaflet takes a string label as HTML, and the short name is the radio's own choice.
-    m.bindTooltip(el("span", { text: n.shortName || n.id.slice(-4) }), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
+    const name = n.shortName || n.id.slice(-4);
+    m.bindTooltip(el("span", { text: group.length > 1 ? `${name} +${group.length - 1}` : name }), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl" });
     m.on("click", () => showRadio(n.num));
   }
   // Where the hub hears: the zone, and a dashed line to each radio behind it.

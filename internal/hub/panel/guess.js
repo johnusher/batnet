@@ -16,8 +16,9 @@ const Guess = (() => {
   const M = 111320;    // m per degree of latitude
 
   // grid lays squares over the hub's surroundings, as far as the known radios
-  // and a margin and the far corners of rough areas (areas: {lat, lon,
-  // accuracyM}), and smears each known radio's place over them once.
+  // ({lat, lon, acc: the place's accuracy, m}) and a margin and the far
+  // corners of rough areas (areas: {lat, lon, accuracyM}), and smears each
+  // known radio's place over them once.
   function grid(hub, known, areas = []) {
     const kLon = M * Math.cos((hub.lat * Math.PI) / 180);
     const xy = (p) => [(p.lon - hub.lon) * kLon, (p.lat - hub.lat) * M];
@@ -36,15 +37,18 @@ const Guess = (() => {
       if (Math.hypot(x, y) <= r) { g.inside[i * n + j] = 1; inside++; }
     }
     g.insideCount = inside;
-    const w = Math.ceil((3 * SPREAD) / CELL);
     for (const k of known) {
-      const [x, y] = xy(k);
+      // A rough place is the middle of a square of the grid Meshtastic
+      // rounds to (13 bits, the apps' "approximate": 5.8 by 3.6 km here),
+      // and many radios share one middle: the radio is anywhere in it.
+      const [x, y] = xy(k), hy = k.acc || 0, hx = ((k.acc || 0) * kLon) / M;
+      const wi = Math.ceil((3 * SPREAD + hy) / CELL), wj = Math.ceil((3 * SPREAD + hx) / CELL);
       const ci = Math.floor((r - y) / CELL), cj = Math.floor((x + r) / CELL);
       const idx = [], val = [];
       let sum = 0;
-      for (let i = ci - w; i <= ci + w; i++) for (let j = cj - w; j <= cj + w; j++) {
+      for (let i = ci - wi; i <= ci + wi; i++) for (let j = cj - wj; j <= cj + wj; j++) {
         if (i < 0 || j < 0 || i >= n || j >= n || !g.inside[i * n + j]) continue;
-        const dx = (j + 0.5) * CELL - r - x, dy = r - (i + 0.5) * CELL - y;
+        const dx = Math.max(Math.abs((j + 0.5) * CELL - r - x) - hx, 0), dy = Math.max(Math.abs(r - (i + 0.5) * CELL - y) - hy, 0);
         const v = Math.exp(-(dx * dx + dy * dy) / (2 * SPREAD * SPREAD));
         idx.push(i * n + j); val.push(v); sum += v;
       }
