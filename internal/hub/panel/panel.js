@@ -757,6 +757,7 @@ function coverage(w, placed) {
 // For the hub's owner only: the sightings need the hub PIN even at home, and
 // the guesses stay on this screen (guess.js works them out).
 let guessing = load("hub.guess", false), sightings = null, sightingsAt = 0, guessSel = null, guessed = null;
+let guessSignal = load("hub.guessSignal", false); // use how strongly radios heard straight reach the hub
 const ROUGH = 3000; // m: a place rougher than this is guessed at too
 const COMPASS16 = (i) => COMPASS[Math.round(i / 2) % 8];
 
@@ -789,6 +790,8 @@ async function setGuessing(on) {
   drawMap();
 }
 $("guess").addEventListener("click", () => setGuessing(!guessing));
+$("guess-signal").checked = guessSignal;
+$("guess-signal").addEventListener("change", () => { guessSignal = $("guess-signal").checked; save("hub.guessSignal", guessSignal); drawMap(); });
 
 // guesses works out every radio's guess once per fetch of the sightings, or
 // when radios share new places: a few milliseconds each.
@@ -796,22 +799,49 @@ function guesses() {
   const w = where();
   if (!guessing || !sightings || !w) return null;
   const all = nodes();
-  const key = `${sightingsAt}:${w.lat},${w.lon}:` + all.filter((n) => n.position).map((n) => `${n.num}@${n.position.at}`).join(",");
+  const key = `${sightingsAt}:${guessSignal}:${w.lat},${w.lon}:` + all.filter((n) => n.position).map((n) => `${n.num}@${n.position.at}`).join(",");
   if (guessed && guessed.key === key) return guessed;
   const hopsOf = (n) => (sightings[n.id] ? sightings[n.id].hops : n.hops);
   const known = all.filter((n) => !n.self && n.position && (n.position.accuracyM || 0) <= ROUGH)
     .map((n) => ({ lat: n.position.lat, lon: n.position.lon, acc: n.position.accuracyM || 0, via: (sightings[n.id] || {}).via || {}, hops: hopsOf(n) }));
   const want = all.filter((n) => !n.self && sightings[n.id] && !(n.position && (n.position.accuracyM || 0) <= ROUGH));
   const g = Guess.grid(w, known, want.filter((n) => n.position).map((n) => n.position));
+  const learned = signalDistance(w, all), far = guessSignal ? learned : null;
+  $("guess-signal-from").textContent = learned
+    ? `: learned from ${learned.from} radios, within a factor of ${(10 ** learned.spread).toFixed(1)}`
+    : ": needs three radios heard straight with a clear place";
   const list = [];
   for (const n of want) {
     const sg = sightings[n.id];
-    const r = Guess.where(g, { via: sg.via, hops: sg.hops, rough: n.position || null });
+    const r = Guess.where(g, { via: sg.via, hops: sg.hops, rough: n.position || null, far: far && n.link ? far(n.link.snr) : null });
     if (r) list.push({ n, r, s: Guess.spread(g, r) });
   }
   list.sort((a, b) => a.s.area - b.s.area); // the narrowest guesses first
   guessed = { key, g, list };
   return guessed;
+}
+
+// signalDistance learns, from the radios heard straight whose place is
+// known, how far a radio heard straight at a given signal is: the map zone's
+// fading (30 dB for each tenfold distance), the spread from how much they
+// disagree (height matters as much as distance), at least a factor of two.
+// null with fewer than three such radios.
+function signalDistance(w, all) {
+  const a = [];
+  for (const n of all) {
+    if (n.self || !n.link || !n.position) continue;
+    const d = distance(w, n.position);
+    if (d < 200 || (n.position.accuracyM || 0) > d / 3) continue;
+    a.push(Math.log10(d) + n.link.snr / (10 * PATH_EXP));
+  }
+  if (a.length < 3) return null;
+  a.sort((x, y) => x - y);
+  const mid = a[a.length >> 1], mean = a.reduce((x, y) => x + y, 0) / a.length;
+  const spread = Math.max(0.3, Math.sqrt(a.reduce((x, y) => x + (y - mean) ** 2, 0) / (a.length - 1)));
+  const f = (snr) => ({ m: 10 ** (mid - snr / (10 * PATH_EXP)), spread });
+  f.from = a.length;
+  f.spread = spread;
+  return f;
 }
 
 // guessText says where a guess lies, in a few words.

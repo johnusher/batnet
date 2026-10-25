@@ -70,7 +70,7 @@ const Guess = (() => {
   }
 
   // where returns the guess for one radio t ({via, hops, rough: {lat, lon,
-  // accuracyM} or null}): how likely each square is, the levels holding half
+  // accuracyM} or null, far: {m, spread} or null}): how likely each square is, the levels holding half
   // and four in five of it, and the likeliest square.
   function where(g, t) {
     const n = g.n, p = new Float64Array(n * n);
@@ -82,6 +82,13 @@ const Guess = (() => {
     }
     const even = EVEN / g.insideCount;
     for (let q = 0; q < p.length; q++) p[q] = g.inside[q] ? (wsum ? ((1 - EVEN) * p[q]) / wsum : 0) + even : 0;
+    if (t.far) { // heard straight: about this far by its signal (t.far: {m, spread}, the spread a factor in log10)
+      for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+        const x = (j + 0.5) * CELL - g.r, y = g.r - (i + 0.5) * CELL;
+        const z = Math.log10(Math.max(Math.hypot(x, y), CELL / 2) / t.far.m) / t.far.spread;
+        p[i * n + j] *= Math.exp(-0.5 * z * z);
+      }
+    }
     if (t.rough) { // a shared rough area: the radio is in that square of the map, nowhere else
       // Squares the area's edge cuts count as in: half a square more each side.
       const hLat = t.rough.accuracyM / M + CELL / 2 / M, hLon = t.rough.accuracyM / M + CELL / 2 / g.kLon;

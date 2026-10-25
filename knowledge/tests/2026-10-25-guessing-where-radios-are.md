@@ -53,6 +53,16 @@ known radio weighted the same): where radios that reach this hub usually are.
   within 3 km: 83%; the 19 placed closely: 74%). Smearing over the square
   fixed it.
 
+# The signal, as an option
+
+For radios heard straight, how strongly they reach the hub says roughly how
+far they are (the map zone's fading, 30 dB for each tenfold distance), learned
+from the straight radios whose place is known. At 17:40 there were three
+(1.2, 2.1 and 11.6 km, the farthest the strongest): height matters as much as
+distance on the roof, and hidden in turn the guess with the signal held 2 of
+3 against 3 of 3 without. So it is a tick box, off at first, that says how
+many radios it learned from and how wide its distances are.
+
 # What would make it better
 
 More days of sightings (a radio heard through several relays narrows faster),
