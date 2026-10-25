@@ -810,7 +810,7 @@ function guesses() {
     if (r) list.push({ n, r, s: Guess.spread(g, r) });
   }
   list.sort((a, b) => a.s.area - b.s.area); // the narrowest guesses first
-  guessed = { key, g, list, sum: null };
+  guessed = { key, g, list };
   return guessed;
 }
 
@@ -822,8 +822,8 @@ function guessText(x) {
   return `probably ${km(x.s.near)} to ${km(x.s.far)} away, ${way}`;
 }
 
-// guessImage paints the guesses as a picture over the map: each radio's
-// light and dark patches when one is chosen, else all of them faintly.
+// guessImage paints one radio's guess as a picture over the map: its light
+// and dark patches.
 function guessImage(gs, one) {
   const { g } = gs, n = g.n;
   const c = document.createElement("canvas");
@@ -831,18 +831,7 @@ function guessImage(gs, one) {
   const ctx = c.getContext("2d"), img = ctx.createImageData(n, n);
   const hex = css("--guess").replace("#", "");
   const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
-  let alpha;
-  if (one) {
-    alpha = (q) => (one.r.p[q] >= one.r.half ? 150 : one.r.p[q] >= one.r.most ? 60 : 0);
-  } else {
-    if (!gs.sum) { // each radio's light patch, added up: where many guesses lie
-      gs.sum = new Float32Array(n * n);
-      for (const x of gs.list) for (let q = 0; q < n * n; q++) if (x.r.p[q] >= x.r.most) gs.sum[q]++;
-    }
-    let top = 0;
-    for (const v of gs.sum) top = Math.max(top, v);
-    alpha = (q) => (gs.sum[q] ? 40 + 150 * (gs.sum[q] / top) : 0);
-  }
+  const alpha = (q) => (one.r.p[q] >= one.r.half ? 150 : one.r.p[q] >= one.r.most ? 60 : 0);
   for (let q = 0; q < n * n; q++) {
     img.data[4 * q] = rgb[0]; img.data[4 * q + 1] = rgb[1]; img.data[4 * q + 2] = rgb[2]; img.data[4 * q + 3] = alpha(q);
   }
@@ -864,10 +853,27 @@ function drawGuesses() {
   $("guessed").hidden = !gs;
   if (!gs) return;
   const one = gs.list.find((x) => x.n.num === guessSel) || null;
-  L.imageOverlay(guessImage(gs, one), Guess.bounds(gs.g), { interactive: false, className: "guessimg" }).addTo(mapLayer);
+  // Chosen: that radio's patches. Otherwise one dashed ring per likeliest
+  // spot, for the radios guessed there; hovering shows the first one's patches.
+  if (one) L.imageOverlay(guessImage(gs, one), Guess.bounds(gs.g), { interactive: false, className: "guessimg" }).addTo(mapLayer);
+  const spots = new Map();
   for (const x of one ? [one] : gs.list) {
-    const m = L.circleMarker([x.r.peak.lat, x.r.peak.lon], { radius: one ? 7 : 4, color: css("--guess"), weight: 2, dashArray: "3 3", fillOpacity: 0 }).addTo(mapLayer);
-    if (one) m.bindTooltip(el("span", { text: `${x.n.shortName || x.n.id.slice(-4)}?` }), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl guesslbl" });
+    const k = `${x.r.peak.lat.toFixed(4)},${x.r.peak.lon.toFixed(4)}`;
+    if (!spots.has(k)) spots.set(k, []);
+    spots.get(k).push(x);
+  }
+  const col = css("--guess");
+  for (const group of spots.values()) {
+    const x = group[0], short = (y) => y.n.shortName || y.n.id.slice(-4);
+    const m = L.circleMarker([x.r.peak.lat, x.r.peak.lon], { radius: one ? 7 : 6 + Math.min(group.length, 8), color: col, weight: 2, dashArray: "3 3", fillColor: col, fillOpacity: 0.12 }).addTo(mapLayer);
+    const label = group.length > 1 ? `${short(x)}? +${group.length - 1}` : `${short(x)}?`;
+    m.bindTooltip(el("span", { text: one ? label : group.map((y) => nodeName(y.n)).join(", ") + (group.length > 1 ? `: ${group.length} radios guessed here` : ": guessed here") }),
+      one ? { permanent: true, direction: "right", offset: [6, 0], className: "maplbl guesslbl" } : { direction: "top", className: "maplbl guesslbl" });
+    if (!one) {
+      let hover = null;
+      m.on("mouseover", () => { hover = L.imageOverlay(guessImage(gs, x), Guess.bounds(gs.g), { interactive: false, className: "guessimg" }).addTo(mapLayer); });
+      m.on("mouseout", () => { if (hover) mapLayer.removeLayer(hover); hover = null; });
+    }
     m.on("click", () => { guessSel = x.n.num; drawMap(); showRadio(x.n.num); });
   }
   $("gcount").textContent = `(${gs.list.length})`;
