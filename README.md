@@ -376,7 +376,8 @@ radio runs Meshtastic, and batnet nodes and Meshtastic radios share the same
 air. What batnet adds is everything around the radio, for a street or a
 village rather than for one person with a gadget.
 
-* **Nobody needs a radio or an app.** With Meshtastic, MeshCore or Reticulum,
+* **Nobody needs a radio or an app.** With [Meshtastic](https://meshtastic.org/),
+  [MeshCore](https://meshcore.co.uk/) or [Reticulum](https://reticulum.network/),
   each person carries a small radio paired to an app on their phone. With
   batnet, one node per house or camp serves everyone's phone over open WiFi,
   in the browser. Nothing to buy per person, nothing to install.
@@ -425,16 +426,19 @@ village rather than for one person with a gadget.
   the next. Nothing to buy, but the reach is tens of metres a hop, and
   everyone has to install the same app before the grid goes down.
 
-**batnet and Bitchat.** Bitchat is the best known of the phone-to-phone apps:
-open source, released in 2025, no account, no server, just phones talking
-over Bluetooth, relaying for each other across a crowd or a block. It is the
-right tool in a crowd. batnet is the other shape of the same idea: the box
-stays in the house and does the work. Any phone joins its WiFi with nothing
-installed; the houses are meshed by WiFi and the streets and villages by
-long-range LoRa radio, for kilometres rather than metres (a roof hub in Berlin
-heard radios 25 km away). The box runs for hours on a power bank and keeps the
-whole history while the phones sleep. The price of that is a €45 box per
-house, where Bitchat costs nothing and goes where the phones go.
+**batnet and Bitchat.** [Bitchat](https://bitchat.free) is the best known of
+the phone-to-phone apps: [open source](https://github.com/permissionlesstech/bitchat),
+released in 2025, no account, no server, just phones talking over Bluetooth,
+relaying for each other across a crowd or a block. It is the right tool in a
+crowd. batnet is the other shape of the same idea: the box stays in the house
+and does the work. Any phone joins its WiFi with nothing installed
+([how it works](#how-it-works)); the houses are meshed by WiFi and the
+streets and villages by [long-range LoRa radio](#the-long-range-radio-explained),
+for kilometres rather than metres ([what our hub heard](#what-our-hub-heard):
+a roof hub in Berlin heard radios 25 km away). The box runs for hours on a
+[power bank](#power-use) and keeps the whole history while the phones sleep.
+The price of that is a [€45 box](#what-to-buy-europe) per house, where
+Bitchat costs nothing and goes where the phones go.
 
 **Where batnet is weaker.** It's not finished: Meshtastic and MeshCore you
 can buy and use today. Their radios run for days on a tiny battery, while a
