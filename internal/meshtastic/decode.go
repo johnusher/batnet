@@ -1,6 +1,7 @@
 package meshtastic
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 )
@@ -154,8 +155,29 @@ func info(port uint32, payload []byte) map[string]any {
 		}
 	case PortTraceroute:
 		var route, back []string
+		var snrTo, snrBack []float64
 		for _, f := range fs {
 			switch {
+			case (f.num == 2 || f.num == 4) && (f.typ == wireVarint || f.typ == wireLen):
+				// The signal each radio on the way heard it with, in quarter dB.
+				vs := []uint64{f.v}
+				if f.typ == wireLen {
+					vs = vs[:0]
+					for b := f.b; len(b) > 0; {
+						v, n := binary.Uvarint(b)
+						if n <= 0 {
+							break
+						}
+						vs, b = append(vs, v), b[n:]
+					}
+				}
+				for _, v := range vs {
+					if f.num == 2 {
+						snrTo = append(snrTo, float64(int32(v))/4)
+					} else {
+						snrBack = append(snrBack, float64(int32(v))/4)
+					}
+				}
 			case f.num == 1 && f.typ == wireI32:
 				route = append(route, nodeID(f.u32()))
 			case f.num == 3 && f.typ == wireI32:
@@ -172,6 +194,12 @@ func info(port uint32, payload []byte) map[string]any {
 			}
 		}
 		m["route"], m["routeBack"] = route, back
+		if len(snrTo) > 0 {
+			m["snrTowards"] = snrTo
+		}
+		if len(snrBack) > 0 {
+			m["snrBack"] = snrBack
+		}
 	case PortNeighborInfo:
 		var ns []map[string]any
 		for _, f := range fs {

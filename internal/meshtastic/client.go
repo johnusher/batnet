@@ -1065,6 +1065,33 @@ func (c *Client) askKey(to uint32) {
 	c.emit(Event{At: c.now(), Kind: "sent", To: nodeID(to), ID: id, Port: "nodeinfo", Bytes: len(pb), Local: true})
 }
 
+// Traceroute asks radio to for the way to it and back: each radio on the
+// way adds itself and the signal it heard, and to answers. The answer comes
+// as a traceroute packet (Event Info "route", "snrTowards", "routeBack",
+// "snrBack"). It returns the request's packet ID.
+func (c *Client) Traceroute(to uint32) (uint32, error) {
+	c.mu.Lock()
+	hop := c.st.HopLimit
+	conn := c.conn != nil
+	c.mu.Unlock()
+	if !conn {
+		return 0, ErrOffline
+	}
+	if hop == 0 {
+		hop = 3
+	}
+	id := rand.Uint32()
+	pb := encodePacket(to, 0, id, hop, PortTraceroute, nil, sendOpts{wantResponse: true})
+	if err := c.write(pb); err != nil {
+		return 0, err
+	}
+	c.mu.Lock()
+	c.st.PacketsOut++
+	c.mu.Unlock()
+	c.emit(Event{At: c.now(), Kind: "sent", To: nodeID(to), ID: id, Port: "traceroute", Bytes: len(pb), Local: true})
+	return id, nil
+}
+
 // keyCame sends again, once, the recent messages to radio num that failed
 // for want of its key. Caller holds mu.
 func (c *Client) keyCame(num uint32) {

@@ -1,6 +1,8 @@
 package meshtastic
 
 import (
+	"encoding/binary"
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -129,5 +131,16 @@ func TestPositionsAndContents(t *testing.T) {
 	rd.fixed32(1, 0xa1b2c3d4)
 	if m := info(PortTraceroute, rd.b); len(m["route"].([]string)) != 1 {
 		t.Errorf("traceroute %v", m)
+	}
+	// The signals on the way, in quarter dB, packed: -12.25 and +6 dB there, -3 back.
+	var snr enc
+	for _, v := range []int32{-49, 24} {
+		snr.b = binary.AppendUvarint(snr.b, uint64(int64(v)))
+	}
+	rd.bytes(2, snr.b)
+	back := int64(-12)
+	rd.varint(4, uint64(back))
+	if m := info(PortTraceroute, rd.b); fmt.Sprint(m["snrTowards"], m["snrBack"]) != "[-12.25 6] [-3]" {
+		t.Errorf("traceroute signals %v", m)
 	}
 }

@@ -143,6 +143,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /hub/api/sightings", s.sightings)
 	mux.HandleFunc("POST /hub/api/send", s.action(s.send))
 	mux.HandleFunc("POST /hub/api/hello", s.action(s.hello))
+	mux.HandleFunc("POST /hub/api/traceroute", s.action(s.traceroute))
 	mux.HandleFunc("POST /hub/api/mode", s.action(s.mode))
 	mux.HandleFunc("POST /hub/api/log", s.action(s.logOnOff))
 	mux.HandleFunc("POST /hub/api/radio", s.action(s.radio))
@@ -493,6 +494,24 @@ func (s *Server) zone(map[string]string) (any, error) {
 		}
 	}
 	return map[string]any{"ok": true, "forgot": n}, nil
+}
+
+// traceroute asks one radio (to: "!a1b2c3d4") for the way there and back;
+// the answer shows in the traffic view. One packet: use it sparingly, the
+// channel is shared (the talking-on-the-mesh skill).
+func (s *Server) traceroute(b map[string]string) (any, error) {
+	if s.cfg.Radio == nil {
+		return nil, meshtastic.ErrOffline
+	}
+	to, err := strconv.ParseUint(strings.TrimPrefix(b["to"], "!"), 16, 32)
+	if err != nil || len(strings.TrimPrefix(b["to"], "!")) != 8 || to == 0xffffffff {
+		return nil, errors.New("To: one radio's ID, like !a1b2c3d4.")
+	}
+	id, err := s.cfg.Radio.Traceroute(uint32(to))
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{"ok": true, "id": id}, nil
 }
 
 // owner renames this hub's radio: long and short.
