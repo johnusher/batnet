@@ -137,6 +137,13 @@ the signal), so the antenna's lower end should sit at least that far above the
 chimney's top. To judge a move: *Start the zone again* afterwards (the readings
 before are kept aside), then `tools/hubcompare` against them.
 
+On 2026-10-25 at about 14:15 the owner raised the antenna to clear both
+chimneys (north and south): a third more packets read, the strongest
+neighbour 9 dB stronger, the Heltec V3 to the south-south-west heard
+straight, the north no better ([test](/tests/2026-10-25-roof-antenna-raised.md)).
+The readings just before are kept on the hub as
+`/var/lib/batnet/before-raise-links-2026-10-25.json`.
+
 The first hub's readings with this antenna were kept on it as
 `/var/lib/batnet/antenna-links-2026-10-23.json` before it went back downstairs
 (its live ones now fill with indoor readings). After a day or two on the roof,
