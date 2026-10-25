@@ -36,10 +36,12 @@ video editor. Read `video/README.md` first.
    account, not the personal channel; until that is changed, upload by hand
    and print the description with
    `python3 -c "import sys; sys.path.insert(0,'video'); import upload_youtube as u; print(u.DESCRIPTION.replace('{chapters}', u.chapters()))"`.
-   The current video: https://youtu.be/zk5At_n8p_c (cut 2, 2026-10-15); cut 3
-   (2026-10-23: the field scene, the measured phones and power, the voice
-   fixes below) is rendered at `video/out/batnet.mp4` and waits for its upload
-   and id.
+   The current video: https://youtu.be/XyFXxIppOpI (cut 3, uploaded by hand
+   2026-10-25: the field scene, the measured phones and power, the voice fixes
+   below). Cut 2 was https://youtu.be/zk5At_n8p_c (2026-10-15). The title,
+   description and tags live in `upload_youtube.py`; they name LoRa, the
+   kilometres and "no app to install" so the film is found by people looking
+   for something longer-ranged than a phone-to-phone Bluetooth app.
 
 ## Rules
 

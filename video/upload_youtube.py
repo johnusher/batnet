@@ -27,10 +27,12 @@ SCOPE = "https://www.googleapis.com/auth/youtube.upload https://www.googleapis.c
 PORT = 8791
 FILM = Path(__file__).parent / "out" / "batnet.mp4"
 
-TITLE = "batnet: chat with your neighbours when the grid goes down (a Raspberry Pi mesh)"
-DESCRIPTION = """When the power and the phone network fail, a €45 Raspberry Pi in every third house keeps the street talking: an open WiFi with a WhatsApp-like web app, houses linked by a WiFi mesh and by a long-range LoRa radio over the hills.
+TITLE = 'batnet: LoRa + WiFi mesh on a €45 Raspberry Pi. Chat when the grid goes down, kilometres not metres'
+DESCRIPTION = """When the power and the phone network fail, a €45 Raspberry Pi in every third house keeps the street talking: an open WiFi that any phone joins (nothing to install, a WhatsApp-like web app), a WiFi mesh between the houses, and a long-range LoRa radio that carries short messages for kilometres over the hills.
 
-The film: the Berlin blackout of September 2025 on the real map, how a house node works, why it has two radios (and how your voice becomes text for the slow one), what it costs, the questions people ask, Glastonbury with a lost child and a bang that everyone reports, the simulator that runs the real code, and the first two real hubs on the air in Berlin: 154 radios heard in one night across 29 km of city, the farthest 25 km away, 200 phones at once on a €19 Pi Zero.
+Not another phone-to-phone Bluetooth app. Bitchat, Briar and the like hop from phone to phone over Bluetooth, tens of metres at a time, and go quiet when the phones do. batnet is a box in the house: it runs for sixteen hours on an ordinary power bank, its antenna on the roof, and its LoRa radio (Meshtastic, 868 MHz, licence-free in the EU) reaches far beyond the street. In the tests so far a radio 12 km away is read with no relay at all, and one 25 km away was heard through two relays.
+
+The film: the Berlin blackout of September 2025 on the real map, how a house node works, why it has two radios (and how your voice becomes text for the slow one), what it costs (€19 Pi Zero + €25 radio stick), the questions people ask, Glastonbury with a lost child and a bang that everyone reports, the simulator that runs the real code, and the first two real hubs on the air in Berlin: 154 radios heard in one night across 29 km of city, 200 phones at once on the €19 Pi Zero without an error.
 
 Every number comes from the repo or the public record (the test write-ups are in knowledge/tests/). The narrator's German accent, and the lines borrowed from 'Allo 'Allo! and Dad's Army, are part of the act.
 
@@ -40,7 +42,7 @@ Try the app and a pretend village in your browser: https://johnusher.github.io/b
 {chapters}
 Map © OpenStreetMap contributors (ODbL). Voice: ElevenLabs. Made from code: video/ in the repo.
 """
-TAGS = ["mesh network", "raspberry pi", "lora", "meshtastic", "batman-adv", "blackout", "emergency communication", "off-grid", "festival", "glastonbury", "berlin", "open source", "community", "resilience"]
+TAGS = ["mesh network", "lora", "long range", "meshtastic", "raspberry pi", "raspberry pi zero", "off-grid communication", "emergency communication", "blackout", "grid down", "disaster communication", "bitchat", "bluetooth mesh alternative", "batman-adv", "wifi mesh", "festival", "glastonbury", "berlin", "open source", "community network", "resilience", "no internet chat"]
 
 
 def client() -> tuple[str, str]:

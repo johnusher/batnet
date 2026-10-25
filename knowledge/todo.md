@@ -28,7 +28,8 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 - [x] How far the roof hub reaches, and who is on the other presets ([test](/tests/2026-10-24-presets-and-reach-from-the-roof.md)): 29 radios 8.5 to 24.6 km written to once each, none confirmed, two passed on, no answers; LongFast at night 5 packets from 2 radios in 55 minutes; the radio froze on LongModerate (B74). The guard and the reach test's timer are gone
 - [ ] The reach test again by day, to radios not yet written to ([B73](/known-problems.md) is fixed: a garbled echo now counts as passed on)
 - [ ] [B74](/known-problems.md)/[B75](/known-problems.md): the preset survey resets a frozen Meshstick over USB and goes home; try LongModerate once by day with someone watching; then the five presets not heard (LongModerate, LongSlow, MediumSlow, ShortSlow, ShortFast)
-- [ ] The film, cut 3 (2026-10-23): upload `video/out/batnet.mp4` to YouTube by hand (the description: the skill `making-the-film`, step 5), then the new id in the README (the heading link, the thumbnail, "The film") and in the skill; a later cut says *reached* for the 25 km radio only once a reach test report does
+- [x] The film, cut 3 (2026-10-23): upload `video/out/batnet.mp4` to YouTube by hand, then the new id in the README and the skill (done 2026-10-25, https://youtu.be/XyFXxIppOpI)
+- [ ] The film, cut 4: say *reached* for the 25 km radio only once a reach test report does; the title and description in `video/upload_youtube.py` are the ones to paste
 - [ ] The keyboard on the hub's screen (the 800 × 480 display works, 2026-10-21); real mesh mode with the USB WiFi stick
 - [ ] How many phones the hub's own WiFi (the Pi's built-in radio as an access point) holds, on a Pi 4 and a Zero 2 W; the app took 200 ([load test](/tests/2026-10-23-hub-load-test.md))
 - [ ] Microphone and WebRTC after the certificate warning on a real iPhone and Android (decision 0004 depends on it)

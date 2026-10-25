@@ -6,9 +6,9 @@ and no account with any company.
 
 ### [▶ Try the app and a pretend village in your browser](https://johnusher.github.io/batnet/)
 
-### [🎬 Watch the film (five and a half minutes)](https://youtu.be/zk5At_n8p_c)
+### [🎬 Watch the film (five and a half minutes)](https://youtu.be/XyFXxIppOpI)
 
-[![The batnet film on YouTube: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang.](https://img.youtube.com/vi/zk5At_n8p_c/maxresdefault.jpg)](https://youtu.be/zk5At_n8p_c)
+[![The batnet film on YouTube: Berlin going dark, the house node, the two radios, what it costs, Glastonbury, the bang, the first real hubs on the air.](https://img.youtube.com/vi/XyFXxIppOpI/maxresdefault.jpg)](https://youtu.be/XyFXxIppOpI)
 
 ## A €45 box that keeps a street talking when the grid goes down
 
@@ -1178,11 +1178,13 @@ Developers: the full list of technical terms is in
 
 ## The film
 
-**[Watch the film on YouTube](https://youtu.be/zk5At_n8p_c)** (five minutes): a Berlin
-blackout on the real map, how a house node works, why it has two radios and
-what it costs, the questions people ask, Glastonbury with a lost child and a
-bang that everyone reports, and the simulator that runs the real code. The
-narrator's German accent is part of the act. The film is made from code in
+**[Watch the film on YouTube](https://youtu.be/XyFXxIppOpI)** (five and a half
+minutes): a Berlin blackout on the real map, how a house node works, why it
+has two radios and what it costs, the questions people ask, Glastonbury with a
+lost child and a bang that everyone reports, the simulator that runs the real
+code, and the first two real hubs on the air in Berlin: 154 radios heard in
+one night across 29 km of city, the farthest 25 km away. The narrator's German
+accent is part of the act. The film is made from code in
 [`video/`](video/), so it can be re-cut as batnet changes; every number in it
 comes from the repo or the public record.
 
