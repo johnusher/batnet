@@ -26,7 +26,7 @@ stay on the hub.
 |---|---|
 | Radios heard since the antenna went up | 184 (the first hub's night: 154) |
 | With a place | 81, over about 35 km east to west and 23 km north to south |
-| Farthest with a place | 30 km to the west-north-west, through 3 relays; then 27, 25 and 24 km, all west-north-west |
+| Farthest with a place | 30 km to the west-north-west, through 3 relays (a rough area, ±2.9 km): the farthest either hub has heard, against about 25 km before; then 29 km through 7 relays (an exact place), 27, 25 and 24 km, all west-north-west |
 | Packets read | 2,752 in the 13 hours since batnetd last restarted, about 210 an hour (the first hub's night: 205) |
 | A sample hour (06:25-07:25 on 25 October) | 144 read, 215 too garbled to read, 132 passed on by the hub, 19 times the channel was busy |
 | The hub's own airtime | 0.7 % of the hour (`airUtilTx`); the channel busy 2 to 4 % (`chanUtil`) |

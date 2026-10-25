@@ -310,8 +310,11 @@ the morning of 25 October, about 37 hours (five of them off the air, when its
 radio stick froze during a test of the other presets):
 
 * **184 radios heard,** 30 more than in the first night. The 81 that shared
-  where they are were spread over about 35 by 23 km, the farthest 30 km away,
-  through three relays.
+  where they are were spread over about 35 by 23 km.
+* **A record: a radio about 30 km away,** through three relays. The farthest
+  either hub had heard before was about 25 km. (That radio shares only a rough
+  area, on purpose, so it is 30 km give or take 3. Another, 29 km away, came
+  through seven relays.)
 * **A big lobe to the north-west.** 68 of those 81 radios lie between west
   and north-north-west of the house. Only 3 lie to the south, where a chimney
   stands next to the antenna, and hardly any to the east. Most of what the
