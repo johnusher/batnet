@@ -66,6 +66,8 @@ many radios it learned from and how wide its distances are.
 # What would make it better
 
 More days of sightings (a radio heard through several relays narrows faster),
-a second hub (two views to cross), and traceroutes or neighbour lists heard
-on the air, which name direct links; the roof hub heard none in these two
-hours. Added to [ideas](/ideas.md) as the radio's way, for the owner only.
+a second hub (two views to cross), and the routes other people trace, which
+name direct links with their signal: the traffic view missed them, but
+meshtasticd's journal on the hub held 90 in twelve hours (one radio with a
+very rough area was heard straight by two neighbours at about 0 dB, which
+puts it close by). Using those is the next step; see [ideas](/ideas.md).
