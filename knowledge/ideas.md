@@ -98,4 +98,5 @@ hook below is off by default and never sends a private message anywhere.
 - [ ] **A self-test** from the panel: the speaker, the LED, the radio, the card's free space, the clock, each with a tick or a cross.
 - [ ] **Update from the panel** when the internet is there: fetch a signed release (plan 6), verify, swap, restart; show what changed.
 - [ ] **Diagnostics in the panel**, for a hub with no screen: fixed buttons behind the hub PIN, never a shell (the panel has no TLS): the last hour of the log, warnings since the start, disk and memory, restart the radio or the hub, and a USB reset of the radio stick (the only cure for [B74](/known-problems.md)). Suggested 2026-10-25.
+- [ ] **The radio's shared position from the panel**: *where the hub stands* in Settings also sets the radio's fixed position (an admin `set_fixed_position`), with a choice of how rough it goes on the air (channel position precision: about 364 m, 730 m, 1.5 km or 2.9 km). Today that takes the command-line tool with batnetd stopped. Asked for 2026-10-25.
 - [ ] **Crash notes**: a panic's trace saved in the log folder and shown under System after a restart.

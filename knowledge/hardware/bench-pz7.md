@@ -58,7 +58,11 @@ radios in its first 90 s. The same second channel as the first hub,
 one house), as the first hub does: on the primary channel only, rounded to
 precision 16 (about 364 m, the nearest Meshtastic step to 350 m), once an hour.
 Its primary channel had been at 13 (about 2.9 km); BerlinMesh shares no
-position.
+position. On 2026-10-25 the owner gave it a new house position (about 90 m
+from the old): set on the radio with the command-line tool while batnetd was
+stopped (`--setlat`, `--setlon`), and as the panel's *where the hub stands*;
+the precision stayed 16. Every position it sends carries that precision, which
+the Meshtastic apps draw as an area about 364 m across and mark as approximate.
 
 The two hubs hear each other straight. On 2026-10-23 a private message from
 this hub to the first, sent with the Meshtastic command-line tool, arrived and
