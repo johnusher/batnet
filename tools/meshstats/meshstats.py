@@ -361,7 +361,14 @@ Faint lines: a radio's packets to the neighbour that handed them to the hub, col
 </main><script>LEAFLET_JS</script><script>
 const D = DATA;
 const m = L.map("m").fitBounds(D.bounds, { padding: [20, 20] });
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(m);
+// Tiles that load in a page opened from a file, as a mailed report is:
+// openstreetmap.org's and CARTO's refuse it (no referrer; 2026-10-25).
+const esri = (svc, extra) => L.tileLayer(`https://server.arcgisonline.com/ArcGIS/rest/services/${svc}/MapServer/tile/{z}/{y}/{x}`,
+  { maxZoom: 16, attribution: "Tiles © Esri, HERE, Garmin, © OpenStreetMap contributors", ...extra });
+const grey = L.layerGroup([esri("Canvas/World_Light_Gray_Base"), esri("Canvas/World_Light_Gray_Reference", { pane: "shadowPane" })]).addTo(m);
+const bases = { "Light grey": grey,
+  "OpenStreetMap (German server)": L.tileLayer("https://tile.openstreetmap.de/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap contributors, tiles openstreetmap.de" }),
+  "Height (OpenTopoMap)": L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", { maxZoom: 17, subdomains: "abc", attribution: "© OpenStreetMap contributors, SRTM; style © OpenTopoMap (CC-BY-SA)" }) };
 const snrCol = (v) => (v > -5 ? "#2f6b3a" : v > -10 ? "#8a5a00" : "#b8321e");
 const layers = { squares: L.layerGroup(), funnels: L.layerGroup().addTo(m), links: L.layerGroup().addTo(m),
   straight: L.layerGroup().addTo(m), radios: L.layerGroup().addTo(m), names: L.layerGroup() };
@@ -386,7 +393,7 @@ for (const r of D.radios) {
 }
 L.circleMarker(D.hub, { radius: 9, color: "#fff", weight: 2, fillColor: "#0e7468", fillOpacity: 1 }).addTo(m)
   .bindTooltip("this hub", { permanent: true, direction: "right", offset: [8, 0], className: "lbl" });
-L.control.layers(null, { "Rough squares (where a radio could be)": layers.squares, "Who hands each radio's packets on": layers.funnels,
+L.control.layers(bases, { "Rough squares (where a radio could be)": layers.squares, "Who hands each radio's packets on": layers.funnels,
   "Traced links": layers.links, "Heard straight": layers.straight, "Radios": layers.radios, "Show all names": layers.names }, { collapsed: false }).addTo(m);
 L.control.scale({ imperial: false }).addTo(m);
 </script></html>"""
