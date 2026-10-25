@@ -7,9 +7,11 @@
 pull reads the hub's panel API (status), its saved files (zone readings,
 sightings) and meshtasticd's journal since the last snapshot (at most eight
 days), never meshtasticd itself (B38). report writes, beside the snapshot:
-summary.md (plain words, the things worth a look, the trends), report.html
-(charts: traffic by hour, the noise floor, who carries what, the map of
-links) and map.png / flows.png / traffic.png. They name real radios and
+summary.md (plain words, the things worth a look, the trends) and
+report.html, one page that works on its own: the summary, a map with layers
+(rough squares, who hands each radio's packets on, traced links, radios heard
+straight; names on hover), the flows and the traffic by hour; report.png is a
+picture of it, at twice the screen's resolution. They name real radios and
 places: everything stays in private/ (gitignored). The skill
 .claude/skills/weekly-mesh-stats says how to read them and what goes into
 the knowledge bundle.
@@ -334,32 +336,102 @@ def flows_svg(s):
     return "".join(out) + "</svg>"
 
 
-MAP_HTML = """<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="leaflet.css">
-<style>html,body,#m{height:100%;margin:0} .lbl{font:600 11px sans-serif;background:#fff;border:1px solid #999;padding:0 3px}</style>
-<div id="m"></div><script src="leaflet.js"></script><script>
+PAGE = """<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hub statistics</title><style>LEAFLET_CSS</style><style>
+:root { --ink:#1d2826; --muted:#5e6b66; --rule:#c5cdc2; --paper:#f6f8f4; }
+body { margin:0; font:15px/1.45 system-ui,sans-serif; color:var(--ink); background:var(--paper); }
+main { max-width:1500px; margin:0 auto; padding:16px; }
+.top { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.6fr); gap:20px; align-items:start; }
+@media (max-width:900px) { .top { grid-template-columns:1fr; } }
+#m { height:78vh; min-height:420px; border:1px solid var(--rule); border-radius:6px; }
+h1 { font-size:1.3rem; margin:0 0 .5rem } h2 { font-size:1.05rem; margin:1.2rem 0 .4rem }
+ul { padding-left:1.1rem; margin:.3rem 0 } li { margin:.25rem 0 }
+table { border-collapse:collapse; font-size:.9rem } td,th { border-bottom:1px solid var(--rule); padding:2px 8px; text-align:left }
+figure { margin:20px 0; background:#fff; border:1px solid var(--rule); border-radius:6px; padding:10px; }
+figure svg { width:100%; max-width:1000px; height:auto; display:block; margin:0 auto } figcaption { color:var(--muted); font-size:.9rem; margin-top:6px }
+.lbl { font:600 11px system-ui,sans-serif; background:rgba(255,255,255,.85); border:0; box-shadow:none; padding:0 3px; }
+.leaflet-tooltip.lbl::before { display:none }
+.key { font-size:.85rem; color:var(--muted) } .key span { display:inline-block; width:22px; height:3px; vertical-align:middle; margin:0 4px 0 10px }
+</style><main><div class="top"><section>SUMMARY</section><section><div id="m"></div>
+<p class="key">Click a radio for its details; hover a line. Layers top right.<br>
+Traced links (dashed, heard by the second radio):<span style="background:#2f6b3a"></span>above −5 dB<span style="background:#8a5a00"></span>−5 to −10<span style="background:#b8321e"></span>below −10.
+Faint lines: a radio's packets to the neighbour that handed them to the hub, coloured by that neighbour, thicker for more.</p></section></div>
+<figure>FLOWS<figcaption>Where the packets come from (by direction from the hub, for radios with a clear enough place) and which neighbour hands them to the hub. Hover a band for its count.</figcaption></figure>
+<figure>TRAFFIC<figcaption>Every copy heard, by hour of the day: read, too weak to read, and passed on by the hub.</figcaption></figure>
+</main><script>LEAFLET_JS</script><script>
 const D = DATA;
-const m = L.map("m", {zoomControl: false});
-L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 18, attribution: "© OpenStreetMap"}).addTo(m);
-const col = (snr) => snr > -5 ? "#2f6b3a" : snr > -10 ? "#8a5a00" : "#b8321e";
-for (const f of D.funnels) L.polyline([f.a, f.b], {color: f.col, weight: 1 + Math.log2(1 + f.n), opacity: 0.35}).addTo(m);
-for (const l of D.links) L.polyline([l.a, l.b], {color: col(l.snr), weight: 3, opacity: 0.85, dashArray: "6 4"}).addTo(m);
-for (const r of D.radios) {
-  if (r.h) L.rectangle([[r.lat - r.h, r.lon - r.h], [r.lat + r.h, r.lon + r.h]], {weight: 0.5, color: "#555", fillOpacity: 0.03}).addTo(m);
-  L.circleMarker([r.lat, r.lon], {radius: r.relay ? 7 : 4, color: "#fff", weight: 1, fillColor: r.relay ? r.col : "#44524d", fillOpacity: 1}).addTo(m)
-    .bindTooltip(r.relay ? r.name : "", {permanent: !!r.relay, className: "lbl", direction: "right"});
+const m = L.map("m").fitBounds(D.bounds, { padding: [20, 20] });
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(m);
+const snrCol = (v) => (v > -5 ? "#2f6b3a" : v > -10 ? "#8a5a00" : "#b8321e");
+const layers = { squares: L.layerGroup(), funnels: L.layerGroup().addTo(m), links: L.layerGroup().addTo(m),
+  straight: L.layerGroup().addTo(m), radios: L.layerGroup().addTo(m), names: L.layerGroup() };
+const byRadio = {};
+for (const f of D.funnels) {
+  const l = L.polyline([f.a, f.b], { color: f.col, weight: 1 + Math.log2(1 + f.n), opacity: 0.3 })
+    .bindTooltip(`${f.from} → ${f.via}: ${f.n} ${f.n === 1 ? "copy" : "copies"}`, { sticky: true }).addTo(layers.funnels);
+  (byRadio[f.from] = byRadio[f.from] || []).push(l);
 }
-L.circleMarker(D.hub, {radius: 9, color: "#fff", weight: 2, fillColor: "#0e7468", fillOpacity: 1}).addTo(m).bindTooltip("this hub", {permanent: true, className: "lbl"});
-m.fitBounds(D.bounds, {padding: [20, 20]});
-</script>"""
+for (const l of D.links) L.polyline([l.a, l.b], { color: snrCol(l.snr), weight: 3, opacity: 0.9, dashArray: "6 5" })
+  .bindTooltip(`${l.from} → ${l.to}: heard at ${l.snr.toFixed(1)} dB (${l.n} traced)`, { sticky: true }).addTo(layers.links);
+for (const s of D.straight) L.polyline([D.hub, s.at], { color: "#0e7468", weight: 4, opacity: 0.7 })
+  .bindTooltip(`${s.name}: heard straight, ${s.snr} dB median, ${s.count} packets`, { sticky: true }).addTo(layers.straight);
+for (const r of D.radios) {
+  if (r.h > 0.0004) L.rectangle([[r.lat - r.h, r.lon - r.h], [r.lat + r.h, r.lon + r.h]], { weight: 0.6, color: "#5e6b66", fillOpacity: 0.04, interactive: false }).addTo(layers.squares);
+  const c = L.circleMarker([r.lat, r.lon], { radius: r.relay ? 7 : 4.5, color: "#fff", weight: 1.5, fillColor: r.relay ? r.col : "#44524d", fillOpacity: 1 })
+    .bindTooltip(r.name, { direction: "top", className: "lbl" }).bindPopup(r.info).addTo(layers.radios);
+  c.on("mouseover", () => (byRadio[r.name] || []).forEach((l) => l.setStyle({ opacity: 0.95, weight: 4 })));
+  c.on("mouseout", () => (byRadio[r.name] || []).forEach((l) => l.setStyle({ opacity: 0.3, weight: 2 })));
+  L.marker([r.lat, r.lon], { icon: L.divIcon({ className: "", html: "", iconSize: [0, 0] }), interactive: false })
+    .bindTooltip(r.name, { permanent: true, direction: "right", offset: [5, 0], className: "lbl" }).addTo(layers.names);
+}
+L.circleMarker(D.hub, { radius: 9, color: "#fff", weight: 2, fillColor: "#0e7468", fillOpacity: 1 }).addTo(m)
+  .bindTooltip("this hub", { permanent: true, direction: "right", offset: [8, 0], className: "lbl" });
+L.control.layers(null, { "Rough squares (where a radio could be)": layers.squares, "Who hands each radio's packets on": layers.funnels,
+  "Traced links": layers.links, "Heard straight": layers.straight, "Radios": layers.radios, "Show all names": layers.names }, { collapsed: false }).addTo(m);
+L.control.scale({ imperial: false }).addTo(m);
+</script></html>"""
 
 
-def map_page(s, path):
-    w, byid = s["_w"], s["_byid"]
-    straight = {x["id"][-2:]: x for x in s["fig"]["straight"]}
-    pal = ["#1b5e8c", "#0e7468", "#b8321e", "#8a5a00", "#6b3fa0", "#2f6b3a", "#a0507a"]
+def md_html(text):
+    """The summary's few Markdown forms as HTML."""
+    esc = lambda t: re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", t.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+    out, inlist, table = [], False, []
+    for line in text.splitlines() + [""]:
+        if line.startswith("|"):
+            if not set(line) <= set("|-"):
+                table.append("<tr>" + "".join(f"<td>{esc(c.strip())}</td>" for c in line.strip("|").split("|")) + "</tr>")
+            continue
+        if table:
+            out.append("<table>" + "".join(table) + "</table>")
+            table = []
+        if line.startswith("- "):
+            if not inlist:
+                out.append("<ul>")
+                inlist = True
+            out.append(f"<li>{esc(line[2:])}</li>")
+            continue
+        if inlist:
+            out.append("</ul>")
+            inlist = False
+        if line.startswith("# "):
+            out.append(f"<h1>{esc(line[2:])}</h1>")
+        elif line.startswith("## "):
+            out.append(f"<h2>{esc(line[3:])}</h2>")
+        elif line.strip():
+            out.append(f"<p>{esc(line)}</p>")
+    return "\n".join(out)
+
+
+def report_page(s, path, text):
+    """One self-contained page: the summary, the map (vector, with layers), the flows and the traffic."""
+    w, byid, f = s["_w"], s["_byid"], s["fig"]
+    straight = {x["id"][-2:]: x for x in f["straight"]}
+    pal = ["#1b5e8c", "#b8321e", "#8a5a00", "#6b3fa0", "#2f6b3a", "#a0507a", "#0e7468"]
     rcol = {r: pal[i % len(pal)] for i, r in enumerate(sorted(straight))}
     at = lambda n: [n["position"]["lat"], n["position"]["lon"]]
     good = lambda n: n.get("position") and n["position"].get("accuracyM", 0) <= 3000  # a rougher place would draw a line to nowhere
+    nm = lambda n: n.get("longName") or n.get("shortName") or n["id"]
+    hub = [w["lat"], w["lon"]]
     funnels = []
     for i, g in s["sightings"].items():
         n = byid.get(i)
@@ -368,25 +440,38 @@ def map_page(s, path):
         for r, c in g["via"].items():
             relay = byid.get(straight[r]["id"]) if r in straight else None
             if r == "direct":
-                funnels.append({"a": at(n), "b": [w["lat"], w["lon"]], "n": c, "col": "#0e7468"})
+                funnels.append({"a": at(n), "b": hub, "n": c, "col": "#0e7468", "from": nm(n), "via": "straight to the hub"})
             elif relay and good(relay):
-                funnels.append({"a": at(n), "b": at(relay), "n": c, "col": rcol[r]})
+                funnels.append({"a": at(n), "b": at(relay), "n": c, "col": rcol[r], "from": nm(n), "via": nm(relay)})
     mine = next((n["id"] for n in byid.values() if n.get("self")), None)
     links = []
     for (a, b), v in s["_links"].items():
-        pa = [w["lat"], w["lon"]] if a == mine else (at(byid[a]) if a in byid and good(byid[a]) else None)
-        pb = [w["lat"], w["lon"]] if b == mine else (at(byid[b]) if b in byid and good(byid[b]) else None)
+        pa = hub if a == mine else (at(byid[a]) if a in byid and good(byid[a]) else None)
+        pb = hub if b == mine else (at(byid[b]) if b in byid and good(byid[b]) else None)
         if pa and pb:
-            links.append({"a": pa, "b": pb, "snr": st.median(v)})
-    radios = [{"lat": n["position"]["lat"], "lon": n["position"]["lon"], "h": n["position"].get("accuracyM", 0) / 111320,
-               "name": n.get("shortName") or n["id"][-4:], "relay": n["id"][-2:] in straight and n["id"] == straight[n["id"][-2:]]["id"],
-               "col": rcol.get(n["id"][-2:])} for n in byid.values() if good(n) and not n.get("self")]
-    pts = [[r["lat"], r["lon"]] for r in radios if w and km(w, r)[0] < 40] + [[w["lat"], w["lon"]]]
+            links.append({"a": pa, "b": pb, "snr": st.median(v), "n": len(v), "from": nm(byid.get(a, {"id": a})), "to": "this hub" if b == mine else nm(byid.get(b, {"id": b}))})
+    straight_lines = [{"at": at(byid[x["id"]]), "name": x["name"], "snr": x["snr"], "count": x["count"]} for x in f["straight"] if x["id"] in byid and good(byid[x["id"]])]
+    radios = []
+    for n in byid.values():
+        if not good(n) or n.get("self"):
+            continue
+        p, g = n["position"], s["sightings"].get(n["id"], {})
+        d, b = km(w, p)
+        a = p.get("accuracyM", 0) / 1000
+        via = ", ".join(f"{'straight' if r == 'direct' else straight[r]['name'] if r in straight else '…' + r} {c}" for r, c in sorted(g.get("via", {}).items(), key=lambda kv: -kv[1])[:4])
+        info = (f"<b>{nm(n)}</b><br>{(f'{max(d - a, 0):.1f} to {d + a:.1f} km' if a > 0.2 else f'{d:.1f} km')} {WORDS[sector(b)]}"
+                f"{f', a rough square ±{a:.1f} km' if a > 0.2 else ''}<br>fewest relays: {g.get('hops', n.get('hops', '?'))}"
+                f"{'<br>handed on by: ' + via if via else ''}<br>last heard {n.get('lastHeard', '')[:16].replace('T', ' ')}")
+        radios.append({"lat": p["lat"], "lon": p["lon"], "h": p.get("accuracyM", 0) / 111320, "name": nm(n), "info": info,
+                       "relay": n["id"][-2:] in straight and n["id"] == straight[n["id"][-2:]]["id"], "col": rcol.get(n["id"][-2:])})
+    pts = [[r["lat"], r["lon"]] for r in radios if km(w, r)[0] < 40] + [hub]
     bounds = [[min(p[0] for p in pts), min(p[1] for p in pts)], [max(p[0] for p in pts), max(p[1] for p in pts)]]
-    data = {"hub": [w["lat"], w["lon"]], "funnels": funnels, "links": links, "radios": radios, "bounds": bounds}
-    for f in ("leaflet.js", "leaflet.css"):
-        shutil.copy(os.path.join(VENDOR, f), os.path.join(path, f))
-    open(os.path.join(path, "map.html"), "w").write(MAP_HTML.replace("DATA", json.dumps(data)))
+    data = {"hub": hub, "funnels": funnels, "links": links, "straight": straight_lines, "radios": radios, "bounds": bounds}
+    page = (PAGE.replace("LEAFLET_CSS", open(os.path.join(VENDOR, "leaflet.css")).read())
+            .replace("LEAFLET_JS", open(os.path.join(VENDOR, "leaflet.js")).read().replace("</script", "<\\/script"))
+            .replace("SUMMARY", md_html(text)).replace("FLOWS", flows_svg(s)).replace("TRAFFIC", bars_svg(f["per_hour"], "Copies heard by hour of the day"))
+            .replace("DATA", json.dumps(data).replace("</", "<\\/")))
+    open(os.path.join(path, "report.html"), "w").write(page)
 
 
 def shoot(path, page, png, size):
@@ -400,7 +485,7 @@ def shoot(path, page, png, size):
     handler.log_message = lambda *a: None
     srv = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
-    subprocess.run([chrome, "--headless=new", "--hide-scrollbars", f"--window-size={size}", "--virtual-time-budget=15000",
+    subprocess.run([chrome, "--headless=new", "--hide-scrollbars", f"--window-size={size}", "--force-device-scale-factor=2", "--virtual-time-budget=15000",
                     f"--screenshot={os.path.join(path, png)}", f"http://127.0.0.1:{srv.server_address[1]}/{page}"], capture_output=True)
     srv.shutdown()
 
@@ -474,12 +559,11 @@ def report(host, snap=None):
     before = [json.load(open(os.path.join(STORE, host, x, "figures.json"))) for x in snaps if x < snap and os.path.exists(os.path.join(STORE, host, x, "figures.json"))]
     text = summary(f, before)
     open(os.path.join(path, "summary.md"), "w").write(text)
-    open(os.path.join(path, "traffic.html"), "w").write("<!doctype html><body style='margin:0;background:#fff'>" + bars_svg(f["per_hour"], "Packets by hour of the day"))
-    open(os.path.join(path, "flows.html"), "w").write("<!doctype html><body style='margin:0;background:#fff'>" + flows_svg(s))
-    map_page(s, path)
-    shoot(path, "traffic.html", "traffic.png", "760,280")
-    shoot(path, "flows.html", "flows.png", "920,500")
-    shoot(path, "map.html", "map.png", "1200,900")
+    report_page(s, path, text)
+    for old in ("traffic.html", "flows.html", "map.html", "leaflet.js", "leaflet.css", "traffic.png", "flows.png", "map.png"):
+        if os.path.exists(os.path.join(path, old)):
+            os.remove(os.path.join(path, old))
+    shoot(path, "report.html", "report.png", "1500,1900")  # a picture of the page, for a mail
     print(text)
     print("files:", path)
 

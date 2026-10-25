@@ -20,12 +20,12 @@ tools/meshstats/meshstats.py report pz7
 since the last snapshot (at most eight days back; the journal holds about two
 weeks), never meshtasticd itself: a second client takes the radio's only slot
 (B38). Everything lands in `private/meshstats/<hub>/<date>/` (gitignored):
-`summary.md`, `figures.json`, `traffic.png`, `flows.png`, `map.png`. They
+`summary.md`, `figures.json`, `report.html` (one page: the summary, a map with layers and names on hover, the flows, the traffic) and `report.png` (a picture of it, for a mail). They
 name real radios and places.
 
 ## Read it, then check before you tell
 
-1. **Open the three pictures** and `summary.md`. The summary's *Worth a look*
+1. **Open `report.html`** (or `report.png`) and `summary.md`. The summary's *Worth a look*
    is a list of suspicions, not findings.
 2. **Antenna and radio health**, from the summary and the table *Over the
    weeks*:
