@@ -15,8 +15,22 @@ if (screen) document.documentElement.classList.add("screen");
 const BCAST = 0xffffffff;
 
 let last = null;
+// The hub PIN: kept on this device when Remember is ticked, else for this tab only.
 let pin = "";
-try { pin = sessionStorage.getItem("hubPIN") || ""; } catch (e) { /* private window */ }
+try { pin = localStorage.getItem("hubPIN") || ""; } catch (e) { /* private window */ }
+try { pin = pin || sessionStorage.getItem("hubPIN") || ""; } catch (e) { /* private window */ }
+function keepPIN(p, onDevice) {
+  pin = p;
+  for (const [store, keep] of [[() => localStorage, onDevice], [() => sessionStorage, !onDevice]]) {
+    try { if (p && keep) store().setItem("hubPIN", p); else store().removeItem("hubPIN"); } catch (e) { /* fine */ }
+  }
+  showForget();
+}
+function showForget() {
+  let kept = false;
+  try { kept = !!localStorage.getItem("hubPIN"); } catch (e) { /* fine */ }
+  $("pin-forget-row").hidden = !kept;
+}
 
 // Per-viewer conveniences only: what was read, the traffic window, the colours.
 function load(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }
@@ -1033,14 +1047,14 @@ async function poll() {
     if (locked) {
       // The hub's own WiFi is open to neighbours: reading the panel needs the PIN too.
       // A PIN that was refused is dropped, so the polls don't keep guessing with it.
-      if (res.status === 401 && pin) { pin = ""; try { sessionStorage.removeItem("hubPIN"); } catch (e) { /* fine */ } }
+      if (res.status === 401 && pin) keepPIN("", false);
       $("onair").textContent = "This hub's WiFi is open to neighbours: the panel needs the hub PIN.";
       $("onair").className = "onair down";
       if (!asking && res.status === 401) {
         asking = true;
         const p = await askPIN();
         asking = false;
-        if (p != null) { pin = p; try { sessionStorage.setItem("hubPIN", pin); } catch (e) { /* fine */ } poll(); }
+        if (p != null) { keepPIN(p, $("pin-keep").checked); poll(); }
       }
       return;
     }
@@ -1271,8 +1285,7 @@ async function act(path, body) {
     if (res.status === 401 && !(last && last.local)) {
       const p = await askPIN();
       if (p == null) throw new Error("Not done: the buttons need the hub PIN.");
-      pin = p;
-      try { sessionStorage.setItem("hubPIN", pin); } catch (e) { /* fine */ }
+      keepPIN(p, $("pin-keep").checked);
       continue;
     }
     if (!res.ok) throw new Error((out.error || "The hub said no.").replace(/^meshtastic: /, ""));
@@ -1807,6 +1820,8 @@ document.querySelector(".tabs").addEventListener("keydown", (ev) => {
 });
 window.addEventListener("resize", () => { if (view === "traffic") drawTraffic(); if (map && view === "map") map.invalidateSize(); });
 
+$("pin-forget").addEventListener("click", () => { keepPIN("", false); toast("This device has forgotten the hub PIN."); });
+showForget();
 setView(view);
 loaded = true;
 // The refresh slows down in low power and while the hub's screen sleeps (decision 0029).

@@ -233,6 +233,7 @@
         <button role="radio" data-theme="dark">Dark</button>
       </div>
       <p class="muted small">Keys on the hub's keyboard: 1 to 8 switch views, / starts a message.</p>
+      <p id="pin-forget-row" hidden><button id="pin-forget" class="btn ghost" type="button">Forget the hub PIN on this device</button></p>
     </div>
   </section>
   <section class="view settings system" id="view-system" role="tabpanel" aria-labelledby="tab-system" hidden>
@@ -376,6 +377,7 @@
     <p class="muted">The buttons need the hub PIN when you use them from another device. It is shown on the hub's own screen, under Settings.</p>
     <label for="pinin">PIN</label>
     <input id="pinin" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" required>
+    <label class="check"><input id="pin-keep" type="checkbox" checked> Remember it on this device</label>
     <p id="pin-err" class="note"></p>
     <div class="row"><button class="btn ghost" value="cancel" formnovalidate>Cancel</button><button class="btn" value="ok">Unlock</button></div>
   </form>

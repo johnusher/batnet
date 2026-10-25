@@ -255,8 +255,8 @@ input:focus, select:focus, textarea:focus { border-color: var(--signal); outline
 .card label { display: flex; flex-direction: column; gap: 0.25rem; font-weight: 700; }
 .card label .hint { font-weight: 400; color: var(--muted); font-size: 0.82rem; }
 .card label .hint.bad { color: var(--onair); font-weight: 700; }
-.card label.check { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.card label.check input { width: 1.2rem; height: 1.2rem; }
+.card label.check, dialog label.check { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.card label.check input, dialog label.check input { width: 1.2rem; height: 1.2rem; }
 .row2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.8rem 1.2rem; align-items: end; }
 .latlon { display: flex; gap: 0.4rem; }
 .latlon input { min-width: 0; flex: 1; }
