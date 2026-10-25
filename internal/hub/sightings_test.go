@@ -12,14 +12,17 @@ import (
 
 func TestSightings(t *testing.T) {
 	s := NewSightings()
-	s.Event(meshtastic.Event{Kind: "packet", From: "!a1b2c3d4", Hops: 3, Relay: "50"})
-	s.Event(meshtastic.Event{Kind: "packet", From: "!a1b2c3d4", Hops: 1, Relay: "07"})
-	s.Garbled(meshtastic.Unreadable{From: "!a1b2c3d4", Hops: 2, Relay: "50"})
+	s.Garbled(meshtastic.Unreadable{ID: 7, From: "!a1b2c3d4", Hops: 2, Relay: "50"}) // before its readable copy
+	s.Event(meshtastic.Event{Kind: "packet", ID: 7, From: "!a1b2c3d4", Hops: 3, Relay: "50"})
+	s.Event(meshtastic.Event{Kind: "packet", ID: 8, From: "!a1b2c3d4", Hops: 1, Relay: "07"})
+	s.Garbled(meshtastic.Unreadable{ID: 8, From: "!a1b2c3d4", Hops: 4, Relay: "28"}) // after it
+	s.Garbled(meshtastic.Unreadable{ID: 8, From: "!00000000", Hops: 1, Relay: "28"}) // its header garbled
+	s.Garbled(meshtastic.Unreadable{ID: 9, From: "!a1b2c3d4", Hops: 0, Relay: "d4"}) // no readable copy
 	s.Event(meshtastic.Event{Kind: "packet", From: "!deadbeef", Hops: 0, Relay: "ef"})
-	s.Event(meshtastic.Event{Kind: "packet", From: "!00000000", Local: true})        // our own radio
-	s.Garbled(meshtastic.Unreadable{From: "!00000000", Hops: -3, Relay: "50"})       // a broken header
-	s.Event(meshtastic.Event{Kind: "sent", From: "!00000000", Hops: 0, Relay: "50"}) // sent, not heard
-	s.Garbled(meshtastic.Unreadable{Hops: 1, Relay: "50"})                           // no sender
+	s.Event(meshtastic.Event{Kind: "packet", From: "!00000000", Local: true})          // our own radio
+	s.Garbled(meshtastic.Unreadable{ID: 10, From: "!00000000", Hops: -3, Relay: "50"}) // a broken header
+	s.Event(meshtastic.Event{Kind: "sent", From: "!00000000", Hops: 0, Relay: "50"})   // sent, not heard
+	s.Garbled(meshtastic.Unreadable{ID: 11, Hops: 1, Relay: "50"})                     // no sender
 	s.Event(meshtastic.Event{Kind: "packet", From: "!00000000", Hops: 2, At: time.Now().Add(-22 * 24 * time.Hour)})
 
 	got := s.Saved()
@@ -27,7 +30,7 @@ func TestSightings(t *testing.T) {
 		t.Fatalf("radios %v", got)
 	}
 	a := got["!a1b2c3d4"]
-	if a.N != 3 || a.Hops != 1 || a.Via["50"] != 2 || a.Via["07"] != 1 || a.At.IsZero() {
+	if a.N != 4 || a.Hops != 1 || a.Via["50"] != 2 || a.Via["07"] != 1 || a.Via["28"] != 1 || a.Via["direct"] != 0 || a.At.IsZero() {
 		t.Errorf("!a1b2c3d4: %+v", a)
 	}
 	if d := got["!deadbeef"]; d.Via["direct"] != 1 || d.Hops != 0 || len(d.Via) != 1 {

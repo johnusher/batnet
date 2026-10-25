@@ -15,6 +15,16 @@ import (
 type Sightings struct {
 	mu sync.Mutex
 	m  map[string]*Sighting
+	// A garbled copy's header may be garbled too: it counts only once a
+	// readable copy of the same packet (ID) names the same sender, before
+	// or within copyWindow after it.
+	read    map[uint32]seenPacket
+	waiting map[uint32][]meshtastic.Unreadable
+}
+
+type seenPacket struct {
+	from string
+	at   time.Time
 }
 
 // Sighting is how one radio's packets reached this hub.
@@ -32,22 +42,74 @@ const (
 	maxSightings  = 3000                // radios
 	maxVia        = 16                  // last relays per radio
 	maxHops       = 7                   // Meshtastic's hop limit
+	copyWindow    = 2 * time.Minute     // copies of one packet come within seconds
+	maxWaiting    = 2000                // garbled copies waiting for a readable one
 )
 
 // NewSightings starts with none.
-func NewSightings() *Sightings { return &Sightings{m: map[string]*Sighting{}} }
+func NewSightings() *Sightings {
+	return &Sightings{m: map[string]*Sighting{}, read: map[uint32]seenPacket{}, waiting: map[uint32][]meshtastic.Unreadable{}}
+}
 
 // Event records a packet heard from another radio.
 func (s *Sightings) Event(e meshtastic.Event) {
-	if e.Kind == "packet" && !e.Local {
-		s.add(e.From, e.Relay, e.Hops, e.At)
+	if e.Kind != "packet" || e.Local {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.add(e.From, e.Relay, e.Hops, e.At)
+	if e.ID == 0 {
+		return
+	}
+	s.prune()
+	s.read[e.ID] = seenPacket{e.From, time.Now()}
+	for _, u := range s.waiting[e.ID] {
+		if u.From == e.From {
+			s.add(u.From, u.Relay, u.Hops, u.At)
+		}
+	}
+	delete(s.waiting, e.ID)
+}
+
+// Garbled records a packet heard but not readable: its header says who sent
+// it and who passed it on, once a readable copy bears the sender out.
+func (s *Sightings) Garbled(u meshtastic.Unreadable) {
+	if u.ID == 0 || u.From == "" {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.prune()
+	if p, ok := s.read[u.ID]; ok {
+		if p.from == u.From {
+			s.add(u.From, u.Relay, u.Hops, u.At)
+		}
+		return
+	}
+	if u.At.IsZero() {
+		u.At = time.Now()
+	}
+	if len(s.waiting) < maxWaiting {
+		s.waiting[u.ID] = append(s.waiting[u.ID], u)
 	}
 }
 
-// Garbled records a packet heard but not readable: its header still says who
-// sent it and who passed it on.
-func (s *Sightings) Garbled(u meshtastic.Unreadable) { s.add(u.From, u.Relay, u.Hops, u.At) }
+// prune forgets packets older than copyWindow.
+func (s *Sightings) prune() {
+	for id, p := range s.read {
+		if time.Since(p.at) > copyWindow {
+			delete(s.read, id)
+		}
+	}
+	for id, us := range s.waiting {
+		if len(us) == 0 || time.Since(us[0].At) > copyWindow {
+			delete(s.waiting, id)
+		}
+	}
+}
 
+// add counts one copy; s.mu is held.
 func (s *Sightings) add(from, relay string, hops int, at time.Time) {
 	if from == "" || hops < 0 || hops > maxHops {
 		return
@@ -59,8 +121,6 @@ func (s *Sightings) add(from, relay string, hops int, at time.Time) {
 	if hops == 0 {
 		via = "direct"
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	g := s.m[from]
 	if g == nil {
 		if len(s.m) >= maxSightings {
