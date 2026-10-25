@@ -97,4 +97,5 @@ hook below is off by default and never sends a private message anywhere.
 - [ ] **CI**: gitleaks (a deferred minor since plan 1), `go test -race`, and a nightly run of the fuzz targets added in the 2026-10-22 review.
 - [ ] **A self-test** from the panel: the speaker, the LED, the radio, the card's free space, the clock, each with a tick or a cross.
 - [ ] **Update from the panel** when the internet is there: fetch a signed release (plan 6), verify, swap, restart; show what changed.
+- [ ] **Diagnostics in the panel**, for a hub with no screen: fixed buttons behind the hub PIN, never a shell (the panel has no TLS): the last hour of the log, warnings since the start, disk and memory, restart the radio or the hub, and a USB reset of the radio stick (the only cure for [B74](/known-problems.md)). Suggested 2026-10-25.
 - [ ] **Crash notes**: a panic's trace saved in the log folder and shown under System after a restart.

@@ -91,6 +91,12 @@
   <p><b>Other WiFi networks.</b> System, WiFi, <b>Look for networks</b> lists those in range; <b>Join…</b> asks for the password. The hub remembers them; <b>Make it the default</b> is the one it joins first at boot, <b>Forget</b> removes one.</p>
   <h3>A terminal</h3>
   <p>On the hub's own keyboard: System, <b>Open a terminal</b> (or <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F2</kbd>). Log in with the Pi's user name and password, and the commands below work there. <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>F1</kbd> goes back to the panel. (For safety the terminal opens only on the hub's own screen, never in a browser.)</p>
+  <p><b>A hub with no screen</b> (like a Pi Zero 2 W) has no terminal of its own. Reach it with <b>SSH</b> instead, from a laptop or from a phone with an SSH app (Termius, Blink and the like), and log in with the Pi's user name and password:</p>
+  <ul>
+    <li><b>Over the home WiFi</b>: <code>ssh <i>user</i>@<span data-fill="host">this-hub</span>.local</code>.</li>
+    <li><b>Over the hub's own WiFi</b>, when the router is off: join it (it starts by itself after 3 minutes without home WiFi, or hold the button for 3 seconds), then <code>ssh <i>user</i>@10.42.0.1</code>. Not while neighbours are let in: SSH is shut then. Not tried yet.</li>
+    <li><b>With a serial cable</b>, when no WiFi works at all: a USB-to-serial adapter (3.3 V, a few euros) on the Pi's pins gives a login prompt on a laptop, at 115200 baud: the adapter's RX to pin 8, its TX to pin 10, ground to pin 6. The Pi needs <code>enable_uart=1</code> in <code>/boot/firmware/config.txt</code> (often there already: check with <code>grep uart /boot/firmware/config.txt</code>, and add it if not). Not tried yet.</li>
+  </ul>
 </section>
 
 <section id="h-sound" class="hs">
@@ -126,7 +132,7 @@
     <dt>The panel doesn't open on a laptop</dt>
     <dd>Is the laptop on the same WiFi? Try the address shown on the hub's screen under Settings instead of the name. Without a router, see "When there is no network".</dd>
     <dt>Forgot the hub PIN</dt>
-    <dd>It is on the hub's own screen under Settings, The house app. Or: <code>sudo cat /var/lib/batnet/hub-pin</code>.</dd>
+    <dd>It is on the hub's own screen under Settings, The house app. On a hub with no screen, log in over SSH (see "A terminal") and type <code>sudo cat /var/lib/batnet/hub-pin</code>. A browser that remembers it (<b>Remember it on this device</b>) doesn't ask again.</dd>
     <dt>The time is wrong</dt>
     <dd>See "The clock after a power cut".</dd>
     <dt>The card is full</dt>
@@ -174,6 +180,8 @@
       <tr><td>change the preset</td><td><code>meshtastic --host localhost --set lora.modem_preset MEDIUM_FAST</code></td></tr>
       <tr><td>send a message to everyone</td><td><code>meshtastic --host localhost --sendtext "hello"</code></td></tr>
       <tr><td>start the hub again</td><td><code>sudo systemctl start batnet-hub</code></td></tr>
+      <tr><td>the whole Pi's log for the last day (kept on the card, the newest 64 MB, about a week; older is dropped by itself)</td><td><code>journalctl --since -1d</code></td></tr>
+      <tr><td>only warnings and errors since the Pi started</td><td><code>journalctl -b -p warning</code></td></tr>
       <tr class="grp"><th colspan="2" scope="rowgroup">Files</th></tr>
       <tr><td>the hub's settings</td><td><code>/var/lib/batnet/hub.json</code></td></tr>
       <tr><td>the logs, one file per start</td><td><code>/var/lib/batnet/logs/</code></td></tr>
