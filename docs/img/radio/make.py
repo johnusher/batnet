@@ -653,9 +653,9 @@ RELAYED = [(0, 4), (50, 7), (200, 3)]
 FLOOR_MF, PATH_EXP, SPREAD = -15, 3, 30  # as in internal/hub/panel/panel.js coverage()
 
 
-def zone():
+def zone(direct=DIRECT):
     """The panel's coverage(): each straight radio's reach, spread 30 degrees either side, tapering."""
-    reach = [(b, max(d, d * 10 ** ((snr - FLOOR_MF) / (10 * PATH_EXP)))) for b, d, snr in DIRECT]
+    reach = [(b, max(d, d * 10 ** ((snr - FLOOR_MF) / (10 * PATH_EXP)))) for b, d, snr in direct]
     out = []
     for a in range(0, 360, 2):
         m = 0
@@ -749,6 +749,115 @@ def directivity(theme):
     s.save("directivity", theme, "A range circle of 15 km all round against the zone the hub works out: 15 km to the north-west only, from four radios heard with no relay")
 
 
+# Two days on the roof: every radio the roof hub (the Pi Zero 2 W, antenna on
+# the roof) heard that shared where it is, from the evening of 2026-10-23 to
+# the morning of 2026-10-25 on Medium Fast, from its panel: (bearing in
+# degrees, distance in km, relays on the shortest copy), rounded to 10 degrees
+# and 1 km. ROOF_DIRECT: the radios its zone is worked out from (two others
+# heard straight share too rough a place to say which way).
+ROOF = [(0, 4, 3), (10, 12, 5), (10, 12, 6), (10, 13, 7), (10, 14, 6), (20, 11, 4), (50, 11, 6), (60, 1, 3),
+        (170, 5, 3), (200, 3, 3), (200, 6, 4), (270, 9, 3), (270, 9, 3), (270, 9, 6), (270, 17, 4), (280, 6, 1),
+        (280, 6, 2), (280, 6, 3), (280, 6, 3), (280, 12, 2), (290, 2, 0), (290, 2, 2), (290, 2, 2), (290, 7, 3),
+        (290, 25, 5), (290, 30, 3), (300, 4, 0), (300, 5, 2), (300, 11, 2), (300, 11, 2), (300, 11, 3), (300, 11, 7),
+        (300, 15, 4), (300, 17, 4), (300, 24, 3), (300, 27, 6), (310, 9, 3), (310, 10, 1), (310, 10, 2), (310, 12, 0),
+        (310, 12, 3), (310, 12, 4), (310, 13, 1), (310, 18, 2), (310, 18, 2), (310, 19, 3), (310, 19, 5), (310, 20, 5),
+        (310, 20, 6), (320, 2, 1), (320, 2, 5), (320, 6, 2), (320, 9, 2), (320, 9, 2), (320, 9, 2), (320, 9, 2),
+        (320, 9, 3), (320, 9, 3), (320, 9, 3), (320, 9, 4), (320, 9, 4), (320, 9, 5), (320, 10, 3), (320, 10, 4),
+        (320, 11, 3), (320, 12, 4), (320, 22, 3), (320, 22, 5), (320, 22, 5), (330, 1, 0), (330, 9, 2), (330, 9, 5),
+        (330, 10, 4), (340, 5, 3), (340, 7, 2), (340, 7, 3), (340, 7, 3), (340, 7, 5), (340, 7, 5), (350, 6, 2),
+        (350, 13, 4)]
+ROOF_DIRECT = [(310, 12, -13), (330, 1, -10.5)]
+
+
+def ellipse(pts):
+    """The two-standard-deviation ellipse of (bearing, km) points: centre (x east, y north), axes and the long axis's bearing."""
+    xy = [(d * math.sin(math.radians(b)), d * math.cos(math.radians(b))) for b, d in pts]
+    n = len(xy)
+    mx, my = sum(x for x, _ in xy) / n, sum(y for _, y in xy) / n
+    sxx = sum((x - mx) ** 2 for x, _ in xy) / n
+    syy = sum((y - my) ** 2 for _, y in xy) / n
+    sxy = sum((x - mx) * (y - my) for x, y in xy) / n
+    half, det = (sxx + syy) / 2, sxx * syy - sxy ** 2
+    l1, l2 = half + math.sqrt(half * half - det), half - math.sqrt(half * half - det)
+    axis = math.degrees(math.atan2(sxy, l1 - sxx)) % 180
+    return (mx, my), 4 * math.sqrt(l1), 4 * math.sqrt(l2), axis
+
+
+def roof(theme):
+    """Where the roof hub hears from: every radio with a known place, by relays, the lobe they fill and the straight zone."""
+    t = THEMES[theme]
+    s = SVG(900, 620, t)
+    s.text(450, 30, "Where the roof hub hears from: a lobe to the north-west", 18, anchor="middle", weight="bold")
+    s.text(450, 52, "Two days on the roof in Berlin. Every radio that shared where it is, placed by direction and distance from the hub.",
+           12, "muted", "middle")
+    cx, cy, px = 545, 395, 12.5  # the hub, and pixels per km
+    x0, y0, x1, y1 = 40, 75, 870, 545  # the plot's frame
+
+    def at(brg, km):
+        return cx + km * px * math.sin(math.radians(brg)), cy - km * px * math.cos(math.radians(brg))
+
+    s.add(f'<clipPath id="frame"><rect x="{x0}" y="{y0}" width="{x1 - x0}" height="{y1 - y0}"/></clipPath>')
+    s.add('<g clip-path="url(#frame)">')
+    for km in (10, 20, 30):
+        s.add(f'<circle cx="{cx}" cy="{cy}" r="{km * px:.1f}" fill="none" stroke="{t["faint"]}" stroke-width="1"/>')
+    s.line(cx, y0, cx, y1, "faint", 1, "2 4")
+    s.line(x0, cy, x1, cy, "faint", 1, "2 4")
+    # The lobe: the ellipse that holds most of the radios it hears.
+    (mx, my), long_, short, axis = ellipse([(b, d) for b, d, _ in ROOF])
+    ex, ey = cx + mx * px, cy - my * px
+    s.add(f'<ellipse cx="{ex:.1f}" cy="{ey:.1f}" rx="{long_ / 2 * px:.1f}" ry="{short / 2 * px:.1f}" '
+          f'transform="rotate({axis - 90:.1f} {ex:.1f} {ey:.1f})" fill="{t["sky"]}" fill-opacity="0.9" '
+          f'stroke="{t["wifi"]}" stroke-width="1.5" stroke-dasharray="6 4"/>')
+    # The straight zone, as the panel works it out.
+    _, petal = zone(ROOF_DIRECT)
+    pts = " L".join(f"{x:.1f},{y:.1f}" for x, y in (at(a, r) for a, r in petal))
+    s.path("M" + pts + " Z", "hot", 2, "hotfill", 0.9)
+    s.add('</g>')
+    for km in (10, 20, 30):
+        x, y = at(250, km)
+        s.text(x + 4, y + 12, f"{km} km", 10, "muted")
+    s.text(cx + 6, y0 + 14, "N", 12, "muted", weight="bold")
+    # The radios, nudged apart where several round to the same spot.
+    rnd = random.Random(7)
+    seen = {}
+    for b, d, hops in ROOF:
+        k = seen[(b, d)] = seen.get((b, d), -1) + 1
+        x, y = at(b, d)
+        if k:
+            a = rnd.uniform(0, 2 * math.pi)
+            x, y = x + 5 * math.sqrt(k) * math.cos(a), y + 5 * math.sqrt(k) * math.sin(a)
+        if hops == 0:
+            s.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="5" fill="{t["fg"]}" stroke="{t["bg"]}" stroke-width="1.5"/>')
+        elif hops <= 2:
+            s.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{t["wifi"]}" stroke="{t["bg"]}" stroke-width="1"/>')
+        else:
+            s.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4" fill="{t["bg"]}" stroke="{t["muted"]}" stroke-width="1.5"/>')
+    s.rect(cx - 6, cy - 6, 12, 12, "fg", rx=2)
+    s.text(cx + 10, cy + 18, "roof hub", 11, "fg", weight="bold")
+    x, y = at(290, 30)
+    s.text(x + 2, y - 10, "30 km, through 3 relays", 11, "fg")
+    x, y = at(180, 3)
+    s.text(x + 10, y + 16, "south: a chimney in the way, 3 radios", 11, "muted")
+    north_west = sum(1 for b, _, _ in ROOF if 270 <= b <= 340)
+    s.text(x1 - 8, y0 + 14, f"{north_west} of the {len(ROOF)} radios lie", 11, "muted", "end")
+    s.text(x1 - 8, y0 + 28, "between west and north-north-west", 11, "muted", "end")
+    # Legend and source.
+    y = 572
+    s.add(f'<circle cx="45" cy="{y - 4}" r="5" fill="{t["fg"]}"/>')
+    s.text(55, y, "heard straight", 12, "fg")
+    s.add(f'<circle cx="160" cy="{y - 4}" r="4" fill="{t["wifi"]}"/>')
+    s.text(170, y, "through 1 or 2 relays", 12, "fg")
+    s.add(f'<circle cx="320" cy="{y - 4}" r="4" fill="{t["bg"]}" stroke="{t["muted"]}" stroke-width="1.5"/>')
+    s.text(330, y, "through 3 to 7", 12, "fg")
+    s.add(f'<rect x="445" y="{y - 11}" width="16" height="12" rx="2" fill="{t["sky"]}" stroke="{t["wifi"]}" stroke-dasharray="3 2"/>')
+    s.text(467, y, f"where it hears from, {long_:.0f} × {short:.0f} km", 12, "fg")
+    s.rect(672, y - 11, 16, 12, "hotfill", "hot", rx=2)
+    s.text(694, y, "where it hears straight", 12, "fg")
+    s.text(450, 602, f"{len(ROOF)} radios with a place, of 184 heard, 23 to 25 October 2026 on Medium Fast; rounded to 10° and 1 km. "
+           "The ellipse holds about 86 % of them.", 11, "muted", "middle", italic=True)
+    s.save("roof-lobe", theme, f"Where the roof hub hears from: {len(ROOF)} radios, most to the north-west, in a lobe about {long_:.0f} by {short:.0f} km; the straight zone a petal to the north-west")
+
+
 def board(s, x, y, w_mm, h_mm, k, holes, header, chip, ports):
     """A Raspberry Pi board seen from above, to scale (k pixels per mm)."""
     t = s.t
@@ -803,6 +912,6 @@ def two_pis(theme):
 if __name__ == "__main__":
     for th in THEMES:
         for draw in (dial, subbands, chirps, antennas, ranges, fresnel, waterfall, dechirp, sync, presets, night,
-                     directivity, two_pis):
+                     directivity, roof, two_pis):
             draw(th)
     print("wrote", sorted(f for f in os.listdir(HERE) if f.endswith(".svg")))

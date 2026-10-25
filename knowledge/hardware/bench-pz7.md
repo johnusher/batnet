@@ -142,6 +142,12 @@ the roof a median 0.2 dB stronger (one 4 dB), one heard only from the roof
 vertical: about 0.5 dB lost to polarisation, more in some directions if it is
 a high-gain one with a flat beam.
 
+On 2026-10-25, after two days up there: five in common, a median 0 dB (from
+-2.25 to +1.5 dB), three heard straight only from the roof, six only before.
+The zone is a petal of about 13 km to the north-west, and the 81 radios with a
+place it heard lie mostly between west and north-north-west
+([two days on the roof](/tests/2026-10-25-two-days-on-the-roof.md)).
+
 # How far it reaches: the reach test
 
 Heard is one way; a message back is the other. From 2026-10-23 at 21:00

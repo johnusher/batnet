@@ -31,9 +31,10 @@ stick speaks **LoRa** ("long range"), the same radio used by the thousands of
 hobbyist [Meshtastic](https://meshtastic.org/) radios on balconies and
 church towers around the world. It is slow, about as fast as a 1980s modem,
 and carries text only: each message holds about as much as a phone text
-(SMS). But it goes far. From near the roof of a Berlin house, the first hub reads
-a radio 12 km away with no help, and through radios that pass messages on,
-up to seven in a row, it heard 154 radios across the city in one night.
+(SMS). But it goes far. From the roof of a Berlin house, our hub reads a
+radio 12 km away with no help, and through radios that pass messages on, up
+to seven in a row, it heard 184 radios across the city in two days, the
+farthest 30 km away.
 
 The trick is in the signal. Every message is digital: a train of rising
 whistles, or **chirps**, scrambled with a key and checked on arrival. A
@@ -71,7 +72,7 @@ pointing north-west.
 | | |
 |---|---|
 | **What it is** | A local chat network for a house, a street, a village, a festival camp or a group on a hike. One small computer (a *node*) per house; everyone else just uses their phone. |
-| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio** from house to house at ground level, much more from a roof: the first hub reads a radio **12 km away** directly. Messages also hop from radio to radio: in Berlin the first hub hears radios across 29 by 20 km of city, passed along by up to seven others. |
+| **Range** | A few hundred metres from house to house over WiFi, with messages and calls. **1–3 km over the long-range radio** from house to house at ground level, much more from a roof: the first hub reads a radio **12 km away** directly. Messages also hop from radio to radio: in Berlin the roof hub hears radios across 35 by 23 km of city, up to 30 km away, passed along by up to seven others. |
 | **Which way** | Not a circle. The hub [maps its reach in each direction](#which-way-the-hub-hears-a-shape-not-a-circle) from the radios it hears: 15 km to the north-west for the first hub, unknown elsewhere. |
 | **Messages** | Over the long-range radio, **text only, like an SMS**: up to 200 bytes in a packet, on the air for under half a second on Berlin's setting. Spoken messages are to cross as text, read aloud at the other end (planned). |
 | **The mesh** | Every node passes on what it hears, so messages travel further than any one radio reaches, with no central server. batnet shares the air with Meshtastic's radios, and they carry its messages too, without being able to read the private ones. |
@@ -214,7 +215,7 @@ Berlin has a big, busy long-range radio mesh. Well over a hundred small
 church towers and the Teufelsberg hill, run by neighbours, hobbyists and
 groups such as Freifunk Berlin and the hackerspace c-base. Each one passes
 on what it hears, so a message can cross the city with no internet and no
-phone network. In one night our hub heard 154 of them. To hear them at all,
+phone network. In two days on the roof our hub heard 184 of them. To hear them at all,
 it had to be on the right **preset**.
 
 ### What a preset is
@@ -303,6 +304,34 @@ Then the hub listened all night, from half past ten to a quarter past seven:
 ![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-light.svg#gh-light-mode-only)
 ![One night of messages at the Berlin hub by how many radios passed them on: 28 direct, most through 2 to 4, 49 through 7](docs/img/radio/berlin-night-dark.svg#gh-dark-mode-only)
 
+Then the second hub took over: the Pi Zero 2 W in the loft, with the same
+antenna moved up onto the roof. It listened from the evening of 23 October to
+the morning of 25 October, about 37 hours (five of them off the air, when its
+radio stick froze during a test of the other presets):
+
+* **184 radios heard,** 30 more than in the first night. The 81 that shared
+  where they are were spread over about 35 by 23 km, the farthest 30 km away,
+  through three relays.
+* **A big lobe to the north-west.** 68 of those 81 radios lie between west
+  and north-north-west of the house. Only 3 lie to the south, where a chimney
+  stands next to the antenna, and hardly any to the east. Most of what the
+  hub hears comes from an oval about 27 by 17 km whose middle is 9 km to the
+  north-west: that's where most of the city, and Berlin's busiest relays, are.
+* **Still almost everything by relay.** Five radios reach it straight, the
+  farthest 12 km away. Of the rest, 12 came through one relay, 39 through
+  two, 53 through three, 30 through four and 45 through five to seven.
+* **No stronger than before the antenna went up.** The five radios heard
+  straight both from the roof and by the first hub with the same antenna
+  before it moved came in just as strongly (a median difference of 0 dB).
+* **About 210 messages read an hour,** as in the first night, and more again
+  heard too garbled to read: 215 against 144 in a sample hour.
+* **It does its share.** In that hour it passed on 132 messages for others,
+  sending for under 1% of the time. The air was busy for 2 to 4% of it.
+  ([Test report](knowledge/tests/2026-10-25-two-days-on-the-roof.md).)
+
+![Where the roof hub hears from: 81 radios placed by direction and distance, most between west and north-north-west, in an oval about 27 by 17 km reaching 30 km out; three to the south, where a chimney stands; the straight zone a narrow petal 14 km to the north-west](docs/img/radio/roof-lobe-light.svg#gh-light-mode-only)
+![Where the roof hub hears from: 81 radios placed by direction and distance, most between west and north-north-west, in an oval about 27 by 17 km reaching 30 km out; three to the south, where a chimney stands; the straight zone a narrow petal 14 km to the north-west](docs/img/radio/roof-lobe-dark.svg#gh-dark-mode-only)
+
 ### Which way the hub hears: a shape, not a circle
 
 Ask how far a radio reaches and you usually get one number, say "15 km", as
@@ -331,6 +360,11 @@ about 717 km²; the readings support about 45 km², a sixteenth of that. The
 antenna sits near the roof on one side of the house, so the house itself is
 probably in the way of everything else. The fix is the same as ever: higher,
 and outside.
+
+The roof hub, two days on, draws the same kind of shape: a petal about 14 km
+long to the north-west (the orange shape in the picture of
+[what it heard](#what-our-hub-heard)). On the roof, its blind side is the
+south, where a chimney stands beside the antenna.
 
 The hub draws this shape live on its own map (the shaded zone, with a dashed
 line to each radio behind it), and redraws it as it hears more. It is an
@@ -435,7 +469,7 @@ and does the work. Any phone joins its WiFi with nothing installed
 ([how it works](#how-it-works)); the houses are meshed by WiFi and the
 streets and villages by [long-range LoRa radio](#the-long-range-radio-explained),
 for kilometres rather than metres ([what our hub heard](#what-our-hub-heard):
-a roof hub in Berlin heard radios 25 km away). The box runs for hours on a
+a roof hub in Berlin heard radios 30 km away). The box runs for hours on a
 [power bank](#power-use) and keeps the whole history while the phones sleep.
 The price of that is a [€45 box](#what-to-buy-europe) per house, where
 Bitchat costs nothing and goes where the phones go.
