@@ -419,10 +419,22 @@ village rather than for one person with a gadget.
   Apps such as Sideband and MeshChat send messages and files over it. It is
   the most capable of the three and the most technical to set up. batnet may
   talk to it one day.
-* **Phone-to-phone apps** such as [Briar](https://briarproject.org/) and
-  [Bridgefy](https://bridgefy.me/) pass messages from phone to phone over
-  Bluetooth or WiFi. Nothing to buy, but the reach is tens of metres, and
-  everyone has to install the same app.
+* **Phone-to-phone apps** such as [Bitchat](https://github.com/permissionlesstech/bitchat),
+  [Briar](https://briarproject.org/) and [Bridgefy](https://bridgefy.me/)
+  pass messages from phone to phone over Bluetooth, each phone relaying for
+  the next. Nothing to buy, but the reach is tens of metres a hop, and
+  everyone has to install the same app before the grid goes down.
+
+**batnet and Bitchat.** Bitchat is the best known of the phone-to-phone apps:
+open source, released in 2025, no account, no server, just phones talking
+over Bluetooth, relaying for each other across a crowd or a block. It is the
+right tool in a crowd. batnet is the other shape of the same idea: the box
+stays in the house and does the work. Any phone joins its WiFi with nothing
+installed; the houses are meshed by WiFi and the streets and villages by
+long-range LoRa radio, for kilometres rather than metres (a roof hub in Berlin
+heard radios 25 km away). The box runs for hours on a power bank and keeps the
+whole history while the phones sleep. The price of that is a €45 box per
+house, where Bitchat costs nothing and goes where the phones go.
 
 **Where batnet is weaker.** It's not finished: Meshtastic and MeshCore you
 can buy and use today. Their radios run for days on a tiny battery, while a

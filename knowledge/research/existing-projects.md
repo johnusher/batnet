@@ -37,6 +37,9 @@ sources:
   - id: lxmf
     resource: https://github.com/markqvist/LXMF
     title: LXMF, propagation nodes
+  - id: bitchat
+    resource: https://github.com/permissionlesstech/bitchat
+    title: Bitchat, a Bluetooth mesh chat app
   - id: briar
     resource: https://briarproject.org/
     title: Briar
@@ -51,7 +54,7 @@ sources:
 * **MeshCore** — LoRa with planned repeaters and source routing, up to 64 hops, smaller community.[^meshcore] Roles are distinct firmware jobs: *companions* (a person's radio, paired to the phone app; they do not relay), *repeaters* (the backbone, sited on hills and roofs) and *room servers* (keep message history for people who were offline).[^meshcore-roles] Same boards as Meshtastic, a re-flash away.
 * **Reticulum** — encrypted, transport-agnostic network stack across LoRa, WiFi, serial; LXMF messaging, LXST voice, Sideband app.[^ret-vs-mesh] LXMF *propagation nodes* store and forward for offline recipients.[^lxmf] Go ports: Reticulum-Go[^ret-go] and go-reticulum[^go-ret], both young. A candidate future interop target.
 * **All three side by side in one city:** Berlin's community runs Meshtastic on MediumFast (869.525 MHz, 250 kHz), MeshCore on its EU narrow setting (869.618 MHz, 62.5 kHz) and Reticulum (869.475 MHz, 125 kHz), each in the same 869.4–869.65 MHz slice.[^chaosmesh] See [presets in Berlin](/research/meshtastic-presets-berlin.md).
-* **Phone-to-phone apps** — Briar (Android; Bluetooth, WiFi, Tor)[^briar] and Bridgefy (Bluetooth)[^bridgefy] pass messages between phones with no hardware. Reach is tens of metres and everyone must install the same app.
+* **Phone-to-phone apps** — Bitchat (iOS and Android; Bluetooth LE mesh, every phone relays, no account or server, open source, 2025)[^bitchat], Briar (Android; Bluetooth, WiFi, Tor)[^briar] and Bridgefy (Bluetooth)[^bridgefy] pass messages between phones with no hardware. Reach is tens of metres a hop and everyone must install the same app. The comparison the README draws: Bitchat is the app in the crowd, batnet the box in the house; batnet's LoRa layer reaches kilometres and its hub keeps the history while phones sleep, at the price of a box per house.
 * **talkiepi** — Pi push-to-talk over Mumble; its Go fork is unmaintained.[^talkiepi]
 * **walkie** — Python Opus push-to-talk over LAN broadcast.[^walkie]
 
