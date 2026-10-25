@@ -21,7 +21,9 @@ stale_after: 2027-04-14T00:00:00Z
 Tried as hubs: a Pi 4 with 2 GB ([pi7](/hardware/bench-pi7.md)) and a Zero 2 W
 ([pz7](/hardware/bench-pz7.md)). Both took 200 phones on the app in every
 power mode ([load test](/tests/2026-10-23-hub-load-test.md)); the Zero has no
-kiosk and no translator (under 1 GB of memory). The Zero W cannot run the
+kiosk and no translator (under 1 GB of memory: about 200 MB spare with the hub
+running, where Chromium takes about 350 MB and the translator about 400 MB). A
+1 GB Pi, like a Pi 3, gets the kiosk but no translator (not tried). The Zero W cannot run the
 set-up, which builds for 64-bit Pis only.
 
 # Notes

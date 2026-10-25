@@ -551,8 +551,11 @@ CPE210 outdoor units does it, about €42 each at
 We have tried two Pis as hubs: a **Pi 4** with 2 GB ("pi7", since 21 October
 2026) and a **Pi Zero 2 W** with 512 MB ("pz7", since 23 October), drawn to
 scale [at the top](#a-45-box-that-keeps-a-street-talking-when-the-grid-goes-down). Both have the
-Elecrow Meshstick radio. The same set-up runs on both; a Pi with less than
-1 GB gets no screen and no translator, as they need more memory than it has.
+Elecrow Meshstick radio. The same set-up runs on both, and leaves out what a
+Pi has too little memory for: the screen's browser takes about 350 MB and the
+translator about 400 MB, on top of about 200 MB for the hub itself. So a Pi
+with less than 1 GB gets no screen and no translator, and a Pi with 1 GB gets
+the screen but no translator.
 
 ✅ tried and works · ❌ can't · ❔ not tried yet
 
@@ -560,8 +563,8 @@ Elecrow Meshstick radio. The same set-up runs on both; a Pi with less than
 |---|---|---|---|---|---|
 | The radio, the app and the control panel | ✅ | ✅ | ❔ should work | ❔ should work | ❌ the set-up needs a 64-bit Pi |
 | 200 phones on the app at once ([test](knowledge/tests/2026-10-23-hub-load-test.md)) | ✅ | ✅ | ❔ | ❔ | ❌ |
-| Its own WiFi for phones in a power cut | ❔ | ✅ (how many phones: ❔) | ❔ | ❔ | ❌ |
-| A screen and keyboard on the hub | ❌ too little memory | ✅ | ❔ | ❌ too little memory | ❌ |
+| Its own WiFi for phones in a power cut | ✅ a phone joined ([test](knowledge/tests/2026-10-25-pz7-own-wifi-and-health.md)); how many and how far: ❔ | ✅ (how many phones: ❔) | ❔ | ❔ | ❌ |
+| A screen and keyboard on the hub | ❌ too little memory: about 200 MB spare, the screen's browser needs 350 | ✅ | ❔ should work | ❔ should work (1 GB) | ❌ |
 | The offline translator | ❌ too little memory | ✅ about 1 s a message | ❔ | ❌ | ❌ |
 | Offline maps | ✅ all five areas, once the desktop is off an 8 GB card | ✅ | ❔ | ❔ | ❌ |
 | Power modes (high, medium, low) | ✅ | ✅ | ❔ | ❔ | ❌ |

@@ -7,4 +7,6 @@ Description=batnet: save the time for the next boot
 
 [Service]
 Type=oneshot
+# Not three lines in the log every minute.
+LogLevelMax=notice
 ExecStart=/usr/bin/touch /var/lib/systemd/timesync/clock

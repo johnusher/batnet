@@ -27,14 +27,15 @@ and stay out of this repo ([secret hygiene](/security/secret-hygiene.md)).
 
 # What runs
 
-`setup.sh` sees under 1 GB of memory and takes its small-Pi path: no cage,
+`setup.sh` sees under 1 GB of memory (the kiosk's cut-off is 800 MB, the
+translator's 1.5 GB) and leaves out both: no cage,
 Chromium or emoji font, no `batnet-screen.service` (so batnetd never starts a
 kiosk) and no offline translator. Everything else is as on the
 [first bench hub](/hardware/bench-pi7.md): meshtasticd with the Meshstick
 config, `batnet-hub.service` (the app on `http://<pi>/`, the panel on
 `http://<pi>/hub/`), batman-adv tools, the power-cut kit, watchdogs, the
 Meshtastic command-line tool and pmtiles. `BATNET_SMALL=0` or `1` overrides the
-guess.
+guess for both.
 
 Measured on 2026-10-23: 158 MB of 416 MB in use with batnetd and no radio,
 152 MB with the radio running, 264 MB available. With no Meshstick, meshtasticd
@@ -200,6 +201,14 @@ through a restart of meshtasticd and with its saved preset set back, until a
 USB reset (`sudo usbreset 1a86:5512`) at 08:01 ([B74](/known-problems.md)). A
 copy of the saved config from that night is kept beside it in meshtasticd's
 `prefs/` folder. The guard was removed the same morning.
+
+# Its own WiFi, and the logs
+
+On 2026-10-25 it became its own WiFi for 20 minutes and an iPhone joined and
+stayed 9 minutes; back on the home WiFi 3 s after being asked
+([test](/tests/2026-10-25-pz7-own-wifi-and-health.md)). The same morning's
+health check found it healthy, but its logs only in memory (7 hours' worth):
+they are now on the card, at most 64 MB ([B78](/known-problems.md)).
 
 # Limits
 
