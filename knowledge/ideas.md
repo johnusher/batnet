@@ -64,6 +64,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 - [ ] **New neighbour found.** The first time a `batnet`-named radio is heard: a chime and a card, with *write to them*.
 - [ ] **Mailbox for radios that were off.** A radio that comes back asks the hub for what it missed on the public channel (Meshtastic's store-and-forward does this; the hub has the messages). Airtime manners apply.
 - [ ] **The queue and the duty meter on the panel** once the LoRa bridge is wired (plan 3b): what is waiting, what the hour's budget has left.
+- [ ] **Which way a radio is, from who passes it on.** Each copy names its last relay (one byte); a radio that one placed relay passed on straight is within that relay's reach, and the hubs of a village could add what each hears straight and how strongly. Enough for a direction and a rough distance (antenna planning: which radios are south?), not for a sharper pin: a radio sharing a rough area chose to, and the panel should not undo that.
 - [ ] **A second radio stick as a roving listener** stepping through the EU presets (in [to do](todo.md)), drawn beside the main one.
 
 # Power and hardware

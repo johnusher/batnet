@@ -287,10 +287,17 @@ $("detail-map").addEventListener("click", () => {
 function placeText(p) {
   if (!p) return "";
   let s = `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`;
-  if (p.accuracyM) s += `, within about ${km(p.accuracyM)}`;
+  if (p.accuracyM) s += `, the middle of a rough area: the radio is somewhere within about ${km(p.accuracyM)} of it`;
   const w = where();
-  if (w) s += `; ${km(distance(w, p))} from this hub`;
+  if (w) s += `; ${far(w, p)} from this hub`;
   return s;
+}
+
+// far says how far a shared place is from the hub; for a rough area, the
+// nearest and the farthest the radio could be.
+function far(w, p) {
+  const d = distance(w, p), a = p.accuracyM || 0;
+  return a > 60 && a > d / 10 ? `${km(Math.max(0, d - a))} to ${km(d + a)}` : km(d);
 }
 
 // farGuess says roughly how far a radio with no shared place is, from what
@@ -799,7 +806,7 @@ function drawMap() {
   $("maplist").replaceChildren(...sorted.map((n) => {
     const b = el("button", { type: "button", class: "conv" },
       el("span", { class: "cn", text: nodeName(n) }),
-      el("span", { class: "cp", text: `${w ? km(distance(w, n.position)) + " away, " : ""}${n.position.accuracyM > 60 ? `rough area (${km(n.position.accuracyM)}), ` : ""}shared ${ago(n.position.at)}${n.position.from ? `, via ${n.position.from}` : ""}` }));
+      el("span", { class: "cp", text: `${w ? far(w, n.position) + " away, " : ""}${n.position.accuracyM > 60 ? `somewhere within ${km(n.position.accuracyM)} of its pin, ` : ""}shared ${ago(n.position.at)}${n.position.from ? `, via ${n.position.from}` : ""}` }));
     b.addEventListener("click", () => { map.setView([n.position.lat, n.position.lon], Math.max(map.getZoom(), 14)); showRadio(n.num); });
     return el("li", {}, b);
   }));
