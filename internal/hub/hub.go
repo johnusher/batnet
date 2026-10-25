@@ -392,14 +392,11 @@ func (s *Server) send(b map[string]string) (any, error) {
 	}
 	text := strings.TrimSpace(b["text"])
 	if name, guarded := s.cfg.Radio.ListenOnlyChannel(int(ch)); guarded {
-		// The emergency channel: only on purpose, never a reply or a slip.
+		// The emergency channel: only on purpose, never by a slip.
 		if !strings.EqualFold(strings.TrimSpace(b["confirm"]), name) {
 			return nil, errors.New("The SOS channel is for emergencies: the hub only listens there. To send anyway, type SOS to confirm.")
 		}
-		if reply != 0 {
-			return nil, errors.New("No replies on the SOS channel.")
-		}
-		return s.cfg.Radio.SendOnPurpose(ch, text)
+		return s.cfg.Radio.SendOnPurpose(ch, text, uint32(reply))
 	}
 	t, err := s.cfg.Radio.Send(to, ch, text, uint32(reply))
 	if err != nil {

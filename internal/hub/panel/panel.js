@@ -586,7 +586,7 @@ function renderMessages(r, convs) {
   } else $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
-    : c.listenOnly ? `The emergency channel: anyone nearby can read it. The hub only listens here; to send, you type SOS to confirm, one message per 10 minutes.`
+    : c.listenOnly ? `The emergency channel: anyone nearby can read it. The hub only listens here; to send, you type SOS to confirm each message.`
     : c.channel ? `A group channel: radios that have its name and password read it. Its password is often public, so don't send anything private.`
     : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
   $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : c.channel ? `Message to the ${c.name}` : `Message to ${c.name}`;
@@ -1524,7 +1524,6 @@ $("send").addEventListener("submit", async (ev) => {
     const typed = window.prompt("The SOS channel is for emergencies only: everyone nearby gets it. Type SOS to send.");
     if (typed == null) return;
     body.confirm = typed;
-    replyTo = null;
   } else if (!body.channel && conv !== "pub") body.to = "!" + hex8(Number(conv));
   if (replyTo && replyTo.id) body.replyId = String(replyTo.id);
   if (await sendText($("msg"), "send-note", body)) { replyTo = null; showReply(); }

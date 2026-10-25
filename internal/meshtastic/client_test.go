@@ -655,7 +655,7 @@ func TestHopsFromTheClosestCopy(t *testing.T) {
 }
 
 // The SOS channel is listen-only: no text by accident (Send, a reply, a
-// message to one radio), one on purpose per OnPurposeGap.
+// message to one radio); on purpose, as often as a person needs.
 func TestSOSChannelIsListenOnly(t *testing.T) {
 	f := newFakeRadio(t)
 	c := New(f.ln.Addr().String())
@@ -700,25 +700,20 @@ func TestSOSChannelIsListenOnly(t *testing.T) {
 	if _, err := c.Send(Broadcast, 2, "a reply", 77); err != ErrListenOnly {
 		t.Errorf("a reply: %v", err)
 	}
-	if _, err := c.SendOnPurpose(1, "not SOS"); err == nil {
+	if _, err := c.SendOnPurpose(1, "not SOS", 0); err == nil {
 		t.Error("on purpose on an ordinary channel went out")
 	}
-	if _, err := c.SendOnPurpose(2, "Need help at the corner"); err != nil {
+	if _, err := c.SendOnPurpose(2, "Need help at the corner", 0); err != nil {
 		t.Fatal(err)
 	}
 	if p := sentPacket(t, f); p.channel != 2 || p.to != Broadcast || string(p.payload) != "Need help at the corner" {
 		t.Errorf("sent %+v", p)
 	}
-	later(time.Minute)
-	if _, err := c.SendOnPurpose(2, "again"); err != ErrTooSoonOnPurpose {
-		t.Errorf("a second within the gap: %v", err)
+	later(SendGap)
+	if _, err := c.SendOnPurpose(2, "Coming, two minutes", 77); err != nil {
+		t.Errorf("a reply on purpose, a few seconds later: %v", err)
 	}
-	if err := c.SendText("ordinary channels are not held up", 1); err != nil {
-		t.Errorf("BerlinMesh: %v", err)
-	}
-	sentPacket(t, f)
-	later(OnPurposeGap)
-	if _, err := c.SendOnPurpose(2, "again"); err != nil {
-		t.Errorf("after the gap: %v", err)
+	if p := sentPacket(t, f); p.channel != 2 || string(p.payload) != "Coming, two minutes" {
+		t.Errorf("sent %+v", p)
 	}
 }

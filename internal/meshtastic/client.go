@@ -30,18 +30,11 @@ const (
 	SendGap  = 5 * time.Second
 	adminGap = 5 * time.Second
 	HelloGap = 5 * time.Minute
-	// OnPurposeGap is how often at most a person may send on a listen-only
-	// channel (SOS), after confirming it.
-	OnPurposeGap = 10 * time.Minute
 )
 
 // ErrListenOnly means the hub only listens on that channel: nothing goes
 // there by accident or automatically (ListenOnly).
 var ErrListenOnly = errors.New("meshtastic: the hub only listens on the SOS channel; a person sends there only on purpose")
-
-// ErrTooSoonOnPurpose means the last message on a listen-only channel was
-// less than OnPurposeGap ago.
-var ErrTooSoonOnPurpose = errors.New("meshtastic: one message on the SOS channel per 10 minutes")
 
 // ErrTooSoon means the last send was too recent.
 var ErrTooSoon = errors.New("meshtastic: wait a few seconds before sending again")
@@ -222,22 +215,21 @@ type Client struct {
 	addr string
 	now  func() time.Time
 
-	mu            sync.Mutex
-	conn          net.Conn
-	st            Status
-	nodes         map[uint32]*Node
-	links         map[uint32]*link
-	channels      map[int]Channel
-	selfUser      []byte // our own User message, for "say hello"
-	lastSend      time.Time
-	lastOnPurpose time.Time // the last text on a listen-only channel
-	lastHello     time.Time
-	lastAdmin     time.Time
-	askedKey      map[uint32]time.Time   // when the hub last asked a radio for its name card
-	garbled       map[copyKey]Unreadable // the closest garbled copy of recent packets, by sender and packet ID
-	loraRaw       []byte                 // the radio's LoRaConfig as it sent it, for changing a few fields
-	listeners     map[chan struct{}]bool
-	onEvent       []func(Event)
+	mu        sync.Mutex
+	conn      net.Conn
+	st        Status
+	nodes     map[uint32]*Node
+	links     map[uint32]*link
+	channels  map[int]Channel
+	selfUser  []byte // our own User message, for "say hello"
+	lastSend  time.Time
+	lastHello time.Time
+	lastAdmin time.Time
+	askedKey  map[uint32]time.Time   // when the hub last asked a radio for its name card
+	garbled   map[copyKey]Unreadable // the closest garbled copy of recent packets, by sender and packet ID
+	loraRaw   []byte                 // the radio's LoRaConfig as it sent it, for changing a few fields
+	listeners map[chan struct{}]bool
+	onEvent   []func(Event)
 }
 
 // OnEvent adds a function called for every Event (from the client's own
@@ -1037,10 +1029,10 @@ func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, er
 	return c.send(to, channel, text, replyID, false)
 }
 
-// SendOnPurpose sends text to everyone on a listen-only channel (SOS), for a
-// person who confirmed it; at most once per OnPurposeGap.
-func (c *Client) SendOnPurpose(channel uint32, text string) (Text, error) {
-	return c.send(Broadcast, channel, text, 0, true)
+// SendOnPurpose sends text to everyone on a listen-only channel (SOS),
+// optionally as a reply, for a person who confirmed it.
+func (c *Client) SendOnPurpose(channel uint32, text string, replyID uint32) (Text, error) {
+	return c.send(Broadcast, channel, text, replyID, true)
 }
 
 func (c *Client) send(to, channel uint32, text string, replyID uint32, onPurpose bool) (Text, error) {
@@ -1064,18 +1056,12 @@ func (c *Client) send(to, channel uint32, text string, replyID uint32, onPurpose
 	case onPurpose && !guarded:
 		c.mu.Unlock()
 		return Text{}, errors.New("meshtastic: not a listen-only channel")
-	case guarded && !c.lastOnPurpose.IsZero() && c.now().Sub(c.lastOnPurpose) < OnPurposeGap:
-		c.mu.Unlock()
-		return Text{}, ErrTooSoonOnPurpose
 	}
 	if c.now().Sub(c.lastSend) < SendGap {
 		c.mu.Unlock()
 		return Text{}, ErrTooSoon
 	}
 	c.lastSend = c.now()
-	if guarded {
-		c.lastOnPurpose = c.now()
-	}
 	hop := c.st.HopLimit
 	c.mu.Unlock()
 	if hop == 0 {
