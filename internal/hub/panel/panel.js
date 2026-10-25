@@ -323,9 +323,16 @@ function farGuess(n) {
   return "";
 }
 
+// guessOf is the guess for radio n, when the guesses are shown.
+function guessOf(n) {
+  const gs = guesses();
+  return gs ? gs.list.find((x) => x.n.num === n.num) || null : null;
+}
+
 function showRadio(num) {
   const n = byNum(num);
   if (!n) return;
+  if (guessOf(n)) guessSel = n.num;
   openDetail(nodeName(n), [n.shortName, n.hardware, n.role].filter(Boolean).join(", "), [
     ["ID", n.id],
     // Of the last packet only: after relays it is the last relay's signal, not this radio's.
@@ -339,10 +346,11 @@ function showRadio(num) {
     ["Battery", n.battery != null ? (n.battery > 100 ? "on mains power" : `${n.battery} %`) : ""],
     ["Its channel in use", n.chanUtil != null ? `${n.chanUtil.toFixed(1)} %` : ""],
     ["Where", n.position ? `${placeText(n.position)} (shared ${ago(n.position.at)}${n.position.from ? `, heard by the hub ${n.position.from}` : ""})` : "has not shared it"],
-    ["How far, roughly", n.self || (n.position && where()) ? "" : farGuess(n)],
+    ["How far, roughly", n.self || (n.position && where()) || guessOf(n) ? "" : farGuess(n)],
+    ["Where it might be", guessOf(n) ? `a guess: ${guessText(guessOf(n))} (Map, Guessed)` : ""],
     ["Runs batnet", n.batnet ? "yes" : ""],
     ["Private messages", n.self ? "" : n.key ? "can be sent: its key is known" : "not yet: its name card, with its key, has not been heard (the hub asks for it if you send one)"],
-  ], { num: n.self ? null : n.num, pos: n.position });
+  ], { num: n.self ? null : n.num, pos: n.position || (guessOf(n) ? guessOf(n).r.peak : null) });
 }
 
 const PORTS = { nodeinfo: "who it is", position: "position", telemetry: "telemetry", text: "message", routing: "receipt",
@@ -745,6 +753,149 @@ function coverage(w, placed) {
   return out;
 }
 
+// ---- guesses: where radios with no shared place probably are ----
+// For the hub's owner only: the sightings need the hub PIN even at home, and
+// the guesses stay on this screen (guess.js works them out).
+let guessing = load("hub.guess", false), sightings = null, sightingsAt = 0, guessSel = null, guessed = null;
+const ROUGH = 3000; // m: a place rougher than this is guessed at too
+const COMPASS16 = (i) => COMPASS[Math.round(i / 2) % 8];
+
+async function fetchSightings() {
+  for (let tries = 0; tries < 3; tries++) {
+    const res = await fetch("api/sightings", { cache: "no-store", headers: pin ? { "X-Hub-PIN": pin } : {} });
+    const out = await res.json().catch(() => ({}));
+    if (res.status === 401 && !(last && last.local)) {
+      const p = await askPIN();
+      if (p == null) throw new Error("The guesses need the hub PIN.");
+      keepPIN(p, $("pin-keep").checked);
+      continue;
+    }
+    if (!res.ok) throw new Error(out.error || "The hub said no.");
+    sightings = out.radios || {};
+    sightingsAt = Date.now();
+    guessed = null;
+    return;
+  }
+  throw new Error("Wrong PIN.");
+}
+
+async function setGuessing(on) {
+  if (on) {
+    try { await fetchSightings(); } catch (e) { setNote("place-note", e.message, true); on = false; }
+  }
+  guessing = on;
+  save("hub.guess", on);
+  if (!on) { sightings = null; guessed = null; guessSel = null; }
+  drawMap();
+}
+$("guess").addEventListener("click", () => setGuessing(!guessing));
+
+// guesses works out every radio's guess once per fetch of the sightings, or
+// when radios share new places: a few milliseconds each.
+function guesses() {
+  const w = where();
+  if (!guessing || !sightings || !w) return null;
+  const all = nodes();
+  const key = `${sightingsAt}:${w.lat},${w.lon}:` + all.filter((n) => n.position).map((n) => `${n.num}@${n.position.at}`).join(",");
+  if (guessed && guessed.key === key) return guessed;
+  const hopsOf = (n) => (sightings[n.id] ? sightings[n.id].hops : n.hops);
+  const known = all.filter((n) => !n.self && n.position && (n.position.accuracyM || 0) <= ROUGH)
+    .map((n) => ({ lat: n.position.lat, lon: n.position.lon, via: (sightings[n.id] || {}).via || {}, hops: hopsOf(n) }));
+  const want = all.filter((n) => !n.self && sightings[n.id] && !(n.position && (n.position.accuracyM || 0) <= ROUGH));
+  const g = Guess.grid(w, known, want.filter((n) => n.position).map((n) => n.position));
+  const list = [];
+  for (const n of want) {
+    const sg = sightings[n.id];
+    const r = Guess.where(g, { via: sg.via, hops: sg.hops, rough: n.position || null });
+    if (r) list.push({ n, r, s: Guess.spread(g, r) });
+  }
+  list.sort((a, b) => a.s.area - b.s.area); // the narrowest guesses first
+  guessed = { key, g, list, sum: null };
+  return guessed;
+}
+
+// guessText says where a guess lies, in a few words.
+function guessText(x) {
+  const way = x.s.from == null ? "which way is not clear"
+    : x.s.from === x.s.to || COMPASS16(x.s.from) === COMPASS16(x.s.to) ? `to the ${COMPASS16(x.s.from)}`
+    : `between ${COMPASS16(x.s.from)} and ${COMPASS16(x.s.to)}`;
+  return `probably ${km(x.s.near)} to ${km(x.s.far)} away, ${way}`;
+}
+
+// guessImage paints the guesses as a picture over the map: each radio's
+// light and dark patches when one is chosen, else all of them faintly.
+function guessImage(gs, one) {
+  const { g } = gs, n = g.n;
+  const c = document.createElement("canvas");
+  c.width = c.height = n;
+  const ctx = c.getContext("2d"), img = ctx.createImageData(n, n);
+  const hex = css("--guess").replace("#", "");
+  const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  let alpha;
+  if (one) {
+    alpha = (q) => (one.r.p[q] >= one.r.half ? 150 : one.r.p[q] >= one.r.most ? 60 : 0);
+  } else {
+    if (!gs.sum) { // each radio's light patch, added up: where many guesses lie
+      gs.sum = new Float32Array(n * n);
+      for (const x of gs.list) for (let q = 0; q < n * n; q++) if (x.r.p[q] >= x.r.most) gs.sum[q]++;
+    }
+    let top = 0;
+    for (const v of gs.sum) top = Math.max(top, v);
+    alpha = (q) => (gs.sum[q] ? 40 + 150 * (gs.sum[q] / top) : 0);
+  }
+  for (let q = 0; q < n * n; q++) {
+    img.data[4 * q] = rgb[0]; img.data[4 * q + 1] = rgb[1]; img.data[4 * q + 2] = rgb[2]; img.data[4 * q + 3] = alpha(q);
+  }
+  ctx.putImageData(img, 0, 0);
+  return c.toDataURL();
+}
+
+let fetchingSightings = false;
+function drawGuesses() {
+  $("guess").setAttribute("aria-pressed", String(guessing));
+  $("guess").firstChild.textContent = guessing ? "Hide the guesses " : "Guess where the others are ";
+  // Kept on from before, or due again (every 5 minutes): fetch, then draw.
+  if (guessing && !fetchingSightings && (!sightings || Date.now() - sightingsAt > 5 * 60e3)) {
+    fetchingSightings = true;
+    fetchSightings().then(drawMap, (e) => { setNote("place-note", e.message, true); setGuessing(false); })
+      .finally(() => { fetchingSightings = false; });
+  }
+  const gs = guesses();
+  $("guessed").hidden = !gs;
+  if (!gs) return;
+  const one = gs.list.find((x) => x.n.num === guessSel) || null;
+  L.imageOverlay(guessImage(gs, one), Guess.bounds(gs.g), { interactive: false, className: "guessimg" }).addTo(mapLayer);
+  for (const x of one ? [one] : gs.list) {
+    const m = L.circleMarker([x.r.peak.lat, x.r.peak.lon], { radius: one ? 7 : 4, color: css("--guess"), weight: 2, dashArray: "3 3", fillOpacity: 0 }).addTo(mapLayer);
+    if (one) m.bindTooltip(el("span", { text: `${x.n.shortName || x.n.id.slice(-4)}?` }), { permanent: true, direction: "right", offset: [6, 0], className: "maplbl guesslbl" });
+    m.on("click", () => { guessSel = x.n.num; drawMap(); showRadio(x.n.num); });
+  }
+  $("gcount").textContent = `(${gs.list.length})`;
+  $("guesslist").replaceChildren(...gs.list.map((x) => {
+    const b = el("button", { type: "button", class: "conv" + (x.n.num === guessSel ? " sel" : "") },
+      el("span", { class: "cn", text: nodeName(x.n) }),
+      el("span", { class: "cp", text: `${guessText(x)}; ${x.n.position ? "shares a rough area" : "shares no place"}` }));
+    b.addEventListener("click", () => {
+      guessSel = guessSel === x.n.num ? null : x.n.num;
+      drawMap();
+      if (guessSel != null) map.fitBounds(L.latLngBounds(patchCorners(gs.g, x.r)).pad(0.3), { maxZoom: 13 });
+    });
+    return el("li", {}, b);
+  }));
+}
+
+// patchCorners are the light patch's outermost squares, to fit the map to.
+function patchCorners(g, r) {
+  const pts = [];
+  for (let q = 0; q < r.p.length; q++) {
+    if (r.p[q] < r.most) continue;
+    const i = Math.floor(q / g.n), j = q % g.n;
+    const M = 111320, x = (j + 0.5) * Guess.CELL - g.r, y = g.r - (i + 0.5) * Guess.CELL;
+    pts.push([g.hub.lat + y / M, g.hub.lon + x / g.kLon]);
+  }
+  return pts.length ? pts : [[r.peak.lat, r.peak.lon]];
+}
+
 // Offline maps (decision 0032): the areas the hub keeps, drawn over the
 // online tiles, so they show with or without the internet.
 const offline = new Map(); // id:build:at -> layer
@@ -794,6 +945,7 @@ function drawMap() {
   $("map-reach").textContent = !w ? "Mark where this hub is to see where it hears."
     : z.evidence.length ? `Shaded: where the hub should hear a radio straight, with no relay, worked out from how strongly ${z.evidence.length === 1 ? "one radio reaches" : `${z.evidence.length} radios reach`} it (dashed lines): up to ${km(z.far.reach)} to the ${z.far.dir}. For a radio placed like those; one lower down or indoors is heard less far. Blank directions are not known yet.`
     : "No radio with a known place has reached the hub straight yet, so no zone.";
+  drawGuesses();
   if (w) {
     pts.push([w.lat, w.lon]);
     L.marker([w.lat, w.lon], { icon: L.divIcon({ className: "hubmark", html: "<span>this hub</span>", iconSize: null }), keyboard: false }).addTo(mapLayer);

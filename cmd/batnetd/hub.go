@@ -205,7 +205,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 
 	radio := meshtastic.New(radioAddr)
 	var kept sync.WaitGroup // the last saves on the way out
-	kept.Add(2)
+	kept.Add(3)
 	go func() {
 		defer kept.Done()
 		keepFile(ctx, filepath.Join(data, hub.LinksFile), 5*time.Minute, func(b []byte) error {
@@ -224,6 +224,16 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 			return err
 		}, func() ([]byte, error) { return json.Marshal(radio.SavedTexts()) })
 	}()
+	sightings := hub.NewSightings()
+	go func() { // how each radio reaches the hub, for the map's guesses
+		defer kept.Done()
+		keepFile(ctx, filepath.Join(data, "sightings.json"), 5*time.Minute, func(b []byte) error {
+			var m map[string]hub.Sighting
+			err := json.Unmarshal(b, &m)
+			sightings.Load(m)
+			return err
+		}, func() ([]byte, error) { return json.Marshal(sightings.Saved()) })
+	}()
 	linksSaved := make(chan struct{})
 	go func() { kept.Wait(); close(linksSaved) }()
 	logbook := hub.NewLogbook(filepath.Join(data, "logs"), radio, func(on bool) error {
@@ -235,6 +245,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	radio.OnEvent(logbook.Event)
 	traffic := hub.NewTraffic(func() string { return radio.Status().Preset })
 	radio.OnEvent(traffic.Event)
+	radio.OnEvent(sightings.Event)
 	setHello := func(m int) {
 		switch {
 		case m < 0:
@@ -270,9 +281,14 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	go logbook.Run(ctx, data)
 	go radio.Run(ctx)
 	go meshtastic.WatchJournal(ctx, "meshtasticd.service", meshtastic.JournalHandlers{
-		Unreadable: func(u meshtastic.Unreadable) { logbook.Unreadable(u); traffic.Garbled(u); radio.Echo(u) },
-		Relayed:    func(r string) { logbook.Note("relayed", map[string]any{"relay": r}); traffic.Relayed(r) },
-		Busy:       traffic.Busy,
+		Unreadable: func(u meshtastic.Unreadable) {
+			logbook.Unreadable(u)
+			traffic.Garbled(u)
+			sightings.Garbled(u)
+			radio.Echo(u)
+		},
+		Relayed: func(r string) { logbook.Note("relayed", map[string]any{"relay": r}); traffic.Relayed(r) },
+		Busy:    traffic.Busy,
 	})
 
 	kit := h.startKit(ctx, radio, id, wifiPass)
@@ -307,7 +323,7 @@ func runHub(data, listen, radioAddr, mode, house string) error {
 	go maps.Run(ctx)
 
 	panel := hub.New(hub.Config{House: h.settings.House, DataDir: data, Radio: radio, Mesh: h.meshStatus,
-		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic,
+		SetMode: func(m string) error { return h.switchMode(cancel, m) }, HubPIN: hubPIN, AdminPIN: adminPIN, Log: logbook, Traffic: traffic, Sightings: sightings,
 		Settings: settings, SaveSettings: saveSettings,
 		WiFi: kit.wifi, Sound: kit.sound, Light: kit.light, Power: kit.power, Devices: kit.devices, Translator: kit.translator,
 		Notifier: kit.notifier, Maps: maps, Places: places, Run: hub.Exec})

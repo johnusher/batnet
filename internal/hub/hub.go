@@ -84,6 +84,9 @@ type Config struct {
 	Notifier   *Notifier
 	Maps       *Maps   // offline maps; nil: online tiles only
 	Places     *Places // the radios' places other hubs shared; nil: none
+	// Sightings: how each radio's packets reach the hub, for the map's
+	// guesses (the hub PIN only); nil: none.
+	Sightings *Sightings
 	// Run runs the system's commands: reboot, power off, the clock, the console.
 	Run Runner
 }
@@ -137,6 +140,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /hub/api/ping", func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("ok\n")) })
 	mux.HandleFunc("GET /hub/api/status", s.status)
 	mux.HandleFunc("GET /hub/api/traffic", s.traffic)
+	mux.HandleFunc("GET /hub/api/sightings", s.sightings)
 	mux.HandleFunc("POST /hub/api/send", s.action(s.send))
 	mux.HandleFunc("POST /hub/api/hello", s.action(s.hello))
 	mux.HandleFunc("POST /hub/api/mode", s.action(s.mode))
@@ -234,6 +238,23 @@ func (s *Server) traffic(w http.ResponseWriter, r *http.Request) {
 	}
 	since, _ := strconv.ParseInt(r.URL.Query().Get("since"), 10, 64)
 	writeJSON(w, http.StatusOK, s.cfg.Traffic.Since(since))
+}
+
+// sightings serves how each radio reaches the hub, for the map's guesses of
+// where radios are: for the hub's owner only, so the hub PIN even on the home
+// network, where the rest of the panel can be read without it.
+func (s *Server) sightings(w http.ResponseWriter, r *http.Request) {
+	if !local(r) {
+		if err := s.checkPIN(r.Header.Get("X-Hub-PIN"), r.RemoteAddr); err != nil {
+			writeJSON(w, err.code, map[string]any{"error": err.msg, "locked": true})
+			return
+		}
+	}
+	out := map[string]Sighting{}
+	if s.cfg.Sightings != nil {
+		out = s.cfg.Sightings.Saved()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"radios": out})
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

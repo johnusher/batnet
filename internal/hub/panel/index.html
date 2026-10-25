@@ -82,6 +82,12 @@
       <h2>On the map <span id="mcount" class="count"></span></h2>
       <p class="muted small">Radios that shared where they are. A faint circle round a radio is not how far it reaches: the radio shares only a rough area, on purpose, and is somewhere inside the circle.</p>
       <p id="map-reach" class="muted small"></p>
+      <button id="guess" class="btn ghost small" type="button" aria-pressed="false">Guess where the others are <span class="muted">(hub PIN)</span></button>
+      <div id="guessed" class="guessed" hidden>
+        <h3>Guessed <span id="gcount" class="count"></span></h3>
+        <p id="guess-note" class="muted small">For the hub's owner only. Where radios that share no place, or only a very rough one, probably are: worked out from the radios whose place is known that reach this hub the same way (through the same last relays, past as many relays), inside the rough area if one is shared. A radio is in its dark patch about half the time, in the light one about four times in five. A guess, not a place; it stays on this screen.</p>
+        <ul id="guesslist" class="maplist"></ul>
+      </div>
       <ul id="maplist" class="maplist"></ul>
       <p id="map-empty" class="empty" hidden>No radio has shared a position yet.</p>
       <button id="place-hub" class="btn ghost small" type="button">Mark where this hub is</button>
@@ -388,6 +394,7 @@
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/protomaps-leaflet.js"></script>
 <script src="vendor/qrcode.js"></script>
+<script src="guess.js"></script>
 <script src="panel.js"></script>
 </body>
 </html>

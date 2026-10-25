@@ -3,7 +3,7 @@
 :root {
   --paper: #edf0ea; --sheet: #f6f8f4; --ink: #1d2826; --muted: #5e6b66; --rule: #c5cdc2;
   --signal: #1b5e8c; --onair: #b8321e; --batnet: #0e7468; --ok: #2f6b3a; --warn: #8a5a00;
-  --ring: #c9d2c6; --dot: #44524d;
+  --ring: #c9d2c6; --dot: #44524d; --guess: #6b3fa0;
   /* traffic: everyone else's packets neutral, ours red, those for this hub blue */
   --air: #7d8a83; --air-us: #1a5fa0; --bubble: #e1e8e0; --bubble-mine: #f3dcd6;
   color-scheme: light;
@@ -12,7 +12,7 @@
   :root:not([data-theme="light"]) {
     --paper: #121a19; --sheet: #182220; --ink: #dce5e0; --muted: #8c9a94; --rule: #2a3633;
     --signal: #7db4de; --onair: #e8705a; --batnet: #4fc0ae; --ok: #79c487; --warn: #e0b354;
-    --ring: #2c3a37; --dot: #b6c4be;
+    --ring: #2c3a37; --dot: #b6c4be; --guess: #b48ee6;
     --air: #76857f; --air-us: #4e9ce6; --bubble: #1f2b29; --bubble-mine: #3a2420;
     color-scheme: dark;
   }
@@ -20,7 +20,7 @@
 :root[data-theme="dark"] {
   --paper: #121a19; --sheet: #182220; --ink: #dce5e0; --muted: #8c9a94; --rule: #2a3633;
   --signal: #7db4de; --onair: #e8705a; --batnet: #4fc0ae; --ok: #79c487; --warn: #e0b354;
-  --ring: #2c3a37; --dot: #b6c4be;
+  --ring: #2c3a37; --dot: #b6c4be; --guess: #b48ee6;
   --air: #76857f; --air-us: #4e9ce6; --bubble: #1f2b29; --bubble-mine: #3a2420;
   color-scheme: dark;
 }
@@ -197,6 +197,15 @@ input:focus, select:focus, textarea:focus { border-color: var(--signal); outline
 .map-note { position: absolute; left: 0.6rem; bottom: 0.6rem; z-index: 500; background: var(--ink); color: var(--paper); padding: 0.3rem 0.6rem; border-radius: 0.35rem; font-size: 0.85rem; max-width: 80%; }
 .map-side { display: flex; flex-direction: column; gap: 0.5rem; min-height: 0; }
 .maplist { flex: 1; min-height: 0; }
+.guessed { border-top: 1px solid var(--rule); padding-top: 0.5rem; display: flex; flex-direction: column; gap: 0.4rem; }
+.guessed[hidden] { display: none; }
+.guessed p { margin: 0; }
+.guessed .maplist { flex: none; max-height: 22rem; }
+.guessed h3 { margin: 0; font-size: 0.95rem; color: var(--guess); }
+.guessed .conv.sel { outline: 2px solid var(--guess); }
+.guessed .cp { white-space: normal; }
+.maplbl.guesslbl { color: var(--guess); border-style: dashed; }
+.leaflet-image-layer.guessimg { pointer-events: none; }
 
 /* traffic */
 .stats { display: flex; flex-wrap: wrap; gap: 0.3rem 1.6rem; }
