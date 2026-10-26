@@ -359,7 +359,8 @@ func (s *Server) checkPIN(pin, remote string) *failure {
 // send sends a text to everyone, or with "to" (a node ID such as !a1b2c3d4)
 // to one radio, or with "channel" (an index above 0) to everyone on one of
 // the radio's group channels; "replyId" makes it an answer to that message.
-// The SOS channel takes a message only with "confirm": "SOS" (ListenOnly).
+// A listen-only channel (SOS, Warnmeldung) takes a message only with
+// "confirm" set to its name (ListenOnly).
 func (s *Server) send(b map[string]string) (any, error) {
 	if s.cfg.Radio == nil {
 		return nil, meshtastic.ErrOffline
@@ -392,9 +393,12 @@ func (s *Server) send(b map[string]string) (any, error) {
 	}
 	text := strings.TrimSpace(b["text"])
 	if name, guarded := s.cfg.Radio.ListenOnlyChannel(int(ch)); guarded {
-		// The emergency channel: only on purpose, never by a slip.
+		// The emergency or warning channel: only on purpose, never by a slip.
 		if !strings.EqualFold(strings.TrimSpace(b["confirm"]), name) {
-			return nil, errors.New("The SOS channel is for emergencies: the hub only listens there. To send anyway, type SOS to confirm.")
+			if strings.EqualFold(name, "SOS") {
+				return nil, errors.New("The SOS channel is for emergencies: the hub only listens there. To send anyway, type SOS to confirm.")
+			}
+			return nil, fmt.Errorf("The hub only listens on the %s channel. To send anyway, type %s to confirm.", name, name)
 		}
 		return s.cfg.Radio.SendOnPurpose(ch, text, uint32(reply))
 	}

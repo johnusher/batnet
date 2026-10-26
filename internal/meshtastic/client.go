@@ -34,7 +34,7 @@ const (
 
 // ErrListenOnly means the hub only listens on that channel: nothing goes
 // there by accident or automatically (ListenOnly).
-var ErrListenOnly = errors.New("meshtastic: the hub only listens on the SOS channel; a person sends there only on purpose")
+var ErrListenOnly = errors.New("meshtastic: the hub only listens on this channel; a person sends there only on purpose")
 
 // ErrTooSoon means the last send was too recent.
 var ErrTooSoon = errors.New("meshtastic: wait a few seconds before sending again")
@@ -149,12 +149,29 @@ type Channel struct {
 	Name       string `json:"name"`
 	Role       string `json:"role"`
 	ListenOnly bool   `json:"listenOnly,omitempty"`
+	Quiet      bool   `json:"quiet,omitempty"`
 }
 
 // ListenOnly reports whether the hub only listens on a channel of this name:
-// SOS, the emergency channel. A text goes there only through SendOnPurpose,
-// after a person confirmed it; never by accident, never automatically.
-func ListenOnly(name string) bool { return strings.EqualFold(strings.TrimSpace(name), "SOS") }
+// SOS, the emergency channel, and Warnmeldung, where a bot posts official
+// warnings. A text goes there only through SendOnPurpose, after a person
+// confirmed it; never by accident, never automatically.
+func ListenOnly(name string) bool { return named(name, "SOS", "Warnmeldung") }
+
+// Quiet reports whether a channel of this name carries nothing that is news
+// for the owner: TEST (other people's pings) and Warnmeldung (warnings for all
+// of Germany). The panel shows them but counts them to no badge.
+func Quiet(name string) bool { return named(name, "TEST", "Warnmeldung") }
+
+func named(name string, names ...string) bool {
+	name = strings.TrimSpace(name)
+	for _, n := range names {
+		if strings.EqualFold(name, n) {
+			return true
+		}
+	}
+	return false
+}
 
 // Event is one thing that happened on the radio, for a log: every packet
 // received (decoded or not), and the connection coming and going.
@@ -982,6 +999,7 @@ func (c *Client) Status() Status {
 				}
 			}
 			ch.ListenOnly = ListenOnly(ch.Name)
+			ch.Quiet = Quiet(ch.Name)
 			st.Channels = append(st.Channels, ch)
 		}
 	}
@@ -1024,12 +1042,12 @@ func (c *Client) SendText(text string, channel uint32) error {
 // optionally as a reply to message replyID, asking for a receipt. A message
 // to one radio is encrypted end to end by meshtasticd once it knows that
 // radio's key. It returns the message as the panel shows it.
-// A listen-only channel (SOS) refuses it: see SendOnPurpose.
+// A listen-only channel (SOS, Warnmeldung) refuses it: see SendOnPurpose.
 func (c *Client) Send(to, channel uint32, text string, replyID uint32) (Text, error) {
 	return c.send(to, channel, text, replyID, false)
 }
 
-// SendOnPurpose sends text to everyone on a listen-only channel (SOS),
+// SendOnPurpose sends text to everyone on a listen-only channel (SOS, Warnmeldung),
 // optionally as a reply, for a person who confirmed it.
 func (c *Client) SendOnPurpose(channel uint32, text string, replyID uint32) (Text, error) {
 	return c.send(Broadcast, channel, text, replyID, true)

@@ -654,8 +654,9 @@ func TestHopsFromTheClosestCopy(t *testing.T) {
 	}
 }
 
-// The SOS channel is listen-only: no text by accident (Send, a reply, a
-// message to one radio); on purpose, as often as a person needs.
+// The SOS and Warnmeldung channels are listen-only: no text by accident
+// (Send, a reply, a message to one radio); on purpose, as often as a person
+// needs. TEST and Warnmeldung are quiet: their messages are not news.
 func TestSOSChannelIsListenOnly(t *testing.T) {
 	f := newFakeRadio(t)
 	c := New(f.ln.Addr().String())
@@ -675,7 +676,7 @@ func TestSOSChannelIsListenOnly(t *testing.T) {
 		index uint64
 		name  string
 		role  uint64
-	}{{0, "", 1}, {1, "BerlinMesh", 2}, {2, "SOS", 2}} {
+	}{{0, "", 1}, {1, "BerlinMesh", 2}, {2, "SOS", 2}, {3, "TEST", 2}, {4, "Warnmeldung", 2}} {
 		var chs, ch, fr enc
 		chs.bytes(3, []byte(x.name))
 		ch.varint(1, x.index)
@@ -687,9 +688,16 @@ func TestSOSChannelIsListenOnly(t *testing.T) {
 	var done enc
 	done.varint(frConfigComplete, 1)
 	f.send(done.b)
-	st := waitFor(t, c, func(s Status) bool { return s.Ready && len(s.Channels) == 3 })
-	if st.Channels[1].ListenOnly || !st.Channels[2].ListenOnly {
-		t.Errorf("channels %+v", st.Channels)
+	st := waitFor(t, c, func(s Status) bool { return s.Ready && len(s.Channels) == 5 })
+	ch := st.Channels
+	if ch[1].ListenOnly || !ch[2].ListenOnly || ch[3].ListenOnly || !ch[4].ListenOnly {
+		t.Errorf("listen-only: channels %+v", ch)
+	}
+	if ch[0].Quiet || ch[1].Quiet || ch[2].Quiet || !ch[3].Quiet || !ch[4].Quiet {
+		t.Errorf("quiet: channels %+v", ch)
+	}
+	if err := c.SendText("Unwetter? Danke!", 4); err != ErrListenOnly {
+		t.Errorf("on the warning channel by accident: %v", err)
 	}
 	if name, ok := c.ListenOnlyChannel(2); !ok || name != "SOS" {
 		t.Errorf("ListenOnlyChannel(2) = %q %v", name, ok)

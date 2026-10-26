@@ -111,7 +111,7 @@ Berlin Chaos Mesh lists TEST, SOS and BerlinMesh instead
 TEST, and each has rooms the other does not. The *Warnmeldung* channel the
 roof hub saw asked to stop posting warnings for all of Germany (log,
 2026-10-25) is almost certainly this bot's: it is the only one listed that
-posts MoWaS and KATWARN. Not confirmed; the hub still does not join it.
+posts MoWaS and KATWARN. Not confirmed. On 2026-10-26 the owner chose to join it after all, listen-only and quiet (no badge), since it is the one source of official warnings on the air ([pz7](/hardware/bench-pz7.md)).
 
 # Etiquette it writes down
 

@@ -445,6 +445,7 @@ function conversations(r) {
     const chName = ((r.channels || []).find((x) => x.index === c.channel) || {}).name || `channel ${c.channel}`;
     c.name = c.id === "pub" ? "Everyone nearby" : c.channel ? `${chName} channel` : nameOfNum(c.num);
     c.listenOnly = !!((r.channels || []).find((x) => x.index === c.channel) || {}).listenOnly;
+    c.muted = !!((r.channels || []).find((x) => x.index === c.channel) || {}).quiet; // TEST, Warnmeldung: not news (Quiet in Go)
     c.lastAt = c.texts.length ? Date.parse(c.texts[c.texts.length - 1].at) : 0;
     c.unread = c.texts.filter((t) => !t.mine && Date.parse(t.at) > readTime(c.id)).length;
     // Only this hub has written, nobody answered, and not for six hours (a night of
@@ -544,8 +545,8 @@ function bubble(t, all, { who, reply }) {
 }
 
 function renderMessages(r, convs) {
-  // Messages to this hub and on its group channels count; the open channel only shows a dot.
-  const total = convs.filter((c) => c.id !== "pub").reduce((s, c) => s + c.unread, 0);
+  // Messages to this hub and on its group channels count; the open channel only shows a dot, quiet channels nothing.
+  const total = convs.filter((c) => c.id !== "pub" && !c.muted).reduce((s, c) => s + c.unread, 0);
   const badge = $("badge");
   badge.hidden = !total && !convs[0].unread;
   badge.textContent = total ? String(total) : "";
@@ -586,7 +587,9 @@ function renderMessages(r, convs) {
   } else $("thread-name").textContent = c.name;
   $("thread-sub").textContent = c.id === "pub"
     ? `Meshtastic's open ${r.preset || ""} channel: anyone with a radio nearby can read it. Don't send anything private.`
-    : c.listenOnly ? `The emergency channel: anyone nearby can read it. The hub only listens here; to send, you type SOS to confirm each message.`
+    : c.listenOnly && /^sos$/i.test(c.name.replace(/ channel$/, "")) ? `The emergency channel: anyone nearby can read it. The hub only listens here; to send, you type SOS to confirm each message.`
+    : c.listenOnly ? `Official warnings (MoWaS, KATWARN), posted automatically by a bot for all of Germany, so most are for somewhere else. The hub only listens here and counts them to no badge.`
+    : c.muted ? `The test channel: pings and tests from radios around, so tests stay off the open channel. Anyone can read it; its messages count to no badge.`
     : c.channel ? `A group channel: radios that have its name and password read it. Its password is often public, so don't send anything private.`
     : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
   $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : c.channel ? `Message to the ${c.name}` : `Message to ${c.name}`;
@@ -633,12 +636,12 @@ function renderHome(s, convs) {
   const r = s.radio;
   const others = nodes().filter((n) => !n.self);
   const hour = others.filter((n) => Date.now() - Date.parse(n.lastHeard) < 3600e3).length;
-  const unread = convs.filter((c) => c.id !== "pub").reduce((a, c) => a + c.unread, 0);
+  const unread = convs.filter((c) => c.id !== "pub" && !c.muted).reduce((a, c) => a + c.unread, 0);
   const hl = $("headline");
   hl.replaceChildren(el("span", { class: "big", text: String(hour) }), ` radio${hour === 1 ? "" : "s"} heard in the last hour`);
   if (unread) {
     const b = el("button", { class: "linkbtn", type: "button", text: `${unread} new message${unread === 1 ? "" : "s"} for you` });
-    b.addEventListener("click", () => { const c = convs.find((x) => x.id !== "pub" && x.unread); if (c) openConv(c.id); });
+    b.addEventListener("click", () => { const c = convs.find((x) => x.id !== "pub" && !x.muted && x.unread); if (c) openConv(c.id); });
     hl.append(". ", b);
   }
   hl.append(".");
@@ -1519,9 +1522,11 @@ $("send").addEventListener("submit", async (ev) => {
   const body = {};
   if (conv.startsWith("ch")) body.channel = conv.slice(2);
   const ch = body.channel && ((last && last.radio && last.radio.channels) || []).find((x) => String(x.index) === body.channel);
-  if (ch && ch.listenOnly) { // the emergency channel: only on purpose (ListenOnly in Go)
+  if (ch && ch.listenOnly) { // the emergency or warning channel: only on purpose (ListenOnly in Go)
     if (!$("msg").value.trim()) return;
-    const typed = window.prompt("The SOS channel is for emergencies only: everyone nearby gets it. Type SOS to send.");
+    const typed = window.prompt(/^sos$/i.test(ch.name)
+      ? "The SOS channel is for emergencies only: everyone nearby gets it. Type SOS to send."
+      : `The hub only listens on the ${ch.name} channel: it is for official warnings. Type ${ch.name} to send anyway.`);
     if (typed == null) return;
     body.confirm = typed;
   } else if (!body.channel && conv !== "pub") body.to = "!" + hex8(Number(conv));
