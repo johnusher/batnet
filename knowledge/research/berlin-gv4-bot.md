@@ -88,6 +88,23 @@ Three public rooms, each with a join link for the Meshtastic app [^channels]:
 | TEST | radio experiments and test messages, kept off the main channel |
 | Warnmeldung | official warnings from MoWaS and KATWARN, prepared and posted automatically |
 
+Decoded (2026-10-26), the three links say more than the page does:
+
+* **TEST** has the open default key (`AQ==`), the same as the primary channel,
+  so anyone can read it; MediumFast is the primary channel with no name and the
+  default key, which is the public channel every MediumFast radio already has.
+  **Warnmeldung** has its own 32-byte key, inside the link: anyone who opens
+  the link can read the channel, so it is closed to nobody who looks.
+* **Each link replaces everything**: it carries one channel and no "add"
+  flag, so the app offers to swap the radio's whole channel list for it, and
+  the TEST or Warnmeldung link would make that channel the primary. The
+  primary channel is where a radio sends its name and position, so it would
+  drop off the public channel. Add the channel instead, in its own slot.
+* **Each link also sets the radio's LoRa settings**: MediumFast, EU_868,
+  **hop limit 7** and 25 dBm. Meshtastic's default and advice is 3 hops; 7 lets
+  every packet travel much further and uses more of everyone's airtime. A hub
+  keeps its own settings and takes only the channel's name and key.
+
 Berlin Chaos Mesh lists TEST, SOS and BerlinMesh instead
 ([presets in Berlin](/research/meshtastic-presets-berlin.md),
 [etiquette](/research/mesh-etiquette.md)): the two sites agree on MediumFast and
