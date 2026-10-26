@@ -1,7 +1,7 @@
 ---
 type: Research Note
 title: The Berlin blackout of September 2025 - the facts behind the film's opening
-description: What is on the public record about the arson attack on two 110 kV pylons in Johannisthal on the night of 8/9 September 2025 and the blackout that followed, as used in the film's Berlin scene; and where the scene's map comes from.
+description: What is on the public record about the arson attack on two 110 kV pylons in Johannisthal on the night of 8/9 September 2025 and the blackout that followed, as used in the film's Berlin scene; where the scene's map comes from; and the longer blackout in the south-west in January 2026.
 tags: [berlin, blackout, film, grid-down, map]
 status: stable
 generated: { by: claude-code/claude-fable-5-1, at: 2026-10-15T16:00:00Z }
@@ -18,6 +18,15 @@ sources:
   - id: stz
     resource: https://www.stuttgarter-zeitung.de/panorama/stromnetz-berlin-laengster-blackout-seit-25-jahren-79155899.html
     title: Stuttgarter Zeitung - Stromnetz Berlin, laengster Blackout seit 25 Jahren
+  - id: senweb-jan
+    resource: https://www.berlin.de/sen/web/presse/pressemitteilungen/2026/pressemitteilung.1629952.php
+    title: Senatsverwaltung für Wirtschaft, Energie und Betriebe - Stromausfall im Berliner Südwesten (3 January 2026)
+  - id: standard-jan
+    resource: https://www.derstandard.at/story/3000000303548/stromversorgung-in-berlin-nach-langem-stromausfall-wieder-stabil
+    title: Der Standard - Stromversorgung in Berlin nach langem Stromausfall wieder stabil (January 2026)
+  - id: lasystem-faq
+    resource: https://mesh.lasystem.de/faq/
+    title: lasystem.de Mesh-Statistik - FAQ (names both blackouts)
   - id: carto
     resource: https://carto.com/basemaps/
     title: CARTO basemaps (dark_all): an API key is required since 2025
@@ -51,6 +60,24 @@ half days." The on-screen figures are 50,000 customers, 2.5 days, and
 film does not give a figure for Berlin's masts; the public reports describe
 mobile coverage failing during the outage). The first cut wrongly said
 "January" and "a cable tunnel"; corrected 2026-10-15 from the sources above.
+
+# A second blackout, January 2026
+
+At about 06:13 on 3 January 2026 a cable bridge over the Teltow canal near
+the Lichterfelde power station burned and damaged several high-voltage
+cables: 45,400 households and 2,200 businesses in Nikolassee, Zehlendorf,
+Wannsee and Lichterfelde lost power. About 10,000 in Lichterfelde were to be
+back the same evening; the other 35,000 connections were expected by the
+afternoon of Thursday 8 January. District heating failed with it, because its
+pumps need power.[^senweb-jan] The city ended its major-incident status a week
+after the fire, once supply was stable; the outage was treated as an
+arson attack.[^standard-jan] Its last homes were expected back after about
+five days, against about 60 hours in September, so September's "longest in
+at least 25 years" held only until then. A Berlin
+mesh operator's FAQ names both outages, and says mobile networks were partly
+affected too, as the reason a LoRa mesh matters.[^lasystem-faq] (The film's
+first cut's "January" belongs to this one, not to Johannisthal, though
+here it was a cable bridge, not a tunnel.)
 
 # The map in the scene
 

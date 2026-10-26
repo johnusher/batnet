@@ -22,6 +22,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 - [ ] **Reply with a quote, copy, and search** in a conversation; a day separator and *jump to today*.
 - [ ] **Reactions** (👍 ✅ ❤) as tiny entries, batched over LoRa so they cost almost nothing, or WiFi-only.
 - [ ] **Night theme** for bedside mode (dim, red-shifted, large), and a high-contrast theme.
+- [ ] **Help places on the offline map.** Defibrillators, Berlin's emergency water pumps, pharmacies, hospitals, fire stations: open data the hub fetches while online and keeps, shown on the [offline map](/decisions/0032-offline-maps.md) and as *nearest to this house* in the app; nothing on the air. The Gv4 Bot answers the same questions over the radio ([note](/research/berlin-gv4-bot.md)); a hub can answer them with no airtime at all. Suggested 2026-10-26.
 - [ ] **A printable village sheet** from the app's help: this house, the hub's name, the channel, how to join, who the admins are. Paper works in a blackout.
 
 # Nicer to use: the hub panel
@@ -64,6 +65,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 - [ ] **New neighbour found.** The first time a `batnet`-named radio is heard: a chime and a card, with *write to them*.
 - [ ] **Mailbox for radios that were off.** A radio that comes back asks the hub for what it missed on the public channel (Meshtastic's store-and-forward does this; the hub has the messages). Airtime manners apply.
 - [ ] **Official warnings for the hub's own area.** While the hub has the internet it fetches the national warnings (NINA from the BBK, warnung.bund.de, and DWD weather) for its own district only, keeps them, and shows them in the house app and the panel; when the internet goes, the last ones stay. Nothing on the air. Suggested 2026-10-25, after a bot's *Warnmeldung* channel on the Berlin mesh was asked, a second time, to stop posting warnings for all of Germany; such a bot needs the internet too, so it goes quiet in a wide blackout.
+- [ ] **A 🤖 and quiet hours for everything automatic.** Every message a hub sends by itself (the reach test, the away note, anything later) starts with 🤖, and none goes out from 22:00 to 07:00; the owner's own messages carry no 🤖. What the Gv4 Bot already does on the Berlin mesh ([note](/research/berlin-gv4-bot.md)); a 🤖 costs 4 of the 200 bytes. Suggested 2026-10-26.
 - [ ] **The queue and the duty meter on the panel** once the LoRa bridge is wired (plan 3b): what is waiting, what the hour's budget has left.
 - [x] **Which way a radio is, from who passes it on.** Built 2026-10-25 as the map's *Guess where the others are*, for the hub's owner only (the hub PIN, even at home; the owner chose that over leaving rough areas alone): [test](/tests/2026-10-25-guessing-where-radios-are.md). Next: a second hub's sightings, and traceroutes or neighbour lists heard on the air, which name direct links.
 - [ ] **A second radio stick as a roving listener** stepping through the EU presets (in [to do](todo.md)), drawn beside the main one.
@@ -72,6 +74,7 @@ are not repeated here. Bugs and limits live in [known problems](known-problems.m
 
 - [ ] **A battery HAT that reports its charge** (in [to do](todo.md)) read over I2C in pure Go; the power rules above hang off it.
 - [ ] **A USB GPS dongle as the clock** after a power cut (B39): read NMEA straight in Go, no gpsd; a position for the hub's own place too.
+- [ ] **An 868 MHz bandpass filter** between the roof antenna and the radio, only if the weekly stats show a high noise floor: it cuts strong signals outside the band at the cost of a little loss ([note](/research/berlin-gv4-bot.md)).
 - [ ] **An e-paper display** for the lowest power: the last message and the radios heard, updated a few times an hour, readable in sunlight, no backlight.
 - [ ] **Button gestures**: short press hello, long press own WiFi, very long press switch off; a buzzer pattern per message kind.
 

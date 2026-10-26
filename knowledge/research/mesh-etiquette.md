@@ -18,6 +18,9 @@ sources:
   - id: chaosmesh
     resource: https://potatomesh.net/pages/about
     title: Berlin Chaos Mesh (PotatoMesh) - settings and channels
+  - id: gv4
+    resource: https://mesh.lasystem.de/faq/
+    title: lasystem.de Mesh-Statistik - FAQ of the Gv4 Bot
   - id: mt-lora
     resource: https://meshtastic.org/docs/configuration/radio/lora/
     title: Meshtastic docs - LoRa configuration
@@ -44,6 +47,13 @@ purposes: an open TEST channel "for pings and testing", an SOS channel for
 "emergency use only", and BerlinMesh as the coordination channel; MeshCore
 has #test and #ping [chaosmesh]. Its forum and Matrix room are where to ask
 before anything new (see [presets in Berlin](/research/meshtastic-presets-berlin.md)).
+
+The **Gv4 Bot**, an automatic node on Berlin's mesh with a public statistics
+site, writes down its own manners: everything automatic starts with 🤖, no
+automatic messages from 22:00 to 07:00, a pause per sender, many answers sent
+privately; and for everyone, short messages, occasional tests but not many,
+no private details, no device names that sound official or like an emergency
+service [gv4] ([note](/research/berlin-gv4-bot.md)).
 
 **Meshtastic** keeps the hop limit at 3 by default ("Really, 3 is fine"),
 recommends faster presets against congestion, and enforces the EU868 duty
