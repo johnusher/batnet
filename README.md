@@ -332,6 +332,33 @@ radio stick froze during a test of the other presets):
   sending for under 1% of the time. The air was busy for 2 to 4% of it.
   ([Test report](knowledge/tests/2026-10-25-two-days-on-the-roof.md).)
 
+### How far we've reached: the records so far
+
+Hearing is one thing; being heard is another. So far the hub hears much
+further than it can show it is heard:
+
+| Record | How far | When |
+|---|---|---|
+| Farthest radio heard straight, with no radio passing it on | **12 km** | 21–22 October (first hub), and from the roof since |
+| Farthest radio heard at all, passed on by other radios | **about 30 km**, through 3 | 23–25 October |
+| Most radios heard | **184** in about 37 hours, spread over 35 by 23 km | 23–25 October |
+| Farthest radios written to | 29 radios, **8.5 to 24.6 km** away, one private message each | night of 23–24 October |
+| Messages confirmed as arrived by a far radio | 2 of those 29 were passed on by a radio near us; none came back as received, and nobody answered | 23–24 October |
+| First message answered from across the city | a private message reached a volunteer's bot **four radios away**, and its radio answered (that it could not open it yet: it had not heard our hub's key) | 26 October, the first try at 5 hops |
+| Hub to hub | the two hubs messaged each other | 23 October, in the same house |
+
+Why the gap? Most of the radios the hub hears are three or more radios
+away, and in Berlin most senders let their messages be passed on 7 times. The
+hub let its own be passed on only 3 times, Meshtastic's standard, so many of
+its messages ran out before they arrived. On 26 October we raised that to
+**5**: by the counts above, enough to reach about nine in ten of the radios
+it hears, against six in ten before, without adding the two most expensive
+steps the rest of the city uses
+([decision 0034](knowledge/decisions/0034-hop-limit-five.md)). The same
+evening, a message the hub could not get across at 3 reached its radio at 5,
+and an answer came back. The next record to set: a far radio that reads the
+message and says so.
+
 ![Where the roof hub hears from: 81 radios placed by direction and distance, most between west and north-north-west, in an oval about 27 by 17 km reaching 30 km out; three to the south, where a chimney stands; the straight zone a narrow petal 14 km to the north-west](docs/img/radio/roof-lobe-light.svg#gh-light-mode-only)
 ![Where the roof hub hears from: 81 radios placed by direction and distance, most between west and north-north-west, in an oval about 27 by 17 km reaching 30 km out; three to the south, where a chimney stands; the straight zone a narrow petal 14 km to the north-west](docs/img/radio/roof-lobe-dark.svg#gh-dark-mode-only)
 
@@ -390,6 +417,17 @@ fills in the shape from real measurements
 * **Put the antenna high, and outside if you can.** In Berlin most of what
   you hear comes in only just strong enough, through a few well-placed
   radios on roofs and towers.
+* **Channels to add, if you like.** A channel is a group chat on the same
+  radio waves: a name and a password, and every radio with both can read it.
+  Berlin's **TEST** channel is where tests go, so they stay off the public
+  one; **SOS** is for emergencies only; **Warnmeldung** carries official
+  warnings, posted by a volunteer's bot. Their settings are on
+  [Berlin Chaos Mesh's page](https://potatomesh.net/pages/about) and
+  [lasystem's channel page](https://mesh.lasystem.de/kanaele/). Careful with
+  join links: lasystem's replace all your channels with the one in the link
+  and set your radio to let messages hop 7 times; add the channel by hand
+  instead. Our roof hub has all three, and only listens on SOS and
+  Warnmeldung.
 * **Say hello where people talk:** Berlin Chaos Mesh's
   [page](https://potatomesh.net/pages/about), its Matrix room
   `#berlinmesh:c-base.org` and its forum, or Freifunk Berlin's meetup at c-base
@@ -878,7 +916,9 @@ the echo.
 * **A message makes at most 3 hops** by default. Each message carries a
   counter that drops by one at each hop. The sender can allow up to 7, and in
   Berlin most do: the first hub hears messages that crossed the city through
-  seven radios.
+  seven radios. Our roof hub allows 5 since 26 October: enough to reach about
+  nine in ten of the radios it hears
+  ([decision 0034](knowledge/decisions/0034-hop-limit-five.md)).
 * **Messages are scrambled** (encrypted, with AES). Meshtastic's public channel
   uses a key everyone knows, so anyone can read it. batnet's private channel
   uses a key only the village has. Meshtastic radios carry it along all the

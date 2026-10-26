@@ -55,7 +55,7 @@ privately; and for everyone, short messages, occasional tests but not many,
 no private details, no device names that sound official or like an emergency
 service [gv4] ([note](/research/berlin-gv4-bot.md)).
 
-**Meshtastic** keeps the hop limit at 3 by default ("Really, 3 is fine"),
+**Meshtastic** keeps the hop limit at 3 by default ("Really, 3 is fine") (batnet's roof hub uses 5 in Berlin, where most send with 7: [0034](/decisions/0034-hop-limit-five.md)),
 recommends faster presets against congestion, and enforces the EU868 duty
 cycle of 10% over a rolling hour [mt-lora].
 
