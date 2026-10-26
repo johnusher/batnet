@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-10-26
+* **Creation**: Research note [does the weather change what a hub hears?](/research/weather-and-signal.md): the receiving radio's own temperature costs 3 to 6 dB from 0 to 50 °C in a chamber, rain itself almost nothing at 868 MHz, refractivity layers (ducting) can carry signals far on calm high-pressure nights; field studies disagree on size. Free data for Berlin (DWD 10-minute stations, Open-Meteo ICON-D2 pressure levels for the refractivity gradient, the Lindenberg radiosonde), how to compare hubs (the same packet at two hubs), and a four-week study plan. The roof hub's journal holds about a day and a half of packets, so a logger comes first; [to do](/todo.md).
+
 ## 2026-10-24
 * **Update**: The panel's Messages folds conversations where only the hub wrote and nobody has answered in six hours into one closed row, *No answer (N)*, at the bottom of the list (last night's 29 reach-test messages, none answered); one comes back up when an answer comes, and Home's latest messages leave them out. Nothing is deleted. Deployed on [pz7](/hardware/bench-pz7.md); the help page says so.
 * **Update**: [B77](/known-problems.md) resolved: the roof hub's panel stayed on *Connecting to the radio…* over a working radio, because it was deployed between two commits (the script asked for the away note's form before the page had it). Redeployed on [pz7](/hardware/bench-pz7.md); a test now checks that the panel's script finds all its elements and that both page scripts parse, and the panel names a fault in its own page instead of blaming the radio or the hub.
