@@ -599,10 +599,15 @@ function renderMessages(r, convs) {
   const sig = conv + "|" + c.texts.map((t) => textKey(t) + t.status).join(",") + "|" + nodes().length + "|" + translations.size;
   if (sig === threadSig) return;
   threadSig = sig;
+  // A channel reads newest first, so the latest is in view without scrolling; a conversation with one radio reads like a chat.
+  const newestFirst = c.num === BCAST;
   const list = $("thread");
-  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  list.replaceChildren(...c.texts.map((t) => bubble(t, r.texts || [], { who: !t.mine && c.num === BCAST ? nameOfNum(t.from) : "", reply: true })));
-  if (atBottom) list.scrollTop = list.scrollHeight;
+  const switched = list.dataset.conv !== conv;
+  list.dataset.conv = conv;
+  const atLatest = switched || (newestFirst ? list.scrollTop < 40 : list.scrollHeight - list.scrollTop - list.clientHeight < 40);
+  const texts = newestFirst ? [...c.texts].reverse() : c.texts;
+  list.replaceChildren(...texts.map((t) => bubble(t, r.texts || [], { who: !t.mine && c.num === BCAST ? nameOfNum(t.from) : "", reply: true })));
+  if (atLatest) list.scrollTop = newestFirst ? 0 : list.scrollHeight;
 }
 
 function showReply() {
