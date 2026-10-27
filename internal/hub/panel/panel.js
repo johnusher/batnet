@@ -74,6 +74,12 @@ function ago(t) {
   return Math.round(d / 86400) + " days ago";
 }
 const clock = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// A message's date and time, e.g. "Mon 27 Oct, 14:05"; the year only when it is not this year's.
+function stamp(t) {
+  const d = new Date(t), o = { weekday: "short", day: "numeric", month: "short" };
+  if (d.getFullYear() !== new Date().getFullYear()) o.year = "numeric";
+  return `${d.toLocaleDateString([], o)}, ${clock(t)}`;
+}
 const clockSec = (t) => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 function duration(s) {
   const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
@@ -523,7 +529,7 @@ function bubble(t, all, { who, reply }) {
   li.append(el("span", { class: "body", text: t.text }));
   const tk = textKey(t), tr = translations.get(tk);
   if (tr) li.append(el("span", { class: "tr-line", text: tr.error ? tr.error : `${tr.text} (machine translation from ${tr.fromName})` }));
-  const meta = el("span", { class: "meta" }, clock(t.at));
+  const meta = el("span", { class: "meta" }, stamp(t.at));
   if (!t.mine) meta.append(`, ${db(t.snr)}, ${t.hops < 0 ? "?" : t.hops} relays${t.pki ? ", encrypted to this hub" : ""}`);
   const st = t.mine ? statusLine(t) : null;
   if (st) meta.append(" ", st);

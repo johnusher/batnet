@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-27
+* **Update**: Each message in the panel shows the day as well as the time it was sent or heard ("Tue 27 Oct, 18:14", the year only when it is not this one), so an old message on a channel is not taken for today's. The help says so. Deployed on [pz7](/hardware/bench-pz7.md).
 * **Update**: The panel's Messages shows a channel (the open one and the group channels) newest first, so the latest is in view without scrolling, and stays at the top as new ones come unless the owner has scrolled down; a conversation with one radio still reads like a chat, newest at the bottom by the box. The help says so. Deployed on [pz7](/hardware/bench-pz7.md).
 
 ## 2026-10-26
