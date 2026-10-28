@@ -1,6 +1,8 @@
 # Bundle update log
 
 ## 2026-10-28
+* **Update**: The weekly stats (`tools/meshstats`, skill `weekly-mesh-stats`) gained *what kind of traffic*: the share of packets for one radio (30 % on the roof hub's last 34 hours), the share heard whole on channels it has no key for (53 %), pairs of radios writing to each other (118, 6 both ways; counted, never named), and the busy waits (73 an hour, 0.36 per packet passed on); the table *Over the weeks* follows the first and the last.
+* **Update**: A 48-hour packet trace on [pz7](/hardware/bench-pz7.md) from 2026-10-28 07:26, out of interest in who talks to whom: meshtasticd's `TraceFile` (a drop-in, `config.d/zz-trace.yaml`) writes every copy heard with its bare header to a file on the hub; a timer removes it and restarts meshtasticd on 2026-10-30 07:26. The trace names real radios: it stays on the hub and in `private/`, findings here as counts only.
 * **Update**: [What Meshtastic does for privacy](/research/meshtastic-security.md): what the roof hub's log shows of who writes to whom - 118 pairs of radios in 35 hours from bare headers, contents unreadable; kept as counts only.
 
 ## 2026-10-27

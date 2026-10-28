@@ -49,6 +49,14 @@ name real radios and places.
 5. **Traced routes**: other people's traceroutes the hub overhears name
    direct links with their signal; they are the best evidence of who hears
    whom. Count them, do not over-read one.
+6. **What kind of traffic and how crowded** (*What kind*, *Channel busy*):
+   the share of packets for one radio (from the bare headers of garbled
+   copies: private messages, their receipts, route checks), the share heard
+   whole on channels the hub has no key for, how many pairs of radios wrote
+   to each other (counted, never named; keep it so in anything recorded),
+   and the busy waits. About 0.35 busy waits per packet passed on was usual
+   on the roof ([test](/knowledge/tests/2026-10-27-channel-busy-on-the-roof.md));
+   much more, with channel use rising, means crowded air.
 
 ## Tell the owner
 

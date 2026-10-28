@@ -93,7 +93,7 @@ HOP = re.compile(r"0x([0-9a-f]+)(?: \((-?[\d.]+)dB\))?")
 
 def parse_log(lines):
     """Each line of meshtasticd's journal (short-iso) that says something about the air."""
-    out = {"garbled": [], "received": [], "relayed": [], "routes": []}
+    out = {"garbled": [], "received": [], "relayed": [], "routes": [], "foreign": [], "busy": []}
     route_next = None
     for line in lines:
         t = line[:25] if len(line) > 25 and line[4] == "-" else None
@@ -108,11 +108,15 @@ def parse_log(lines):
             flags = int(m[5], 16)
             start, limit = flags >> 5, flags & 7
             out["garbled"].append({"t": t, "id": m[2], "from": "!%08x" % int(m[3], 16), "hops": start - limit if start else None,
-                                   "snr": float(m[6]), "rssi": int(m[7]), "relay": "%02x" % (int(m[8], 16) & 0xFF), "mqtt": bool(flags & 0x10)})
+                                   "to": "!%08x" % int(m[4], 16), "snr": float(m[6]), "rssi": int(m[7]), "relay": "%02x" % (int(m[8], 16) & 0xFF), "mqtt": bool(flags & 0x10)})
         elif m := RECEIVED.search(line):
             out["received"].append({"t": t, "port": m[1], "from": "!%08x" % int(m[2], 16), "id": m[3]})
         elif "Rebroadcast received message" in line:
             out["relayed"].append(t)
+        elif "No suitable channel found for decoding" in line:  # whole, but on a channel the hub has no key for
+            out["foreign"].append(t)
+        elif "Can not send yet, busyRx" in line:
+            out["busy"].append(t)
         elif "Route traced:" in line or "Route back traced:" in line:
             route_next = t
     return out
@@ -215,6 +219,20 @@ def figures(s):
     f["noise_floor"] = round(st.median([v for vs in noise.values() for v in vs]), 1) if noise else None
     f["noise_by_hour"] = {h: round(st.median(v), 1) for h, v in sorted(noise.items())}
     f["mqtt_copies"] = sum(e["mqtt"] for e in sure)
+
+    # What kind of traffic: the headers are never encrypted, so a garbled
+    # copy still says whom it was for. Pairs are counted, never listed.
+    everyone = "!%08x" % 0xFFFFFFFF  # the broadcast address
+    to_one = [e for e in log["garbled"] if e["to"] != everyone]
+    f["to_one_share"] = round(len(to_one) / ng, 3) if ng else None
+    nf = len(log["foreign"])
+    f["foreign_share"] = round(nf / (nr + nf), 3) if nr + nf else None
+    pairs = Counter((e["from"], e["to"]) for e in to_one)
+    solid = {p for p, c in pairs.items() if c >= 3}  # a header garbled once is unlikely to repeat
+    f["pairs"] = len(solid)
+    f["pairs_both_ways"] = sum(1 for a, b in solid if (b, a) in solid) // 2
+    f["busy_per_hour"] = round(len(log["busy"]) / hours, 1)
+    f["busy_per_relay"] = round(len(log["busy"]) / len(log["relayed"]), 2) if log["relayed"] else None
 
     # Who carries what: last relays of the sightings (or of the garbled copies)
     via = Counter()
@@ -514,6 +532,11 @@ def summary(f, before):
     L += [f"- **Radios heard:** {f['radios_heard']}{trend('radios_heard')}, {f['placed']} with a place.",
           f"- **Packets heard:** {f['packets_per_hour']} an hour{trend('packets_per_hour', '{:.1f}', None)}; "
           f"**readable:** {100 * (f['readable_share'] or 0):.0f}%{trend('readable_share', '{:+.1%}')}; the hub passed on {f['relayed_per_hour']} an hour.",
+          f"- **What kind:** {100 * (f.get('to_one_share') or 0):.0f}% of packets were for one radio, not everyone{trend('to_one_share', '{:+.1%}', None)} "
+          f"(private messages, their receipts, route checks); {100 * (f.get('foreign_share') or 0):.0f}% of the whole ones were on channels this hub has no key for{trend('foreign_share', '{:+.1%}', None)}; "
+          f"{f.get('pairs', 0)} pairs of radios wrote to each other, {f.get('pairs_both_ways', 0)} both ways (the contents unreadable; pairs counted, not named).",
+          f"- **Channel busy:** {f.get('busy_per_hour', 0)} waits an hour{trend('busy_per_hour', '{:.1f}', 'down')}, {f.get('busy_per_relay') or 0:.2f} per packet passed on "
+          "(the radio waiting its turn, mostly while passing on others' packets).",
           f"- **Noise floor:** {f['noise_floor']} dBm{trend('noise_floor', '{:.1f}', 'down')} (lower is quieter; a rise means interference near the hub).",
           f"- **Heard straight:** {len(f['straight'])} radios{(' (' + str(len(b['straight'])) + ' last time)') if b else ''}: " +
           ", ".join(f"{x['name']} {x['snr']} dB" + (f" ({x['km']} km {x['dir']})" if x['km'] else "") for x in f["straight"][:6]) + ".",
@@ -540,6 +563,8 @@ def summary(f, before):
         notes.append(f"Only {100 * f['readable_share']:.0f}% of the packets heard could be read: many arrive at the edge of what the preset decodes.")
     for o in f["near_but_far"][:5]:
         notes.append(f"{o['name']} is {o['km']} km away but came through {o['fewest_relays']} relays at best: indoors, low, or behind something.")
+    if (f.get("busy_per_relay") or 0) > 0.6:
+        notes.append(f"{f['busy_per_relay']:.2f} busy waits per packet passed on (about 0.35 is usual on the roof): the air near the hub is crowded.")
     if f["mqtt_copies"]:
         notes.append(f"{f['mqtt_copies']} copies came through the internet (MQTT) and back onto the air.")
     if f["per_hour"]:
@@ -548,9 +573,10 @@ def summary(f, before):
         notes.append(f"Busiest hour {busy}:00, quietest {quiet}:00.")
     L += ["## Worth a look", ""] + [f"- {n}" for n in notes] + [""]
     if before:
-        L += ["## Over the weeks", "", "| Snapshot | Radios | Straight | Readable | Noise floor | Packets/h |", "|---|---|---|---|---|---|"]
+        L += ["## Over the weeks", "", "| Snapshot | Radios | Straight | Readable | Noise floor | Packets/h | For one radio | Busy/h |", "|---|---|---|---|---|---|---|---|"]
         for x in before[-7:] + [f]:
-            L.append(f"| {ts(x['at']):%d %b} | {x['radios_heard']} | {len(x['straight'])} | {100 * (x['readable_share'] or 0):.0f}% | {x['noise_floor']} | {x['packets_per_hour']} |")
+            L.append(f"| {ts(x['at']):%d %b} | {x['radios_heard']} | {len(x['straight'])} | {100 * (x['readable_share'] or 0):.0f}% | {x['noise_floor']} | {x['packets_per_hour']} | "
+                     f"{'' if x.get('to_one_share') is None else '%.0f%%' % (100 * x['to_one_share'])} | {x.get('busy_per_hour', '')} |")
     return "\n".join(L) + "\n"
 
 
