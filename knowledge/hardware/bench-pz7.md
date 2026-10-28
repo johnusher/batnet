@@ -219,7 +219,8 @@ On 2026-10-25 it became its own WiFi for 20 minutes and an iPhone joined and
 stayed 9 minutes; back on the home WiFi 3 s after being asked
 ([test](/tests/2026-10-25-pz7-own-wifi-and-health.md)). The same morning's
 health check found it healthy, but its logs only in memory (7 hours' worth):
-they are now on the card, at most 64 MB ([B78](/known-problems.md)). Its
+they are now on the card, at most 64 MB ([B78](/known-problems.md)), from
+2026-10-28 400 MB: 64 MB held only a day and a half, too short for the weekly stats. Its
 serial console is on already (`enable_uart=1`, `console=serial0,115200`): a
 3.3 V USB-to-serial adapter on pins 8, 10 and 6 should give a login with no
 network at all (not tried).

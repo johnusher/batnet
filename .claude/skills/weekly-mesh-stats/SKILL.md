@@ -1,6 +1,6 @@
 ---
 name: weekly-mesh-stats
-description: Use when the owner asks for the hub's weekly statistics, "the stats", trends in what a hub hears, whether its antenna or radio is getting worse, or how the mesh around it changed - and after moving an antenna or a hub. Runs tools/meshstats (a private snapshot of the hub's status, zone readings, sightings and meshtasticd's journal; a plain-words summary with trends; charts of traffic by hour, who brings the packets, and a map of links), reads it, checks the oddities, and records what is safe in the knowledge bundle.
+description: Use when the owner asks for the hub's weekly statistics, "the stats", trends in what a hub hears, whether its antenna or radio is getting worse, or how the mesh around it changed - and after moving an antenna or a hub. Runs tools/meshstats (a private snapshot of the hub's status, zone readings, sightings and meshtasticd's journal; a plain-words summary with trends; charts of traffic by hour, who brings the packets, and a map of links), reads it, checks the oddities, and records what is safe in the knowledge bundle. Also when the owner asks who talks to whom on the mesh, or what people are talking about (a news story going round): tools/meshstats/talk.py, a private map of conversations by day and the words the public channels used, run with every weekly snapshot.
 ---
 
 # Weekly mesh statistics
@@ -14,11 +14,13 @@ every week, a noise floor creeping up, a direction going quiet.
 ```sh
 tools/meshstats/meshstats.py pull pz7     # the hub's ssh name
 tools/meshstats/meshstats.py report pz7
+tools/meshstats/talk.py pz7               # who talks to whom, and the words of the week
 ```
 
 `pull` reads the hub's panel API and saved files and meshtasticd's journal
-since the last snapshot (at most eight days back; the journal holds about two
-weeks), never meshtasticd itself: a second client takes the radio's only slot
+since the last snapshot (at most eight days back; the hub keeps up to 400 MB of
+journal, about a week and a half on the roof, so run it at least weekly or days
+are lost), never meshtasticd itself: a second client takes the radio's only slot
 (B38). Everything lands in `private/meshstats/<hub>/<date>/` (gitignored):
 `summary.md`, `figures.json`, `report.html` (one page: the summary, a map with layers and names on hover, the flows, the traffic) and `report.png` (a picture of it, for a mail). They
 name real radios and places.
@@ -57,16 +59,28 @@ name real radios and places.
    and the busy waits. About 0.35 busy waits per packet passed on was usual
    on the roof ([test](/knowledge/tests/2026-10-27-channel-busy-on-the-roof.md));
    much more, with channel use rising, means crowded air.
-7. **Who talks to whom**, when the owner asks: `tools/meshstats/talk.py <hub>`
-   writes `private/meshstats/<hub>/talk/talk.html` (a map of conversations,
-   the days, the words people used day by day). Running it now and then grows
-   its archive past the hub's last 200 messages and its journal's day or two.
-   Like the rest, it names real radios: findings go in the bundle as counts.
+7. **Who talks to whom** (`talk.py`, every run): it adds the week to an
+   archive in `private/meshstats/<hub>/talk/` and writes `talk.html` there (a
+   map of conversations, the days, the words people used day by day, the
+   messages behind them; `talk.png` a picture). Private messages are known by
+   their headers only (who, to whom, when), never their words. Look at:
+   - **The busiest pairs and days**, against the weeks before: a new pair
+     writing a lot, a day much busier than the rest.
+   - **The word grid**: a word many different people used on one or two days
+     is a story going round; one sender repeating a word is not (the grid
+     counts senders, not messages). Open the messages behind it before
+     calling it news.
+   - **Receipts**: every private message sends one back, so *both ways* is
+     not yet a conversation.
+   A saved journal (`--import <files>`) fills a gap. Like the rest, it names
+   real radios and what people wrote: the bundle gets counts and topics in
+   general words only, never a name or a quote.
 
 ## Tell the owner
 
 Plain words, short: what changed since last time, what is worth a look and
-why, what you checked. Send the summary and pictures by email only when
+why, what you checked; the week's busiest talk and the words that rose, if
+any. Send the summary and pictures by email only when
 asked (the owner's address and sender are in their own setup, not here).
 
 ## Record it
