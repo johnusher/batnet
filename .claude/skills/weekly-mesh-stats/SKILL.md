@@ -57,6 +57,11 @@ name real radios and places.
    and the busy waits. About 0.35 busy waits per packet passed on was usual
    on the roof ([test](/knowledge/tests/2026-10-27-channel-busy-on-the-roof.md));
    much more, with channel use rising, means crowded air.
+7. **Who talks to whom**, when the owner asks: `tools/meshstats/talk.py <hub>`
+   writes `private/meshstats/<hub>/talk/talk.html` (a map of conversations,
+   the days, the words people used day by day). Running it now and then grows
+   its archive past the hub's last 200 messages and its journal's day or two.
+   Like the rest, it names real radios: findings go in the bundle as counts.
 
 ## Tell the owner
 
