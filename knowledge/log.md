@@ -1,7 +1,9 @@
 # Bundle update log
 
-## 2026-10-27
+## 2026-10-28
 * **Update**: [What Meshtastic does for privacy](/research/meshtastic-security.md): what the roof hub's log shows of who writes to whom - 118 pairs of radios in 35 hours from bare headers, contents unreadable; kept as counts only.
+
+## 2026-10-27
 * **Creation**: Test report [why the roof hub finds the channel busy](/tests/2026-10-27-channel-busy-on-the-roof.md), 35 hours of [pz7](/hardware/bench-pz7.md)'s radio log: about 70 *channel busy* waits an hour, 99 % of them while it waited to pass on someone else's packet; its own messages cause about one a day. Channel use 5.5 % (48 neighbours: median 3.7 %), its own airtime about 1 %; 43 % of its relays are packets it cannot read, Meshtastic's default. Nothing to fix; fewer waits would mean relaying less.
 * **Update**: Each message in the panel shows the day as well as the time it was sent or heard ("Tue 27 Oct, 18:14", the year only when it is not this one), so an old message on a channel is not taken for today's. The help says so. Deployed on [pz7](/hardware/bench-pz7.md).
 * **Update**: The panel's Messages shows a channel (the open one and the group channels) newest first, so the latest is in view without scrolling, and stays at the top as new ones come unless the owner has scrolled down; a conversation with one radio still reads like a chat, newest at the bottom by the box. The help says so. Deployed on [pz7](/hardware/bench-pz7.md).
