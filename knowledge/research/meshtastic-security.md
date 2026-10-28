@@ -118,6 +118,11 @@ exchange.
 * Packet headers are clear so relays can forward what they cannot read: sender,
   destination, packet ID, hop counts, channel hash. Who talks to whom, when and
   how much is open to anyone listening [mt-enc].
+  The roof hub shows it (2026-10-27): in 35 hours its log named the sender
+  and recipient of private messages it could not read for 118 pairs of
+  radios seen three times or more, 6 of them writing both ways, from the
+  headers of copies too garbled to read alone. batnet keeps such pairs off
+  every page and report; counts only.
 * A node decrypts before handing a packet to its client over Bluetooth, serial
   or TCP [mt-enc]: meshtasticd gives batnetd plain text, which is why a hub's
   own security is its own problem.
