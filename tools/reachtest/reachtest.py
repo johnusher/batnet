@@ -156,7 +156,7 @@ def report(a):
             out += f" ({t['detail']}, {t['code']})"
         ans = "; ".join(("" if x["toUs"] else "(to all) ") + x["text"] for x in t.get("answers", []))
         print(f"{t['sent'][:16]:16} {t['name'][:18]:18} {t['km'] or '':>5} {t['hopsBefore'] if t['hopsBefore'] is not None else '':>4} {key:>9}  {out[:34]:34} {ans}")
-    reached = [t for t in rows if t.get("status") == "delivered" or t.get("keyCame") or t.get("answers")]
+    reached = [t for t in rows if t.get("status") in ("delivered", "answered") or t.get("keyCame") or t.get("answers")]
     print(f"\n{len(rows)} tried; {len(reached)} reached (delivered, its name card came back, or it answered);"
           f" farthest reached: {max((t['km'] or 0 for t in reached), default=0)} km")
 

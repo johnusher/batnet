@@ -131,7 +131,8 @@ type Text struct {
 	ReplyID uint32    `json:"replyId,omitempty"` // the message this one answers
 	PKI     bool      `json:"pki,omitempty"`     // encrypted end to end for this hub
 	// Status of a message this hub sent: sending, passed on (a radio nearby
-	// relayed it), delivered (the radio it was for confirmed it) or failed.
+	// relayed it), delivered (the radio it was for confirmed it), answered
+	// (another radio replied to it, so it arrived) or failed.
 	Status string `json:"status,omitempty"`
 	Detail string `json:"detail,omitempty"` // why it failed
 	Code   uint32 `json:"code,omitempty"`   // the radio's error number (Routing.Error)
@@ -750,6 +751,9 @@ func (c *Client) packet(p packet) *Event {
 		}
 		c.addText(Text{At: n.LastHeard, From: p.from, To: p.to, Channel: p.channel, Text: t, SNR: p.snr, RSSI: p.rssi, Hops: p.hops(),
 			ID: p.id, ReplyID: p.replyID, PKI: p.pki})
+		if p.replyID != 0 && p.from != c.st.MyNum {
+			c.answered(p.replyID)
+		}
 	case PortNodeInfo:
 		c.setUser(n, parseUser(p.payload))
 	case PortPosition:
@@ -774,17 +778,30 @@ func (c *Client) packet(p packet) *Event {
 	return nil
 }
 
+// answered marks a message this hub sent as answered: another radio replied
+// to it, so it arrived, whatever the receipts said. A message to a channel
+// gets no receipt, and one that no radio was heard passing on may still have
+// arrived; a reply is the proof. Caller holds mu.
+func (c *Client) answered(id uint32) {
+	for i := len(c.st.Texts) - 1; i >= 0; i-- {
+		if t := &c.st.Texts[i]; t.Mine && t.ID == id {
+			t.Status, t.Detail, t.Code = "answered", "", 0
+			return
+		}
+	}
+}
+
 // receipt applies a Routing packet that answers a message this hub sent: from
 // the radio it was for, it was delivered; from this hub's own radio with no
 // error, a radio nearby passed it on; with an error, it failed. A message
-// already delivered stays delivered. Caller holds mu.
+// already delivered or answered stays so. Caller holds mu.
 func (c *Client) receipt(p packet) *Event {
 	for i := len(c.st.Texts) - 1; i >= 0; i-- {
 		t := &c.st.Texts[i]
 		if !t.Mine || t.ID != p.requestID {
 			continue
 		}
-		if t.Status == "delivered" {
+		if t.Status == "delivered" || t.Status == "answered" {
 			return nil
 		}
 		switch code := routingError(p.payload); {

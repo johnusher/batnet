@@ -496,6 +496,7 @@ function statusLine(t) {
     case "sending": return el("span", { class: "st", text: "Sending…" });
     case "passed on": return el("span", { class: "st ok", text: "✓ passed on by a radio nearby" });
     case "delivered": return el("span", { class: "st ok", text: "✓✓ delivered" });
+    case "answered": return el("span", { class: "st ok", text: "✓ answered, so it arrived" });
     case "failed": {
       const code = t.code || Number((/^error (\d+)$/.exec(t.detail || "") || [])[1]) || 0;
       // A message to a channel has no receipt: the radio only listens for a radio

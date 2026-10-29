@@ -333,6 +333,16 @@ func TestDirectMessagesAndReceipts(t *testing.T) {
 	if in := st.Texts[3]; in.To != 0xdeadbeef || in.ReplyID != lost.ID || !in.PKI || in.ID != 4242 || in.Mine {
 		t.Errorf("answer %+v", in)
 	}
+	// The answer shows the message arrived, though it had failed (B80), and a
+	// late receipt does not undo that.
+	if a := st.Texts[2]; a.Status != "answered" || a.Detail != "" || a.Code != 0 {
+		t.Errorf("answered message %+v", a)
+	}
+	f.send(routingPacket(0xdeadbeef, lost.ID, 5))
+	time.Sleep(50 * time.Millisecond)
+	if st := c.Status(); st.Texts[2].Status != "answered" {
+		t.Errorf("after a late receipt %+v", st.Texts[2])
+	}
 
 	var kinds []string
 	var relay string
