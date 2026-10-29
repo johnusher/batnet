@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-10-29
+* **Update**: [Known problems](/known-problems.md): B79, the roof hub's reset with no shutdown at 04:42 after a night of USB timeouts from its radio stick; B80, a channel message called *not delivered* that a bot two relays away answered. A radio check found the hub's signal unchanged over three days (each nearby relay within about 2 dB, the strongest still near 0 dB), so the antenna is in place.
+
 ## 2026-10-28
 * **Update**: The weekly stats now run `talk.py` every time (skill `weekly-mesh-stats`): who talks to whom and the words of the week, checked for a story many people tell, receipts not taken for conversations. A hub keeps up to 400 MB of journal, not 64 MB: on the roof 64 MB held a day and a half of meshtasticd, so a weekly run lost five days; 400 MB is about a week and a half, the same writes kept longer (`deploy/pi/systemd/journald.conf`, applied on [pz7](/hardware/bench-pz7.md)).
 * **Creation**: `tools/meshstats/talk.py`: a private page of who talks to whom around a hub - private messages by their headers only (sender, recipient, time; the contents are encrypted), public replies, machine chatter and traced links on a map; a strip of days; the words the public channels used day by day, counted by different people, so a story of one day stands out (German nouns and names and long words, not fillers or bot commands); and the messages behind a word, a radio or a conversation. Its archive grows with each run and takes saved journals (`--import`). First run on [pz7](/hardware/bench-pz7.md), 25 to 28 October: about 920 private messages and receipts between some 340 radios, 16 public replies, 200 public messages; too few days yet for stories.
