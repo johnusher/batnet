@@ -498,21 +498,29 @@ function statusLine(t) {
     case "delivered": return el("span", { class: "st ok", text: "✓✓ delivered" });
     case "failed": {
       const code = t.code || Number((/^error (\d+)$/.exec(t.detail || "") || [])[1]) || 0;
+      // A message to a channel has no receipt: the radio only listens for a radio
+      // nearby passing it on, and one that went out may still have arrived (B80).
+      if (code === 5 && t.to === BCAST) return explained(el("span", { class: "st warn why", tabindex: "0",
+        title: "For a message to a channel nobody sends a receipt: the radio listens for a radio nearby passing it on, and sent it three times without hearing one, not even garbled. Radios that heard it straight, or relays the hub cannot hear, may still have got it; an answer shows that one did.",
+        text: "No radio heard passing it on (it may still have arrived)" }));
       if (!code) return el("span", { class: "st bad", text: `Not delivered: ${t.detail || "no answer"}` });
       const why = (ERRORS[code] || "The radio gave this number without saying more.") +
         (t.keyAsked ? " The hub has asked that radio for its name card, and sends the message again by itself if it comes within the hour." : "");
       const words = t.detail && !/^error \d+$/.test(t.detail) ? `${t.detail} ` : "";
-      const s = el("span", { class: "st bad why", tabindex: "0", title: why, text: `Not delivered: ${words}(error ${code})` });
-      // A phone has no hover: a tap shows the reason under the message.
-      s.addEventListener("click", () => {
-        const next = s.nextElementSibling;
-        if (next && next.classList.contains("explain")) next.remove();
-        else s.after(el("span", { class: "explain", text: why }));
-      });
-      return s;
+      return explained(el("span", { class: "st bad why", tabindex: "0", title: why, text: `Not delivered: ${words}(error ${code})` }));
     }
     default: return null;
   }
+}
+
+// A phone has no hover: a tap shows a status's reason (its title) under the message.
+function explained(s) {
+  s.addEventListener("click", () => {
+    const next = s.nextElementSibling;
+    if (next && next.classList.contains("explain")) next.remove();
+    else s.after(el("span", { class: "explain", text: s.title }));
+  });
+  return s;
 }
 
 function bubble(t, all, { who, reply }) {

@@ -27,7 +27,7 @@ import sys
 from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from meshstats import STORE, VENDOR, parse_log, shoot, ssh  # noqa: E402
+from meshstats import STORE, VENDOR, journal, parse_log, shoot, ssh  # noqa: E402
 
 EVERYONE = 0xFFFFFFFF
 TRACE = "/var/log/batnet-trace/trace.json"
@@ -79,7 +79,7 @@ def pull(host, arc):
     for t in radio.get("texts", []):
         arc["texts"][str(t["id"])] = {"t": epoch(t["at"]), "from": t["from"], "to": t["to"], "ch": t.get("channel"),
                                       "text": t.get("text", ""), "reply": t.get("replyId") or None, "mine": bool(t.get("mine"))}
-    lines = ssh(host, f"sudo journalctl -u meshtasticd --no-pager -o short-iso --since '{since:%Y-%m-%d %H:%M:%S}'").splitlines()
+    lines = journal(host, since).splitlines()
     add_journal(arc, lines)
     trace = ssh(host, f"sudo cat {TRACE} 2>/dev/null", check=False).splitlines()
     add_trace(arc, trace)

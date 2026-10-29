@@ -43,6 +43,12 @@ def ssh(host, cmd, check=True):
     return subprocess.run(["ssh", "-o", "ConnectTimeout=10", host, cmd], check=check, capture_output=True, text=True).stdout
 
 
+def journal(host, since):
+    """meshtasticd's journal since a time, read at the lowest priority: days of it keep a Zero 2 W busy
+    for a minute, and the radio stick's USB timed out while it did (B79)."""
+    return ssh(host, f"sudo nice -n 19 ionice -c 3 journalctl -u meshtasticd --no-pager -o short-iso --since '{since:%Y-%m-%d %H:%M:%S}'")
+
+
 # ---- pull ----
 
 def snapshots(host):
@@ -68,7 +74,7 @@ def pull(host):
             if f == "hub.json":  # only where the hub stands
                 b = json.dumps({"where": json.loads(b).get("where")})
             open(os.path.join(out, f), "w").write(b)
-    log = ssh(host, f"sudo journalctl -u meshtasticd --no-pager -o short-iso --since '{since.strftime('%Y-%m-%d %H:%M:%S')}'")
+    log = journal(host, since)
     with gzip.open(os.path.join(out, "meshtasticd.log.gz"), "wt") as fh:
         fh.write(log)
     json.dump({"host": host, "at": now.isoformat(), "since": since.isoformat()}, open(os.path.join(out, "meta.json"), "w"))

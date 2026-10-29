@@ -91,7 +91,7 @@ say "Watchdogs"
 install -d /etc/systemd/system.conf.d
 install -m644 systemd/watchdog.conf /etc/systemd/system.conf.d/batnet-watchdog.conf
 
-say "Logs on the card (at most 64 MB), not only in memory"
+say "Logs on the card (at most 400 MB), not only in memory"
 install -d /etc/systemd/journald.conf.d
 install -m644 systemd/journald.conf /etc/systemd/journald.conf.d/50-batnet.conf
 systemctl restart systemd-journald

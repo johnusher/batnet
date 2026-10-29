@@ -123,6 +123,8 @@
     <dd>With a weak signal (near the dashed line) the radio is too far or the antenna too low. With a strong signal, packets collided: the channel is busy, nothing to fix here.</dd>
     <dt>A message says "Not delivered"</dt>
     <dd>The other radio is off, out of reach, or one of the two radios doesn't know the other's key yet. Hover over the error, or tap it, to see what it means. A private message is locked with the other radio's key, which comes in its name card (radios send theirs every few hours, and with each hello). With <i>error 39</i> this hub has not heard that radio's name card yet: it asks for it, and sends the message again by itself if it comes within the hour. A radio's details say whether a private message to it can be sent. Otherwise try again later, or write to everyone.</dd>
+    <dt>A message to a channel says "No radio heard passing it on"</dt>
+    <dd>Nobody sends a receipt for a message to everyone: the hub only listens for a radio nearby passing it on, and heard none, even after sending it three times. It may still have arrived, at radios that heard it straight or through relays the hub can't hear; an answer shows it did. Often it is a busy moment, with several radios sending at once.</dd>
     <dt>The screen is black</dt>
     <dd>It may be asleep (in Medium and Low power): press a key or move the mouse. Wait a minute after switching on. A screen plugged in later starts by itself within a few seconds. Still nothing: the screen belongs in the HDMI socket next to the power socket (HDMI 0); then <code>sudo systemctl restart batnet-screen</code>.</dd>
     <dt>The phone can't find the hub's WiFi</dt>
