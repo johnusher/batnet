@@ -1,0 +1,9 @@
+[Unit]
+Description=batnet: restart meshtasticd before its memory leak stalls the Pi (B79)
+After=meshtasticd.service
+
+[Service]
+Type=oneshot
+# Silent unless it restarts the radio daemon (its line is a warning).
+LogLevelMax=notice
+ExecStart=/usr/local/lib/batnet/batnet-radio-guard

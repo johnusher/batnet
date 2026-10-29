@@ -1,0 +1,15 @@
+#!/bin/sh
+# batnet: meshtasticd 2.7 on a CH341 radio stick (the Meshstick) strands a
+# thread's stack at every radio interrupt: about 12 MB more memory an hour on
+# a busy mesh, swapped out and never given back (B79; meshtastic/firmware
+# #10468, fixed in libch341 for meshtasticd 2.8). On a Zero 2 W, after 18 to
+# 21 hours the Pi stalls long enough for its watchdog to reboot it. Run every
+# 10 minutes: restart meshtasticd once it holds more than a quarter of the
+# Pi's memory, long before that.
+set -u
+pid=$(pidof -s meshtasticd) || exit 0
+held=$(awk '/^(VmRSS|VmSwap):/ {s += $2} END {print s + 0}' /proc/$pid/status)
+limit=$(awk '/^MemTotal:/ {print int($2 / 4)}' /proc/meminfo)
+[ "$held" -gt "$limit" ] || exit 0
+echo "<4>meshtasticd holds $((held / 1024)) MB, over $((limit / 1024)) MB: restarting it (B79)"
+systemctl restart meshtasticd

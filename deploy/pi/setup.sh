@@ -90,6 +90,10 @@ say "Watchdogs"
 # The Pi's hardware watchdog reboots it if the system hangs for 15 s.
 install -d /etc/systemd/system.conf.d
 install -m644 systemd/watchdog.conf /etc/systemd/system.conf.d/batnet-watchdog.conf
+# meshtasticd 2.7 leaks memory with a CH341 radio stick; restart it in time (B79).
+install -d /usr/local/lib/batnet
+install -m755 batnet-radio-guard /usr/local/lib/batnet/batnet-radio-guard
+install -m644 systemd/batnet-radio-guard.service systemd/batnet-radio-guard.timer /etc/systemd/system/
 
 say "Logs on the card (at most 400 MB), not only in memory"
 install -d /etc/systemd/journald.conf.d
@@ -111,6 +115,7 @@ if [ "$noscreen" = 1 ]; then
 else install -m644 systemd/batnet-screen.service /etc/systemd/system/; fi
 systemctl daemon-reload
 systemctl enable --now batnet-clock.timer >/dev/null
+systemctl enable --now batnet-radio-guard.timer >/dev/null
 systemctl enable meshtasticd.service >/dev/null
 systemctl restart meshtasticd.service
 if [ -x /usr/local/bin/batnetd ]; then

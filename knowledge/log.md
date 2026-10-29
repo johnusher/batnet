@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-10-29
+* **Update**: Why the roof hub rebooted itself ([B79](/known-problems.md)): meshtasticd 2.7's library for the Meshstick's USB chip strands a thread's stack at every radio interrupt, about 12 MB an hour, until the Zero 2 W stalls longer than its watchdog allows (upstream fixed, in 2.8 alphas only). A guard restarts meshtasticd once it holds a quarter of the Pi's memory (`deploy/pi/batnet-radio-guard`, a timer, installed by `setup.sh`); meshtasticd runs first for CPU and card, and the stats tools read the journal at the lowest priority. Deployed on [pz7](/hardware/bench-pz7.md). [B80](/known-problems.md) fixed: a channel message no radio was heard passing on says so, and that it may still have arrived. To-do: meshtasticd 2.8 once stable.
 * **Update**: [Known problems](/known-problems.md): B79, the roof hub's reset with no shutdown at 04:42 after a night of USB timeouts from its radio stick; B80, a channel message called *not delivered* that a bot two relays away answered. A radio check found the hub's signal unchanged over three days (each nearby relay within about 2 dB, the strongest still near 0 dB), so the antenna is in place.
 
 ## 2026-10-28

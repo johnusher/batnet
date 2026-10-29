@@ -58,6 +58,7 @@ Tick items off here (move them to Done with the date). Bugs and limits live in
 
 # Known problems to fix first
 
+- [ ] meshtasticd 2.8 on the hubs once it is a stable release (it carries the CH341 fix for B79's memory leak); then check the stranded stacks are gone (`grep -c '' /proc/$(pidof meshtasticd)/maps` stays flat) and keep or drop `batnet-radio-guard`
 - [ ] B19 sessions and lockouts in SQLite, so a reboot keeps people signed in
 - [ ] B16 `sameWiFiGroup` and `snapGroups` without rebuilding the groups per frame
 - [ ] B15 connectivity in the simulator limited to 3 LoRa hops, as the flooding is
