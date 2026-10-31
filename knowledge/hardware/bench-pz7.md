@@ -228,12 +228,14 @@ serial console is on already (`enable_uart=1`, `console=serial0,115200`): a
 3.3 V USB-to-serial adapter on pins 8, 10 and 6 should give a login with no
 network at all (not tried).
 
-From 2026-10-28 07:26 to 2026-10-30 07:26 meshtasticd also writes a packet
+From 2026-10-28 07:26 to 2026-10-30 07:26 meshtasticd also wrote a packet
 trace (`TraceFile` in `/etc/meshtasticd/config.d/zz-trace.yaml`, to
 `/var/log/batnet-trace/trace.json`): every copy heard, with its bare header,
 for a study of who talks to whom. The timer `batnet-trace-stop` removes the
-drop-in and restarts meshtasticd at the end; the file stays until pulled into
-`private/` and deleted. It names real radios: never in this repo.
+drop-in and restarted meshtasticd at the end. On 2026-10-31 the file was
+copied into `private/` and deleted on the hub, with the timer
+([results](/tests/2026-10-30-who-writes-to-whom.md)). It names real radios:
+never in this repo.
 
 # Limits
 

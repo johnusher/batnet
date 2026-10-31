@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-10-31
+* **Creation**: Test report [48 hours of who writes to whom](/tests/2026-10-30-who-writes-to-whom.md) from the roof hub's packet trace: 592 pairs of radios in two days, 120 both ways, most only once, a fifth of it scripted checks around one base station; counts only. The trace is in `private/` and deleted on [pz7](/hardware/bench-pz7.md), with its timer. The memory guard (B79) restarted meshtasticd three times in 33 hours and the hub has not rebooted since.
+
 ## 2026-10-29
 * **Update**: A message of the hub's that someone replies to (a reply that names it) shows *✓ answered, so it arrived*, even after it said failed or *no radio heard passing it on*: a channel has no receipts, a reply is the proof. The help says so; the reach test counts it as reached. Deployed on [pz7](/hardware/bench-pz7.md).
 * **Creation**: Test report [why the roof hub rebooted itself, and whether its signal fell](/tests/2026-10-29-roof-hub-reboots-and-signal.md): the reboots, the leak's evidence and the guard; the signal unchanged over three days, -9 dB normal for a city mesh, the strongest neighbour near 0 dB.
