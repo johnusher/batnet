@@ -438,7 +438,7 @@ function conversations(r) {
     else if (t.mine) id = String(t.to);
     else if (t.to === me) id = String(t.from);
     else continue;
-    if (!out.has(id)) out.set(id, { id, num: Number(id), texts: [] });
+    if (!out.has(id)) out.set(id, { id, num: t.to === BCAST ? BCAST : Number(id), texts: [] }); // a channel ("ch3") is to everyone, not radio NaN
     out.get(id).texts.push(t);
   }
   for (const ch of r.channels || []) {

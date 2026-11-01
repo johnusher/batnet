@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-01
+* **Update**: [B81](/known-problems.md) fixed: the panel's group channels (TEST, BerlinMesh) show who sent each message again, newest first like the open channel, and the sender in the list of conversations. Deployed on [pz7](/hardware/bench-pz7.md).
+
 ## 2026-10-31
 * **Creation**: Test report [48 hours of who writes to whom](/tests/2026-10-30-who-writes-to-whom.md) from the roof hub's packet trace: 592 pairs of radios in two days, 120 both ways, most only once, a fifth of it scripted checks around one base station; counts only. The trace is in `private/` and deleted on [pz7](/hardware/bench-pz7.md), with its timer. The memory guard (B79) restarted meshtasticd three times in 33 hours and the hub has not rebooted since.
 
