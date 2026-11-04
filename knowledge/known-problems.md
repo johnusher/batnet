@@ -16,6 +16,7 @@ This page is the list.
 
 | # | Problem | Found | Area |
 |---|---|---|---|
+| B82 | The weekly summary lists a radio as heard straight for the whole period even if it went silent days ago, and its *Worth a look* does not say so; two strong relays stopped in a week and it showed only "5.8 dB weaker" (the daily split, 2026-11-04) | weekly stats | `tools/meshstats` |
 | B5 | Seqs at or above 2^63 are stored as negative numbers in SQLite; a range up to MaxUint64 returns nothing | plan 1 review | `ledger/sqlstore` |
 | B6 | `ParseVector` reserves memory for the claimed count before checking the bytes are there | plan 1 review | `ledger/vector.go` |
 | B7 | Repair goroutines aren't waited for when `Run` returns; closing the store can race in-flight writes (real-time path only) | plan 1 review | `meshsync` |

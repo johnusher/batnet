@@ -340,7 +340,7 @@ further than it can show it is heard:
 | Record | How far | When |
 |---|---|---|
 | Farthest radio heard straight, with no radio passing it on | **12 km** | 21–22 October (first hub), and from the roof since |
-| Farthest radio heard at all, passed on by other radios | **about 30 km**, through 3 | 23–25 October |
+| Farthest radio heard at all, passed on by other radios | **about 36 km**, through 7 | 3 November |
 | Most radios heard | **184** in about 37 hours, spread over 35 by 23 km | 23–25 October |
 | Farthest radios written to | 29 radios, **8.5 to 24.6 km** away, one private message each | night of 23–24 October |
 | Messages confirmed as arrived by a far radio | 2 of those 29 were passed on by a radio near us; none came back as received, and nobody answered | 23–24 October |

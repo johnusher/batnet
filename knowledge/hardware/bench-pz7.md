@@ -223,7 +223,8 @@ they are now on the card, at most 64 MB ([B78](/known-problems.md)), from
 2026-10-28 400 MB: 64 MB held only a day and a half, too short for the weekly stats.
 It rebooted itself three times between 27 and 29 October: meshtasticd 2.7
 leaks memory with the Meshstick until the Zero stalls past its watchdog; a
-guard now restarts meshtasticd in time ([B79](/known-problems.md)). Its
+guard now restarts meshtasticd in time ([B79](/known-problems.md)); no reboot
+in the [next five and a half days](/tests/2026-11-04-a-week-on-the-roof.md). Its
 serial console is on already (`enable_uart=1`, `console=serial0,115200`): a
 3.3 V USB-to-serial adapter on pins 8, 10 and 6 should give a login with no
 network at all (not tried).

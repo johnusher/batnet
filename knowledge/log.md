@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-04
+* **Creation**: Test report [a week on the roof, day by day](/tests/2026-11-04-a-week-on-the-roof.md): third weekly snapshot; no reboot in five and a half days (the guard restarted meshtasticd 13 times), two strong relays went silent and fewer radios were read a day, a new farthest radio at about 36 km (README's records). [B82](/known-problems.md): the summary does not notice a neighbour that went silent.
+
 ## 2026-11-01
 * **Update**: [B81](/known-problems.md) fixed: the panel's group channels (TEST, BerlinMesh) show who sent each message again, newest first like the open channel, and the sender in the list of conversations. Deployed on [pz7](/hardware/bench-pz7.md).
 
