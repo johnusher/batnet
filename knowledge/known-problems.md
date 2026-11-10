@@ -16,6 +16,7 @@ This page is the list.
 
 | # | Problem | Found | Area |
 |---|---|---|---|
+| B83 | The weekly summary's *Worth a look* calls a relay weaker against the snapshot before only; two relays flagged 5 dB weaker on 2026-11-10 had only gone back to their level of the weeks before ([test](/tests/2026-11-10-second-week-on-the-roof.md)) | weekly stats | `tools/meshstats` |
 | B82 | The weekly summary lists a radio as heard straight for the whole period even if it went silent days ago, and its *Worth a look* does not say so; two strong relays stopped in a week and it showed only "5.8 dB weaker" (the daily split, 2026-11-04) | weekly stats | `tools/meshstats` |
 | B5 | Seqs at or above 2^63 are stored as negative numbers in SQLite; a range up to MaxUint64 returns nothing | plan 1 review | `ledger/sqlstore` |
 | B6 | `ParseVector` reserves memory for the claimed count before checking the bytes are there | plan 1 review | `ledger/vector.go` |

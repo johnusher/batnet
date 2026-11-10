@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-10
+* **Creation**: Test report [a second week on the roof](/tests/2026-11-10-second-week-on-the-roof.md): fourth weekly snapshot; no reboot in 11.5 days (the guard every 8 to 10 hours as traffic rose); the strongest relay, silent from 3 November, came back on the 6th and packets read a day rose a third; one distant relay weaker four weeks running; public talk down to about 20 a day, two thirds bots. [B83](/known-problems.md): the summary's "weaker" compares with last week only.
+
 ## 2026-11-04
 * **Creation**: Test report [a week on the roof, day by day](/tests/2026-11-04-a-week-on-the-roof.md): third weekly snapshot; no reboot in five and a half days (the guard restarted meshtasticd 13 times), two strong relays went silent and fewer radios were read a day, a new farthest radio at about 36 km (README's records). [B82](/known-problems.md): the summary does not notice a neighbour that went silent.
 
