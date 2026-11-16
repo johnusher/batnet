@@ -94,6 +94,9 @@ install -m644 systemd/watchdog.conf /etc/systemd/system.conf.d/batnet-watchdog.c
 install -d /usr/local/lib/batnet
 install -m755 batnet-radio-guard /usr/local/lib/batnet/batnet-radio-guard
 install -m644 systemd/batnet-radio-guard.service systemd/batnet-radio-guard.timer /etc/systemd/system/
+# How warm the Pi is, every 5 minutes, to set against the weather (tools/temptrack).
+install -m755 batnet-temp-log /usr/local/lib/batnet/batnet-temp-log
+install -m644 systemd/batnet-temp-log.service systemd/batnet-temp-log.timer /etc/systemd/system/
 
 say "Logs on the card (at most 400 MB), not only in memory"
 install -d /etc/systemd/journald.conf.d
@@ -116,6 +119,7 @@ else install -m644 systemd/batnet-screen.service /etc/systemd/system/; fi
 systemctl daemon-reload
 systemctl enable --now batnet-clock.timer >/dev/null
 systemctl enable --now batnet-radio-guard.timer >/dev/null
+systemctl enable --now batnet-temp-log.timer >/dev/null
 systemctl enable meshtasticd.service >/dev/null
 systemctl restart meshtasticd.service
 if [ -x /usr/local/bin/batnetd ]; then

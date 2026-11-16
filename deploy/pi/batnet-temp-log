@@ -1,0 +1,12 @@
+#!/bin/sh
+# batnet: one line every 5 minutes of how warm the Pi is, to set against the
+# weather (how closely a hub in a loft or a box follows the air around it).
+# The time (UTC), the CPU's temperature and the load of the last minute,
+# which warms the chip by itself. About 10 KB a day; tools/temptrack reads it.
+set -u
+f=/var/lib/batnet/temperature.csv
+t=$(cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null) || exit 0
+[ -s "$f" ] || echo "time,cpu_c,load1" > "$f"
+printf '%s,%s,%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  "$(awk -v t="$t" 'BEGIN { printf "%.1f", t / 1000 }')" \
+  "$(cut -d' ' -f1 /proc/loadavg)" >> "$f"

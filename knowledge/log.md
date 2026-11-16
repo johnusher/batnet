@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-16
+* **Update**: A hub notes its temperature every 5 minutes (`deploy/pi/batnet-temp-log` and its timer, installed by `setup.sh`; the time, the CPU's °C and the load, about 10 KB a day), on [pz7](/hardware/bench-pz7.md) from today. `tools/temptrack/compare.py <hub>` sets it against the hourly air temperature of a public DWD weather station, to see how closely a Pi in a loft follows the weather: the gap, the correlation, degrees of Pi per degree of air, the lag and the day's swing (checked on made-up data: a Pi following at half strength two hours late is found as such).
+
 ## 2026-11-10
 * **Creation**: Test report [a second week on the roof](/tests/2026-11-10-second-week-on-the-roof.md): fourth weekly snapshot; no reboot in 11.5 days (the guard every 8 to 10 hours as traffic rose); the strongest relay, silent from 3 November, came back on the 6th and packets read a day rose a third; one distant relay weaker four weeks running; public talk down to about 20 a day, two thirds bots. [B83](/known-problems.md): the summary's "weaker" compares with last week only.
 

@@ -230,6 +230,15 @@ serial console is on already (`enable_uart=1`, `console=serial0,115200`): a
 3.3 V USB-to-serial adapter on pins 8, 10 and 6 should give a login with no
 network at all (not tried).
 
+From 2026-11-16 it notes its own temperature every 5 minutes
+(`deploy/pi/batnet-temp-log`, a timer, to `/var/lib/batnet/temperature.csv`:
+the time, the CPU's °C and the load), to see how closely a Pi in the loft
+follows the weather. `tools/temptrack/compare.py pz7` sets it against the
+hourly air temperature of a public DWD station (Berlin Brandenburg by
+default): the gap, the correlation, degrees of Pi per degree of air, the lag
+and each day's swing. The first reading: 35.4 °C at an idle load (0.22),
+with the air at 10.6 °C.
+
 From 2026-10-28 07:26 to 2026-10-30 07:26 meshtasticd also wrote a packet
 trace (`TraceFile` in `/etc/meshtasticd/config.d/zz-trace.yaml`, to
 `/var/log/batnet-trace/trace.json`): every copy heard, with its bare header,

@@ -1,0 +1,8 @@
+[Unit]
+Description=batnet: note how warm the Pi is
+
+[Service]
+Type=oneshot
+# Not three lines in the log every 5 minutes.
+LogLevelMax=notice
+ExecStart=/usr/local/lib/batnet/batnet-temp-log
