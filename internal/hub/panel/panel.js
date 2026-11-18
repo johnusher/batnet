@@ -94,6 +94,15 @@ function distance(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+// A packet's signal and how it came. After relays the signal is the last
+// relay's, not the sender's (B71): a strong relay next door makes far radios
+// look strong, so say whose signal it is.
+function via(snr, hops) {
+  if (hops > 0) return `${db(snr)} from the last relay, ${hops} ${hops === 1 ? "relay" : "relays"}`;
+  if (hops === 0) return `${db(snr)}, heard straight`;
+  return `${db(snr)}, ? relays`;
+}
+
 // Signal strength in four bars from LoRa SNR (dB).
 function bars(snr) {
   const n = snr >= 5 ? 4 : snr >= -2 ? 3 : snr >= -10 ? 2 : 1;
@@ -539,7 +548,7 @@ function bubble(t, all, { who, reply }) {
   const tk = textKey(t), tr = translations.get(tk);
   if (tr) li.append(el("span", { class: "tr-line", text: tr.error ? tr.error : `${tr.text} (machine translation from ${tr.fromName})` }));
   const meta = el("span", { class: "meta" }, stamp(t.at));
-  if (!t.mine) meta.append(`, ${db(t.snr)}, ${t.hops < 0 ? "?" : t.hops} relays${t.pki ? ", encrypted to this hub" : ""}`);
+  if (!t.mine) meta.append(`, ${via(t.snr, t.hops)}${t.pki ? ", encrypted to this hub" : ""}`);
   const st = t.mine ? statusLine(t) : null;
   if (st) meta.append(" ", st);
   if (!t.mine && !tr && canTranslate(t.text)) {
@@ -606,7 +615,7 @@ function renderMessages(r, convs) {
     : c.listenOnly ? `Official warnings (MoWaS, KATWARN), posted automatically by a bot for all of Germany, so most are for somewhere else. The hub only listens here and counts them to no badge.`
     : c.muted ? `The test channel: pings and tests from radios around, so tests stay off the open channel. Anyone can read it; its messages count to no badge.`
     : c.channel ? `A group channel: radios that have its name and password read it. Its password is often public, so don't send anything private.`
-    : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${db(node.snr)}, ${node.hops < 0 ? "?" : node.hops} relays.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
+    : `Only this radio gets it.${node ? ` Last heard ${ago(node.lastHeard)}, ${via(node.snr, node.hops)}.` : ""} Messages to one radio are encrypted between the two once they know each other's key.`;
   $("msg").placeholder = c.id === "pub" ? "Message to everyone in range" : c.channel ? `Message to the ${c.name}` : `Message to ${c.name}`;
   $("thread-empty").hidden = c.texts.length > 0;
   $("thread-empty").textContent = c.num === BCAST ? "No messages heard yet." : "No messages yet. Write the first one below.";

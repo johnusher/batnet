@@ -1,6 +1,7 @@
 # Bundle update log
 
 ## 2026-11-18
+* **Update**: The panel's messages said a signal and the relays ("5.0 dB, 3 relays"), which read as the sender's signal; it is the last relay's (B71), and the roof hub's strongest relay (about +4 dB) made far radios look strong. A message now says "5.0 dB from the last relay, 3 relays" or "heard straight", and so does a radio's conversation; the help gives the scale (+5 dB or more strong and close, about −10 dB usual in a city). Deployed on [pz7](/hardware/bench-pz7.md).
 * **Update**: [B84](/known-problems.md): `http://pz7.local/` did not open in Chrome. The hub's home WiFi had IPv6 off, so a Mac waited 5 s for its name and Chrome gave up; and Chrome on the Mac had no Local Network permission, so even the hub's numbers failed there. `setup.sh` turns local IPv6 on for the hub's WiFi and cable connections (done by hand on [pz7](/hardware/bench-pz7.md)), `deploy.sh` ends by checking that the laptop opens the hub by its name, quickly, and the panel's help names the Mac's permission. The owner's Chrome still failed after a relaunch: the Mac denies Local Network to *Google Chrome Helper* (`com.google.Chrome.helper`, which carries Chrome's network service) while the main app's entries say on; proven by a throwaway Chrome with the network service in its main process, which opened the hub. The help names the helper too.
 
 ## 2026-11-16

@@ -207,7 +207,7 @@
     <dt>Meshtastic</dt><dd>the free software most LoRa radios run; every radio passes others' messages on, so they hop further.</dd>
     <dt>Preset</dt><dd>the speed setting. Radios only hear others on the same one. LongFast reaches furthest but is slow, so a busy city clogs; MediumFast is three times faster and what Berlin uses.</dd>
     <dt>Relay, hop</dt><dd>a radio that passed a message on. "Heard directly" means no relay in between; most messages here come through a few relays. A message often arrives more than once, by different ways; a radio's relays are those of the shortest way it came, even when that copy was too weak to read.</dd>
-    <dt>SNR</dt><dd>how far a signal stands above the background noise, in dB. LoRa can read signals below the noise: MediumFast down to about −12.5 dB, LongFast to about −17.5 dB. Higher is better.</dd>
+    <dt>SNR</dt><dd>how far a signal stands above the background noise, in dB. LoRa can read signals below the noise: MediumFast down to about −12.5 dB, LongFast to about −17.5 dB. Higher is better: +5 dB or more is a strong radio close by, around −10 dB is usual across a city. A message that came through relays shows the <b>last relay's</b> signal, not the sender's, so everything a strong relay next door passes on looks strong; a radio's own signal is under Radios.</dd>
     <dt>RSSI</dt><dd>how strong the signal is, in dBm; −120 is very faint. SNR says more about whether it can be read.</dd>
     <dt>Unreadable</dt><dd>heard but damaged: too weak, or two radios sent at once.</dd>
     <dt>Encrypted</dt><dd>sent on someone else's private channel. Anyone can see that it was sent, only its group can read it.</dd>
