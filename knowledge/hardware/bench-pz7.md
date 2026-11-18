@@ -230,6 +230,11 @@ serial console is on already (`enable_uart=1`, `console=serial0,115200`): a
 3.3 V USB-to-serial adapter on pins 8, 10 and 6 should give a login with no
 network at all (not tried).
 
+Its home WiFi connections had IPv6 switched off (from Raspberry Pi Imager), so a
+Mac waited 5 s to find `pz7.local` and Chrome gave up ([B84](/known-problems.md)):
+on 2026-11-18 both were set to local IPv6 (`link-local`), and the name now
+answers in milliseconds. `setup.sh` does this on every hub.
+
 From 2026-11-16 it notes its own temperature every 5 minutes
 (`deploy/pi/batnet-temp-log`, a timer, to `/var/lib/batnet/temperature.csv`:
 the time, the CPU's °C and the load), to see how closely a Pi in the loft

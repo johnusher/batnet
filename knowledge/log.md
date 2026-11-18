@@ -1,5 +1,8 @@
 # Bundle update log
 
+## 2026-11-18
+* **Update**: [B84](/known-problems.md): `http://pz7.local/` did not open in Chrome. The hub's home WiFi had IPv6 off, so a Mac waited 5 s for its name and Chrome gave up; and Chrome on the Mac had no Local Network permission, so even the hub's numbers failed there. `setup.sh` turns local IPv6 on for the hub's WiFi and cable connections (done by hand on [pz7](/hardware/bench-pz7.md)), `deploy.sh` ends by checking that the laptop opens the hub by its name, quickly, and the panel's help names the Mac's permission.
+
 ## 2026-11-16
 * **Update**: A hub notes its temperature every 5 minutes (`deploy/pi/batnet-temp-log` and its timer, installed by `setup.sh`; the time, the CPU's °C and the load, about 10 KB a day), on [pz7](/hardware/bench-pz7.md) from today. `tools/temptrack/compare.py <hub>` sets it against the hourly air temperature of a public DWD weather station, to see how closely a Pi in a loft follows the weather: the gap, the correlation, degrees of Pi per degree of air, the lag and the day's swing (checked on made-up data: a Pi following at half strength two hours late is found as such).
 

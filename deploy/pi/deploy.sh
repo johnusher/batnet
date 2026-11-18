@@ -17,3 +17,15 @@ cp -R "$root/deploy/pi/." "$out/"
 ssh "$host" 'rm -rf ~/batnet-deploy && mkdir -p ~/batnet-deploy'
 scp -qr "$out/." "$host:batnet-deploy/"
 ssh "$host" 'sudo ~/batnet-deploy/setup.sh'
+
+# Can this laptop open the hub by its name, quickly? A slow or failed name
+# lookup looks like a dead hub (B84), so say so now rather than later.
+name=$(ssh "$host" hostname).local
+read -r code dns <<<"$(curl -s -o /dev/null -m 15 -w '%{http_code} %{time_namelookup}' "http://$name/hub/" || true)"
+if [ "${code:-000}" != 200 ]; then
+  echo "WARNING: http://$name/hub/ did not open from this laptop (HTTP ${code:-000}). Same network? Try the hub's address in numbers."
+elif awk -v d="$dns" 'BEGIN { exit !(d > 1) }'; then
+  echo "WARNING: finding $name took ${dns} s; browsers may give up. Does the hub's network have IPv6 (setup.sh turns local IPv6 on)?"
+else
+  echo "http://$name/hub/ opens from this laptop (name found in ${dns} s)"
+fi

@@ -69,6 +69,21 @@ echo batman-adv >/etc/modules-load.d/batnet.conf
 modprobe batman-adv || true
 # The built-in WiFi (wlan0) stays with NetworkManager; the USB stick is batman's.
 install -m644 networkmanager-batnet.conf /etc/NetworkManager/conf.d/batnet.conf
+# The hub's name on the home network (<name>.local) answers quickly only if
+# its WiFi or cable has an IPv6 address, even a local one. With IPv6 off (as
+# Raspberry Pi Imager sets up the first WiFi) a Mac waits 5 s for an answer
+# that never comes and Chrome gives up: the hub looks dead (B84). Local IPv6
+# only, no address from the internet; the hub's own WiFi is left as it is.
+nmcli -t -f NAME,TYPE,DEVICE connection show | while IFS=: read -r name type dev; do
+  case "$type" in 802-11-wireless|802-3-ethernet) ;; *) continue ;; esac
+  [ "$name" = batnet-own-wifi ] && continue
+  case "$(nmcli -g ipv6.method connection show "$name")" in
+    ignore|disabled)
+      nmcli connection modify "$name" ipv6.method link-local && echo "  $name: local IPv6 on"
+      # Takes effect now without dropping the link (or this SSH session).
+      [ -n "$dev" ] && nmcli device reapply "$dev" >/dev/null || true ;;
+  esac
+done
 install -d /usr/local/lib/batnet
 install -m755 batnet-mesh /usr/local/lib/batnet/batnet-mesh
 
